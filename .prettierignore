@@ -1,0 +1,11 @@
+node_modules/
+dist/
+build/
+.turbo/
+.next/
+.idea/
+.pnpm-store/
+*.d.ts
+*.tsbuildinfo
+*-lock.json
+*-lock.yaml

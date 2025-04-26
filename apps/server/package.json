@@ -1,0 +1,44 @@
+{
+    "name": "@airstate/server",
+    "version": "0.0.0-dev",
+    "description": "The main server for AirState",
+    "main": "./dist/index.mjs",
+    "type": "module",
+    "scripts": {
+        "start": "node .",
+        "start:watch": "linkemon --inspect=0.0.0.0:${CORE_API_DEBUG_PORT:-14002} .",
+        "build": "tsc",
+        "build:no-check": "tsc || exit 0",
+        "build:watch": "tsc --watch --preserveWatchOutput",
+        "dev": "concurrently pnpm:build:watch pnpm:start:watch"
+    },
+    "dependencies": {
+        "@t3-oss/env-core": "0.12.0",
+        "bufferutil": "4.0.9",
+        "cookie": "^1.0.2",
+        "express": "4.21.2",
+        "nanoid": "5.1.5",
+        "winston": "3.17.0",
+        "ws": "8.18.0",
+        "yjs": "13.6.24",
+        "nats": "2.29.0",
+        "zod": "3.24.1",
+        "scope-utilities": "^2.2.1",
+        "@trpc/server": "11.1.1"
+    },
+    "devDependencies": {
+        "@types/express": "4.17.21",
+        "@types/node": "22.12.0",
+        "@types/ws": "8.5.12",
+        "concurrently": "9.1.2",
+        "linkemon": "0.2.0",
+        "nodemon": "3.1.9",
+        "typescript": "5.8.3"
+    },
+    "volta": {
+        "node": "22.12.0"
+    },
+    "files": [
+        "dist"
+    ]
+}

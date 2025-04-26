@@ -1,0 +1,77 @@
+name: airstate
+services:
+    mono:
+        build:
+            context: .
+            dockerfile: Dockerfile
+        working_dir: /mono
+        command: pnpm run dev
+        environment:
+            NODE_ENV: development
+            NATS_URLS: 'nats://nats:4222'
+            PORT: 11001
+
+        ports:
+            - target: 11001 # `server` HTTP port
+              published: 11001
+              protocol: tcp
+
+        volumes:
+            - source: .
+              target: /mono
+              type: bind
+
+            - source: mono-pnpm-store
+              target: /mono/.pnpm-store
+              type: volume
+
+        depends_on:
+            - redis
+            - nats
+
+    redis:
+        image: bitnami/redis:7.4.2
+        environment:
+            ALLOW_EMPTY_PASSWORD: yes
+        ports:
+            - target: 6379
+              published: 6380 # changed; in case you have a local redis running
+              protocol: tcp
+        volumes:
+            - target: /bitnami/redis/data
+              source: redis-data
+              type: volume
+
+
+    nats:
+        image: nats:2.11.1-alpine3.21
+
+        container_name: nats
+
+        ports:
+            # client connections
+            - published: 4222
+              target: 4222
+              protocol: tcp
+
+            # monitoring UI
+            - published: 8222
+              target: 8222
+              protocol: tcp
+
+        volumes:
+            - source: ./apps/server/nats-server.conf
+              target: /etc/nats/nats-server.conf
+              type: bind
+
+            - target: /data
+              source: nats-storage
+              type: volume
+
+        command: [ "-c", "/etc/nats/nats-server.conf", "--server_name", "nats" ]
+
+volumes:
+    # named volumes; they aren't removed on `docker compose down`
+    mono-pnpm-store:
+    redis-data:
+    nats-storage:

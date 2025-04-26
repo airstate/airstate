@@ -1,0 +1,45 @@
+{
+    "name": "@airstate/core",
+    "version": "0.0.0-dev",
+    "description": "The AirState client core WebSocket communication library",
+    "main": "dist/index.mjs",
+    "types": "dist/index.d.mts",
+    "type": "module",
+    "scripts": {
+        "build": "tsc --project tsconfig.build.json",
+        "build:watch": "tsc --project tsconfig.build.json --watch --preserveWatchOutput",
+        "dev": "pnpm build:watch",
+        "test": "jest"
+    },
+    "dependencies": {
+        "@trpc/client": "11.1.1"
+    },
+    "devDependencies": {
+        "typescript": "5.8.3",
+        "jest": "29.7.0",
+        "@types/jest": "29.5.12",
+        "ts-jest": "29.1.2",
+        "prettier": "3.5.3",
+        "@airstate/server": "workspace:*"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/airstate/core.git"
+    },
+    "keywords": [
+        "state",
+        "sync",
+        "realtime"
+    ],
+    "contributors": [
+        {
+            "name": "AirState",
+            "email": "hello@airstate.dev",
+            "url": "https://airstate.dev"
+        }
+    ],
+    "license": "MIT",
+    "include": [
+        "dist/**/*"
+    ]
+}

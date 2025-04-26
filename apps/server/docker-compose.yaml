@@ -1,0 +1,31 @@
+version: "3.8"
+
+services:
+  nats:
+    image: nats:2.11.1
+
+    ports:
+      # client connections
+      - published: 4222
+        target: 4222
+        protocol: tcp
+
+      # monitoring UI
+      - published: 8222
+        target: 8222
+        protocol: tcp
+
+    volumes:
+      - source: ./nats-server.conf
+        target: /etc/nats/nats-server.conf
+        type: bind
+
+      - target: /data
+        source: nats-storage
+        type: volume
+
+    command: ["-c", "/etc/nats/nats-server.conf", "--server_name", "nats"]
+
+volumes:
+  # named volumes; they aren't removed on `docker compose down`
+  nats-storage:
