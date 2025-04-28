@@ -1,5 +1,5 @@
 import { publicProcedure, router } from '../index.mjs';
-import { sharedStateRouter, TSharedStateRouter } from './shared-state.mjs';
+import { TYJSRouter, yjsRouter } from './yjs.mjs';
 
 // note: all delegated routers are cast to their own type with
 //       `as` to work around TypeScript's maximum type inference
@@ -11,7 +11,7 @@ export const appRouter = router({
             message: "HELLO FROM AirState's tRPC SERVER!",
         };
     }),
-    sharedState: sharedStateRouter as TSharedStateRouter,
+    yjs: yjsRouter as TYJSRouter,
 });
 
 export type TAppRouter = typeof appRouter;

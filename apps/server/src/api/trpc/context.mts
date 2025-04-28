@@ -1,12 +1,15 @@
 import * as trpcExpress from '@trpc/server/adapters/express';
 import * as trpcWS from '@trpc/server/adapters/ws';
 import { TServices } from '../../services.mjs';
+import { nanoid } from 'nanoid';
 
 export async function httpContextCreatorFactory(services: TServices) {
     return async function (options: trpcExpress.CreateExpressContextOptions | trpcWS.CreateWSSContextFnOptions) {
         const appKey = options.info.connectionParams?.appKey ?? null;
 
         return {
+            accountingIdentifier: 'TODO', // TODO
+            connectionID: nanoid(),
             appKey: appKey,
             services: services,
         };

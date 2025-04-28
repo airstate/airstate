@@ -28,7 +28,7 @@ await registerHTTPRoutes(expressApp, createHTTPContext);
 logger.debug('attaching ws handlers');
 await registerWSHandlers(wsServer, createHTTPContext);
 
-const port = parseInt(env.AIRSTATE_PORT);
+const port = parseInt(env.AIRSTATE_PORT ?? env.PORT ?? '11001');
 
 server.listen(port, '0.0.0.0', () => {
     logger.info(`🚂 express: listening on http://0.0.0.0:${port}/`, {

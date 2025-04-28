@@ -16,6 +16,14 @@ services:
               published: 11001
               protocol: tcp
 
+            - target: 15001 # `server` HTTP port
+              published: 15001
+              protocol: tcp
+
+            - target: 11002 # `examples` HTTP port
+              published: 11002
+              protocol: tcp
+
         volumes:
             - source: .
               target: /mono
@@ -45,8 +53,6 @@ services:
 
     nats:
         image: nats:2.11.1-alpine3.21
-
-        container_name: nats
 
         ports:
             # client connections

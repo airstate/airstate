@@ -1,5 +1,5 @@
 {
-    "name": "@airstate/core",
+    "name": "@airstate/client",
     "version": "0.0.0-dev",
     "description": "The AirState client core WebSocket communication library",
     "main": "dist/index.mjs",
@@ -12,7 +12,9 @@
         "test": "jest"
     },
     "dependencies": {
-        "@trpc/client": "11.1.1"
+        "@trpc/client": "11.1.1",
+        "yjs": "^13.6.26",
+        "nanoid": "^5.1.5"
     },
     "devDependencies": {
         "typescript": "5.8.3",

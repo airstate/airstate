@@ -6,7 +6,7 @@
     "type": "module",
     "scripts": {
         "start": "node .",
-        "start:watch": "linkemon --inspect=0.0.0.0:${CORE_API_DEBUG_PORT:-14002} .",
+        "start:watch": "linkemon --inspect=0.0.0.0:${AIRSTATE_DEBUG_PORT:-15001} .",
         "build": "tsc",
         "build:no-check": "tsc || exit 0",
         "build:watch": "tsc --watch --preserveWatchOutput",

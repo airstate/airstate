@@ -1,0 +1,25 @@
+---
+import MainLayout from '../layouts/main.astro';
+
+const links = [
+	'/scratch',
+	'/examples/drawing-pad'
+];
+---
+
+<MainLayout>
+	<div class="p-10">
+		<h1 class="text-2xl mb-5">AirState Examples</h1>
+		<ol class="list-decimal">
+			{links.map(link => {
+				return (
+					<li>
+						<a href={link} class="text-stone-800 underline underline-offset-2">
+							{link}
+						</a>
+					</li>
+				)
+			})}
+		</ol>
+	</div>
+</MainLayout>
