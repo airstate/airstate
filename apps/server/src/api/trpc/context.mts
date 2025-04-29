@@ -5,11 +5,13 @@ import { nanoid } from 'nanoid';
 import { returnOf } from 'scope-utilities';
 import { env } from '../../env.mjs';
 import { configSchema } from '../../schema/config.mjs';
+import { resolvePermission } from '../../auth/permissions/index.mjs';
 import { logger } from '../../logger.mjs';
 
 export async function httpContextCreatorFactory(services: TServices) {
     return async function (options: trpcExpress.CreateExpressContextOptions | trpcWS.CreateWSSContextFnOptions) {
         const appKey = options.info.connectionParams?.appKey ?? null;
+        const joiningToken = options.info.connectionParams?.joiningToken;
 
         const resolvedConfig = await returnOf(async () => {
             if (!appKey) {
@@ -33,6 +35,11 @@ export async function httpContextCreatorFactory(services: TServices) {
                 return null;
             }
         });
+        const resolvedPermission = resolvePermission({
+            secretKey: resolvedConfig?.signing_secret || env.SHARED_SIGNING_KEY,
+            token: joiningToken,
+            defaultPermission: resolvedConfig?.default_permissions?.yjs,
+        });
 
         return {
             accountingIdentifier: resolvedConfig?.accounting_identifier ?? '__ANONYMOUS',
@@ -40,6 +47,7 @@ export async function httpContextCreatorFactory(services: TServices) {
             appKey: appKey,
             resolvedConfig: resolvedConfig,
             services: services,
+            resolvedPermission: resolvedPermission,
         };
     };
 }
