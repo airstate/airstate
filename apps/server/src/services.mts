@@ -6,7 +6,7 @@ import { NATSServices } from './types/nats.mjs';
 
 export async function createServices(): Promise<NATSServices> {
     const natsStringCodec = createStringCodec();
-    const natsConnection = await createNATSConnection(env.NATS_URLS.split(',').map((url) => url.trim()));
+    const natsConnection = await createNATSConnection(env.AIRSTATE_NATS_URLS.split(',').map((url) => url.trim()));
 
     const jetStreamClient = createJetStreamClient(natsConnection);
     const jetStreamManager = await createJetStreamManager(natsConnection);

@@ -13,6 +13,14 @@ export const configSchema = z.object({
         )
         .optional(),
     init_error: z.string().optional(),
+    default_permissions: z.object({
+        yjs: z
+            .object({
+                read: z.boolean().default(true),
+                write: z.boolean().default(true),
+            })
+            .optional(),
+    }),
 });
 
 export type TConfig = z.infer<typeof configSchema>;
