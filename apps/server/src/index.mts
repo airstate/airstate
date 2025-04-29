@@ -7,6 +7,10 @@ import { WebSocketServer } from 'ws';
 import { logger } from './logger.mjs';
 import { env } from './env.mjs';
 import { registerWSHandlers } from './api/websocket/index.mjs';
+import { returnOf } from 'scope-utilities';
+import { nanoid } from 'nanoid';
+import cookie from 'cookie';
+import { configSchema } from './schema/config.mjs';
 
 const services = await createServices();
 const expressApp = express();
@@ -16,8 +20,33 @@ const expressApp = express();
 const server = createServer(expressApp);
 
 const wsServer = new WebSocketServer({
-    server: server,
+    noServer: true,
     path: '/ws',
+});
+
+server.on('upgrade', async (request, socket, head) => {
+    if (wsServer.shouldHandle(request)) {
+        const cookies = cookie.parse(request.headers.cookie ?? '');
+
+        const clientIdentifier =
+            'airstate_client_identifier' in cookies && cookies.airstate_client_identifier
+                ? cookies.airstate_client_identifier
+                : nanoid();
+
+        wsServer.once('headers', (headers, request) => {
+            if (!('airstate_client_identifier' in cookies) || !cookies.airstate_client_identifier) {
+                headers.push(
+                    `Set-Cookie: airstate_client_identifier=${clientIdentifier}; Path=/; Domain=; HttpOnly; SameSite=None; Secure`,
+                );
+            }
+        });
+
+        wsServer.handleUpgrade(request, socket, head, (ws) => {
+            wsServer.emit('connection', ws, request);
+        });
+    } else {
+        socket.end();
+    }
 });
 
 const createHTTPContext = await httpContextCreatorFactory(services);
