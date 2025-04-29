@@ -17,13 +17,13 @@ export async function httpContextCreatorFactory(services: TServices) {
                 return null;
             }
 
-            if (!env.CONFIG_API_BASE_URL) {
+            if (!env.AIRSTATE_CONFIG_API_BASE_URL) {
                 logger.warn(`no config api base url set`);
                 return null;
             }
 
             try {
-                const configRequestURL = new URL(`${env.CONFIG_API_BASE_URL}/getConfigFromAppKey`);
+                const configRequestURL = new URL(`${env.AIRSTATE_CONFIG_API_BASE_URL}/getConfigFromAppKey`);
                 configRequestURL.searchParams.set('appKey', appKey);
 
                 const configRequest = await fetch(`${configRequestURL}`);
@@ -35,7 +35,7 @@ export async function httpContextCreatorFactory(services: TServices) {
         });
 
         return {
-            accountingIdentifier: resolvedConfig?.accounting_identifier ?? '$no-account$',
+            accountingIdentifier: resolvedConfig?.accounting_identifier ?? '__ANONYMOUS',
             connectionID: nanoid(),
             appKey: appKey,
             resolvedConfig: resolvedConfig,
