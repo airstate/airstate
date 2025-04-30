@@ -116,11 +116,11 @@ export type TSharedYDocOptions = {
     client?: TAirStateClient;
 
     key: string;
+    doc: y.Doc;
+
     token?: string;
-    initFreshDoc?: (doc: y.Doc) => void;
 
     onError?: (error?: Error) => void;
-
     onConnect?: () => void;
     onDisconnect?: () => void;
     onSynced?: (doc: y.Doc) => void;
@@ -133,18 +133,17 @@ export class RemoteOrigin {
     ) {}
 }
 
-export function createSharedYDoc(options: TSharedYDocOptions) {
+export function shareYDoc(options: TSharedYDocOptions) {
     const sessionID = nanoid();
 
     const airState = options.client ?? getDefaultClient();
-    const freshDoc = new y.Doc();
-
-    if (options.initFreshDoc) {
-        options.initFreshDoc(freshDoc);
-    }
-
-    const doc: y.Doc = new y.Doc();
     let ready = false;
+
+    if (airState.isOpen) {
+        options.onConnect?.();
+    } else {
+        options.onDisconnect?.();
+    }
 
     const cleanupOnOpen = airState.onOpen(() => options.onConnect?.());
     const cleanupOnClose = airState.onClose(() => options.onDisconnect?.());
@@ -153,7 +152,7 @@ export function createSharedYDoc(options: TSharedYDocOptions) {
         {
             key: options.key,
             sessionID: sessionID,
-            initialState: Uint8ArrayToBase64(y.encodeStateAsUpdateV2(freshDoc)),
+            initialState: Uint8ArrayToBase64(y.encodeStateAsUpdateV2(options.doc)),
         },
         {
             onError(error) {
@@ -163,39 +162,28 @@ export function createSharedYDoc(options: TSharedYDocOptions) {
                 if (message.type === 'sync') {
                     message.updates.forEach((update) => {
                         const binaryUpdate = Base64ToUint8Array(update);
-                        y.applyUpdateV2(doc!, binaryUpdate, new RemoteOrigin('sync'));
+                        y.applyUpdateV2(options.doc, binaryUpdate, new RemoteOrigin('sync'));
                     });
 
                     if (message.final) {
                         ready = true;
-                        options.onSynced?.(doc);
-                    }
-                } else if (message.type === 'first') {
-                    y.applyUpdateV2(doc, y.encodeStateAsUpdateV2(freshDoc));
-
-                    if (!ready) {
-                        ready = true;
-                        options.onSynced?.(doc);
+                        options.onSynced?.(options.doc);
                     }
                 } else if (message.type === 'update') {
-                    if (doc) {
-                        if (ready) {
-                            message.updates.forEach((update) => {
-                                const binaryUpdate = Base64ToUint8Array(update);
-                                y.applyUpdateV2(doc!, binaryUpdate, new RemoteOrigin('update', message.client));
-                            });
-                        } else {
-                            console.warn('the server has sent updates before sync completion');
-                        }
+                    if (ready) {
+                        message.updates.forEach((update) => {
+                            const binaryUpdate = Base64ToUint8Array(update);
+                            y.applyUpdateV2(options.doc, binaryUpdate, new RemoteOrigin('update', message.client));
+                        });
                     } else {
-                        console.warn('the server has sent updates before first sync message');
+                        console.warn('the server has sent updates before sync completion');
                     }
                 }
             },
         },
     );
 
-    doc.on('updateV2', async (update, origin) => {
+    options.doc.on('updateV2', async (update, origin) => {
         if (!(origin instanceof RemoteOrigin)) {
             await airState.client.yjs.docUpdate.mutate({
                 key: options.key,
@@ -205,16 +193,11 @@ export function createSharedYDoc(options: TSharedYDocOptions) {
         }
     });
 
-    return {
-        doc: doc,
-        unsubscribe() {
-            doc?.destroy();
+    return () => {
+        cleanupOnOpen();
+        cleanupOnClose();
 
-            cleanupOnOpen();
-            cleanupOnClose();
-
-            subscription.unsubscribe();
-        },
+        subscription.unsubscribe();
     };
 }
 

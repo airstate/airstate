@@ -3,7 +3,10 @@ import { z } from 'zod';
 export const configSchema = z.object({
     version: z.literal('1.0'),
     signing_secret: z.string().optional(),
-    accounting_identifier: z.string().optional(),
+    accounting_identifier: z
+        .string()
+        .regex(/^(_[A-Za-z0-9_]*)|([A-Za-z][A-Za-z0-9_]*)$/)
+        .optional(),
     init_logs: z
         .array(
             z.object({

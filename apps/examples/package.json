@@ -9,6 +9,7 @@
     "astro": "astro"
   },
   "dependencies": {
+    "@airstate/client": "workspace:*",
     "@astrojs/react": "^4.2.5",
     "@tailwindcss/vite": "^4.1.4",
     "@types/react": "^19.1.2",
@@ -17,6 +18,6 @@
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "tailwindcss": "^4.1.4",
-    "@airstate/client": "workspace:*"
+    "y-indexeddb": "^9.0.12"
   }
 }
