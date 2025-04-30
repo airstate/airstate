@@ -5,7 +5,7 @@ import { nanoid } from 'nanoid';
 import { returnOf } from 'scope-utilities';
 import { env } from '../../env.mjs';
 import { configSchema } from '../../schema/config.mjs';
-import { resolvePermission } from '../../auth/permissions/index.mjs';
+import { resolvePermissions } from '../../auth/permissions/index.mjs';
 import { logger } from '../../logger.mjs';
 
 export async function httpContextCreatorFactory(services: TServices) {
@@ -35,10 +35,11 @@ export async function httpContextCreatorFactory(services: TServices) {
                 return null;
             }
         });
-        const resolvedPermission = resolvePermission({
+
+        const resolvedPermissions = resolvePermissions({
             secretKey: resolvedConfig?.signing_secret || env.SHARED_SIGNING_KEY,
             token: joiningToken,
-            defaultPermission: resolvedConfig?.default_permissions?.yjs,
+            defaultPermission: resolvedConfig?.default_permissions,
         });
 
         return {
@@ -47,7 +48,7 @@ export async function httpContextCreatorFactory(services: TServices) {
             appKey: appKey,
             resolvedConfig: resolvedConfig,
             services: services,
-            resolvedPermission: resolvedPermission,
+            resolvedPermissions: resolvedPermissions,
         };
     };
 }

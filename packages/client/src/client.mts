@@ -152,7 +152,6 @@ export function shareYDoc(options: TSharedYDocOptions) {
         {
             key: options.key,
             sessionID: sessionID,
-            initialState: Uint8ArrayToBase64(y.encodeStateAsUpdateV2(options.doc)),
         },
         {
             onError(error) {
@@ -162,7 +161,11 @@ export function shareYDoc(options: TSharedYDocOptions) {
                 if (message.type === 'sync') {
                     message.updates.forEach((update) => {
                         const binaryUpdate = Base64ToUint8Array(update);
-                        y.applyUpdateV2(options.doc, binaryUpdate, new RemoteOrigin('sync'));
+                        y.applyUpdateV2(
+                            options.doc,
+                            binaryUpdate,
+                            new RemoteOrigin('sync'),
+                        );
                     });
 
                     if (message.final) {
@@ -173,10 +176,16 @@ export function shareYDoc(options: TSharedYDocOptions) {
                     if (ready) {
                         message.updates.forEach((update) => {
                             const binaryUpdate = Base64ToUint8Array(update);
-                            y.applyUpdateV2(options.doc, binaryUpdate, new RemoteOrigin('update', message.client));
+                            y.applyUpdateV2(
+                                options.doc,
+                                binaryUpdate,
+                                new RemoteOrigin('update', message.client),
+                            );
                         });
                     } else {
-                        console.warn('the server has sent updates before sync completion');
+                        console.warn(
+                            'the server has sent updates before sync completion',
+                        );
                     }
                 }
             },

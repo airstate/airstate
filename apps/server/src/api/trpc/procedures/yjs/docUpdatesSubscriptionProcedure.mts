@@ -1,8 +1,7 @@
 import { z } from 'zod';
 import { createHash } from 'node:crypto';
-import { AckPolicy, DeliverPolicy } from 'nats';
-import { getInitialState } from './_helpers.mjs';
-import { TRPCError } from '@trpc/server';
+import { AckPolicy, DeliverPolicy, StorageType } from 'nats';
+import { getMergedUpdate } from './_helpers.mjs';
 import { returnOf } from 'scope-utilities';
 import { logger } from '../../../../logger.mjs';
 import { protectedProcedure } from '../../middleware/protected.mjs';
@@ -30,7 +29,6 @@ export const docUpdatesSubscriptionProcedure = protectedProcedure
         z.object({
             key: z.string(),
             sessionID: z.string(),
-            initialState: z.string(),
         }),
     )
     .subscription(async function* ({ ctx, input, signal }) {
@@ -47,39 +45,51 @@ export const docUpdatesSubscriptionProcedure = protectedProcedure
         const subject = `room.${key}`;
         const consumerName = `consumer_${ctx.connectionID}`;
 
-        if (!ctx.resolvedPermission.write) {
-            try {
-                await ctx.services.jetStreamManager.streams.info(streamName);
-            } catch (error) {
-                logger.info(`client with id ${ctx.connectionID} does not have write access but is first`);
-                throw new TRPCError({
-                    code: 'NOT_FOUND',
-                    message: 'There is still no update in this room to read',
-                });
-            }
-        }
+        // ensure the stream exists
+        await ctx.services.jetStreamManager.streams.add({
+            name: streamName,
+            subjects: [subject],
+            storage: StorageType.File,
+            max_msgs_per_subject: -1,
+        });
 
-        const [initialState, lastSeq, isFirst] = await returnOf(async () => {
+        const coordinatorValue = await returnOf(async () => {
             try {
-                return await getInitialState(ctx.services, streamName, subject, input.initialState);
-            } catch (error) {
-                throw new TRPCError({
-                    code: 'INTERNAL_SERVER_ERROR',
-                    message: 'could not process initial state',
-                });
+                await ctx.services.sharedStateKV.create(`${streamName}__coordinator`, JSON.stringify(null));
+                return null;
+            } catch {
+                const value = await ctx.services.sharedStateKV.get(`${streamName}__coordinator`);
+
+                if (value) {
+                    return JSON.parse(value.string()) as {
+                        lastSeq: number;
+                        lastMergedUpdate: string;
+                    };
+                }
+
+                return null;
             }
         });
 
-        if (isFirst) {
+        const [mergedUpdate, lastSeq] = await getMergedUpdate(
+            ctx.services,
+            streamName,
+            coordinatorValue?.lastSeq ?? -1,
+            coordinatorValue?.lastMergedUpdate ?? null,
+        );
+
+        if (mergedUpdate) {
             yield {
-                type: 'first',
+                type: 'sync',
                 lastSeq: lastSeq,
+                updates: [mergedUpdate],
+                final: true,
             } satisfies TMessage;
         } else {
             yield {
                 type: 'sync',
-                updates: [initialState],
                 lastSeq: lastSeq,
+                updates: [],
                 final: true,
             } satisfies TMessage;
         }

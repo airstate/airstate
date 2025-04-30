@@ -1,5 +1,16 @@
 import { z } from 'zod';
 
+export const permissionsSchema = z.object({
+    yjs: z
+        .object({
+            read: z.boolean().default(true),
+            write: z.boolean().default(true),
+        })
+        .optional(),
+});
+
+export type TPermissions = z.infer<typeof permissionsSchema>;
+
 export const configSchema = z.object({
     version: z.literal('1.0'),
     signing_secret: z.string().optional(),
@@ -16,14 +27,7 @@ export const configSchema = z.object({
         )
         .optional(),
     init_error: z.string().optional(),
-    default_permissions: z.object({
-        yjs: z
-            .object({
-                read: z.boolean().default(true),
-                write: z.boolean().default(true),
-            })
-            .optional(),
-    }),
+    default_permissions: permissionsSchema,
 });
 
 export type TConfig = z.infer<typeof configSchema>;

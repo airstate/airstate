@@ -1,17 +1,7 @@
-export type DefaultPermission =
-    | {
-          read: boolean;
-          write: boolean;
-      }
-    | undefined;
+import { TPermissions } from '../../schema/config.mjs';
 
 export type PermissionResolverOptions = {
-    secretKey: string | undefined;
-    token: string | undefined;
-    defaultPermission: DefaultPermission;
-};
-
-export type ResolvedPermission = {
-    read: boolean;
-    write: boolean;
+    secretKey?: string;
+    token?: string;
+    defaultPermission?: TPermissions;
 };

@@ -88,82 +88,84 @@ export function Scratch() {
     //     console.log(decodeYDocToObject({ doc: d1 }), decodeYDocToObject({ doc: d2 }));
     // }, []);
 
+    // useEffect(() => {
+    //     const d = new yjs.Doc();
+    //     let u: null | Uint8Array = null;
+    //
+    //     d.on('update', (u1) => {
+    //         u = u1;
+    //         console.log(`updated ${Math.random()}`, u1.length);
+    //     });
+    //
+    //     const provider = new IndexeddbPersistence('testing', d);
+    //
+    //     // d.getMap('main').set('location', 'Denver, CO');
+    //
+    //     // console.log(yjs.encodeStateAsUpdate(d).length);
+    //     //
+    //     // for (let i = 0; i < 5; i++) {
+    //     //     yjs.applyUpdate(d, u!);
+    //     // }
+    //     //
+    //     // d.getMap('main').set('address', 'Denver, CO');
+    //     // d.getMap('main').set('address', 'tomato');
+    //
+    //     console.log(yjs.encodeStateAsUpdate(d).length);
+    // }, []);
+
     useEffect(() => {
-        const d = new yjs.Doc();
-        let u: null | Uint8Array = null;
-
-        d.on('update', (u1) => {
-            u = u1;
-            console.log(`updated ${Math.random()}`, u1.length);
-        });
-
-        const provider = new IndexeddbPersistence('testing', d);
-
-        // d.getMap('main').set('location', 'Denver, CO');
-
-        // console.log(yjs.encodeStateAsUpdate(d).length);
-        //
-        // for (let i = 0; i < 5; i++) {
-        //     yjs.applyUpdate(d, u!);
-        // }
-        //
-        // d.getMap('main').set('address', 'Denver, CO');
-        // d.getMap('main').set('address', 'tomato');
-
-        console.log(yjs.encodeStateAsUpdate(d).length);
+        setTimeout(() => {
+            setRun2(true);
+        }, 2000);
     }, []);
 
-    // useEffect(() => {
-    //     setTimeout(() => {
-    //         setRun2(true);
-    //     }, 2000);
-    // }, []);
+    useEffect(() => {
+        const doc = new yjs.Doc();
 
-    // useEffect(() => {
-    //     const doc = new yjs.Doc();
-    //
-    //     return shareYDoc({
-    //         key: 'test',
-    //         doc: doc,
-    //         onConnect() {
-    //             console.log('1 connected');
-    //         },
-    //         onDisconnect() {
-    //             console.log('1 disconnected');
-    //         },
-    //         onSynced(doc) {
-    //             console.log('1 synced', doc.getMap('main').toJSON());
-    //
-    //             doc.on('update', () => {
-    //                 console.log('1:', doc.getMap('main').toJSON());
-    //             });
-    //         },
-    //     });
-    // }, []);
+        return shareYDoc({
+            key: 'test',
+            doc: doc,
+            onConnect() {
+                console.log('1 connected');
+            },
+            onDisconnect() {
+                console.log('1 disconnected');
+            },
+            onSynced(doc) {
+                console.log('1 synced', doc.getMap('main').toJSON());
 
-    // useEffect(() => {
-    //     if (run2) {
-    //         return createSharedYDoc({
-    //             key: 'test',
-    //             initFreshDoc(doc) {},
-    //             onConnect() {
-    //                 console.log('2 connected');
-    //             },
-    //             onDisconnect() {
-    //                 console.log('2 disconnected');
-    //             },
-    //             onSynced(doc) {
-    //                 console.log('2 synced', doc.getMap('main').toJSON());
-    //
-    //                 doc.on('update', () => {
-    //                     console.log('2:', doc.getMap('main').toJSON());
-    //                 });
-    //
-    //                 doc.getMap('main').set('location', `Denver, CO ${Math.random()}`);
-    //             },
-    //         }).unsubscribe;
-    //     }
-    // }, [run2]);
+                doc.on('update', () => {
+                    console.log('1:', doc.getMap('main').toJSON());
+                });
+            },
+        });
+    }, []);
+
+    useEffect(() => {
+        if (run2) {
+            const doc = new yjs.Doc();
+
+            return shareYDoc({
+                key: 'test',
+                doc: doc,
+                onConnect() {
+                    console.log('2 connected');
+                },
+                onDisconnect() {
+                    console.log('2 disconnected');
+                },
+                onSynced(doc) {
+                    console.log('2 synced', doc.getMap('main').toJSON());
+
+                    doc.on('update', () => {
+                        console.log('2:', doc.getMap('main').toJSON());
+                    });
+
+                    doc.getMap('main').set('location', `Denver, CO ${Math.random()}`);
+                },
+            });
+        }
+    }, [run2]);
 
     return <div>tomato</div>;
 }
