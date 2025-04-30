@@ -3,9 +3,16 @@ import type { TContext } from './context.mjs';
 import { ZodError } from 'zod';
 import { env } from '../../env.mjs';
 
-const t = initTRPC.context<TContext>().create({
-    isDev: env.NODE_ENV !== 'production',
-});
+export interface Meta {
+    writePermissionRequired: boolean;
+}
+
+const t = initTRPC
+    .context<TContext>()
+    .meta<Meta>()
+    .create({
+        isDev: env.NODE_ENV !== 'production',
+    });
 
 export const router = t.router;
 export const middleware = t.middleware;

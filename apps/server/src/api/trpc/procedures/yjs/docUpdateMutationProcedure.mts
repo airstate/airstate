@@ -1,13 +1,11 @@
 import { z } from 'zod';
-import { publicProcedure } from '../../index.mjs';
 import { createHash } from 'node:crypto';
-import { AckPolicy, DeliverPolicy, headers } from 'nats';
-import { getInitialState } from './_helpers.mjs';
+import { headers } from 'nats';
 import { TRPCError } from '@trpc/server';
-import { returnOf } from 'scope-utilities';
-import { logger } from '../../../../logger.mjs';
+import { protectedProcedure } from '../../middleware/protected.mjs';
 
-export const docUpdateMutationProcedure = publicProcedure
+export const docUpdateMutationProcedure = protectedProcedure
+    .meta({ writePermissionRequired: true })
     .input(
         z.object({
             key: z.string(),

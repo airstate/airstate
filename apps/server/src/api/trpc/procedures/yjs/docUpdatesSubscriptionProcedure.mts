@@ -1,11 +1,11 @@
 import { z } from 'zod';
-import { publicProcedure } from '../../index.mjs';
 import { createHash } from 'node:crypto';
 import { AckPolicy, DeliverPolicy } from 'nats';
 import { getInitialState } from './_helpers.mjs';
 import { TRPCError } from '@trpc/server';
 import { returnOf } from 'scope-utilities';
 import { logger } from '../../../../logger.mjs';
+import { protectedProcedure } from '../../middleware/protected.mjs';
 
 export type TMessage =
     | {
@@ -25,7 +25,7 @@ export type TMessage =
           lastSeq: number;
       };
 
-export const docUpdatesSubscriptionProcedure = publicProcedure
+export const docUpdatesSubscriptionProcedure = protectedProcedure
     .input(
         z.object({
             key: z.string(),
@@ -46,6 +46,18 @@ export const docUpdatesSubscriptionProcedure = publicProcedure
         const streamName = key;
         const subject = `room.${key}`;
         const consumerName = `consumer_${ctx.connectionID}`;
+
+        if (!ctx.resolvedPermission.write) {
+            try {
+                await ctx.services.jetStreamManager.streams.info(streamName);
+            } catch (error) {
+                logger.info(`client with id ${ctx.connectionID} does not have write access but is first`);
+                throw new TRPCError({
+                    code: 'NOT_FOUND',
+                    message: 'There is still no update in this room to read',
+                });
+            }
+        }
 
         const [initialState, lastSeq, isFirst] = await returnOf(async () => {
             try {
