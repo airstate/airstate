@@ -148,6 +148,16 @@ export function shareYDoc(options: TSharedYDocOptions) {
     const cleanupOnOpen = airState.onOpen(() => options.onConnect?.());
     const cleanupOnClose = airState.onClose(() => options.onDisconnect?.());
 
+    options.doc.on('updateV2', async (update, origin) => {
+        if (!(origin instanceof RemoteOrigin)) {
+            await airState.client.yjs.docUpdate.mutate({
+                key: options.key,
+                sessionID: sessionID,
+                encodedUpdates: [Uint8ArrayToBase64(update)],
+            });
+        }
+    });
+
     const subscription = airState.client.yjs.docUpdates.subscribe(
         {
             key: options.key,
@@ -159,13 +169,16 @@ export function shareYDoc(options: TSharedYDocOptions) {
             },
             onData(message) {
                 if (message.type === 'sync') {
-                    message.updates.forEach((update) => {
-                        const binaryUpdate = Base64ToUint8Array(update);
-                        y.applyUpdateV2(
-                            options.doc,
-                            binaryUpdate,
-                            new RemoteOrigin('sync'),
-                        );
+                    y.transact(options.doc, () => {
+                        message.updates.forEach((update) => {
+                            const binaryUpdate = Base64ToUint8Array(update);
+
+                            y.applyUpdateV2(
+                                options.doc,
+                                binaryUpdate,
+                                new RemoteOrigin('sync'),
+                            );
+                        });
                     });
 
                     if (message.final) {
@@ -174,13 +187,16 @@ export function shareYDoc(options: TSharedYDocOptions) {
                     }
                 } else if (message.type === 'update') {
                     if (ready) {
-                        message.updates.forEach((update) => {
-                            const binaryUpdate = Base64ToUint8Array(update);
-                            y.applyUpdateV2(
-                                options.doc,
-                                binaryUpdate,
-                                new RemoteOrigin('update', message.client),
-                            );
+                        y.transact(options.doc, () => {
+                            message.updates.forEach((update) => {
+                                const binaryUpdate = Base64ToUint8Array(update);
+
+                                y.applyUpdateV2(
+                                    options.doc,
+                                    binaryUpdate,
+                                    new RemoteOrigin('update', message.client),
+                                );
+                            });
                         });
                     } else {
                         console.warn(
@@ -191,16 +207,6 @@ export function shareYDoc(options: TSharedYDocOptions) {
             },
         },
     );
-
-    options.doc.on('updateV2', async (update, origin) => {
-        if (!(origin instanceof RemoteOrigin)) {
-            await airState.client.yjs.docUpdate.mutate({
-                key: options.key,
-                sessionID: sessionID,
-                encodedUpdate: Uint8ArrayToBase64(update),
-            });
-        }
-    });
 
     return () => {
         cleanupOnOpen();

@@ -10,7 +10,7 @@ export const docUpdateMutationProcedure = protectedProcedure
         z.object({
             key: z.string(),
             sessionID: z.string(),
-            encodedUpdate: z.string(),
+            encodedUpdates: z.string().array(),
         }),
     )
     .mutation(async function ({ ctx, input, signal }) {
@@ -24,13 +24,15 @@ export const docUpdateMutationProcedure = protectedProcedure
         publishHeaders.set('sessionID', input.sessionID);
 
         try {
-            await ctx.services.jetStreamClient.publish(
-                subject,
-                ctx.services.natsStringCodec.encode(input.encodedUpdate),
-                {
-                    headers: publishHeaders,
-                },
-            );
+            for (const encodedUpdate of input.encodedUpdates) {
+                await ctx.services.jetStreamClient.publish(
+                    subject,
+                    ctx.services.natsStringCodec.encode(encodedUpdate),
+                    {
+                        headers: publishHeaders,
+                    },
+                );
+            }
         } catch (err) {
             throw new TRPCError({
                 code: 'INTERNAL_SERVER_ERROR',
