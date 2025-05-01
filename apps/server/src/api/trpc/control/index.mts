@@ -1,5 +1,5 @@
 import { initTRPC } from '@trpc/server';
-import type { TServicePlaneContext } from './context.mjs';
+import type { TControlPlaneContext } from './context.mjs';
 import { ZodError } from 'zod';
 import { env } from '../../../env.mjs';
 
@@ -7,17 +7,17 @@ export interface Meta {
     writePermissionRequired: boolean;
 }
 
-const servicePlaneTRPC = initTRPC
-    .context<TServicePlaneContext>()
+const controlPlaneTRPC = initTRPC
+    .context<TControlPlaneContext>()
     .meta<Meta>()
     .create({
         isDev: env.NODE_ENV !== 'production',
     });
 
-export const servicePlaneRouter = servicePlaneTRPC.router;
-export const servicePlaneMiddleware = servicePlaneTRPC.middleware;
+export const controlPlaneRouter = controlPlaneTRPC.router;
+export const controlPlaneMiddleware = controlPlaneTRPC.middleware;
 
-export const servicePlanePublicProcedure = servicePlaneTRPC.procedure.use(async ({ path, next, type }) => {
+export const controlPlanePublicProcedure = controlPlaneTRPC.procedure.use(async ({ path, next, type }) => {
     const result = await next();
 
     if (!result.ok && result.error.cause instanceof ZodError) {
@@ -27,4 +27,4 @@ export const servicePlanePublicProcedure = servicePlaneTRPC.procedure.use(async 
     return result;
 });
 
-export const createServicePlaneCallerFactory = servicePlaneTRPC.createCallerFactory;
+export const createControlPlaneCallerFactory = controlPlaneTRPC.createCallerFactory;

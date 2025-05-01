@@ -3,7 +3,7 @@ import { createServer } from 'node:http';
 import { WebSocketServer } from 'ws';
 import cookie from 'cookie';
 import { nanoid } from 'nanoid';
-import { httpContextCreatorFactory } from '../api/trpc/service/context.mjs';
+import { servicePlaneHTTPContextCreatorFactory } from '../api/trpc/service/context.mjs';
 import { logger } from '../logger.mjs';
 import { registerServicePlaneHTTPRoutes } from '../api/http/servicePlane.mjs';
 import { registerServicePlaneWebSocketHandler } from '../api/websocket/servicePlane.mjs';
@@ -47,12 +47,12 @@ export async function initServicePlane(services: TServices) {
         }
     });
 
-    const createServicePlaneHTTPContext = await httpContextCreatorFactory(services);
+    const createServicePlaneHTTPContext = await servicePlaneHTTPContextCreatorFactory(services);
 
-    logger.debug('registering http routes');
+    logger.debug('registering service-plane http routes');
     await registerServicePlaneHTTPRoutes(servicePlaneExpressApp, createServicePlaneHTTPContext);
 
-    logger.debug('attaching ws handlers');
+    logger.debug('attaching service-plane ws handlers');
     await registerServicePlaneWebSocketHandler(servicePlaneWebSocketServer, createServicePlaneHTTPContext);
 
     const servicePlanePOrt = parseInt(env.AIRSTATE_PORT ?? env.PORT ?? '11001');

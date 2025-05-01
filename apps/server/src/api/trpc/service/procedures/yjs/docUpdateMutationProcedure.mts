@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { createHash } from 'node:crypto';
 import { headers } from 'nats';
 import { TRPCError } from '@trpc/server';
-import { servicePlanePassthroughProcedure } from '../../middleware/protected.mjs';
+import { servicePlanePassthroughProcedure } from '../../middleware/passthrough.mjs';
 
 export const docUpdateMutationProcedure = servicePlanePassthroughProcedure
     .meta({ writePermissionRequired: true })

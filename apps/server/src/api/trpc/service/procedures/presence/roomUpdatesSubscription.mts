@@ -1,4 +1,4 @@
-import { servicePlanePassthroughProcedure } from '../../middleware/protected.mjs';
+import { servicePlanePassthroughProcedure } from '../../middleware/passthrough.mjs';
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 

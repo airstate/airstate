@@ -1,22 +1,22 @@
 import express, { Request, type Express } from 'express';
 import * as trpcExpress from '@trpc/server/adapters/express';
-import { TServicePlaneContextCreator } from '../trpc/service/context.mjs';
-import { servicePlaneAppRouter } from '../trpc/service/routers/index.mjs';
 import { errorMiddleware } from './middleware/errorMiddleware.mjs';
+import { TControlPlaneContextCreator } from '../trpc/control/context.mjs';
+import { controlPlaneAppRouter } from '../trpc/control/routers/index.mjs';
 
-export async function registerServicePlaneHTTPRoutes(expressApp: Express, createContext: TServicePlaneContextCreator) {
+export async function registerControlPlaneHTTPRoutes(expressApp: Express, createContext: TControlPlaneContextCreator) {
     const app = expressApp;
 
     app.get('/', (req, res) => {
         res.json({
-            message: 'HELLO FROM AirState service-plane SERVER',
+            message: 'HELLO FROM AirState control-plane SERVER',
         });
     });
 
     app.use(
         '/trpc',
         trpcExpress.createExpressMiddleware({
-            router: servicePlaneAppRouter,
+            router: controlPlaneAppRouter,
             createContext,
         }),
     );

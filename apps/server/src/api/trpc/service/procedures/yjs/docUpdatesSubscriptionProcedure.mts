@@ -4,7 +4,7 @@ import { AckPolicy, DeliverPolicy, StorageType } from 'nats';
 import { getMergedUpdate } from './_helpers.mjs';
 import { returnOf } from 'scope-utilities';
 import { logger } from '../../../../../logger.mjs';
-import { servicePlanePassthroughProcedure } from '../../middleware/protected.mjs';
+import { servicePlanePassthroughProcedure } from '../../middleware/passthrough.mjs';
 import { nanoid } from 'nanoid';
 import { TRPCError } from '@trpc/server';
 

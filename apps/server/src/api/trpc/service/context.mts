@@ -8,7 +8,7 @@ import { configSchema } from '../../../schema/config.mjs';
 import { resolvePermissions } from '../../../auth/permissions/index.mjs';
 import { logger } from '../../../logger.mjs';
 
-export async function httpContextCreatorFactory(services: TServices) {
+export async function servicePlaneHTTPContextCreatorFactory(services: TServices) {
     return async function (options: trpcExpress.CreateExpressContextOptions | trpcWS.CreateWSSContextFnOptions) {
         const appKey = options.info.connectionParams?.appKey ?? null;
         const joiningToken = options.info.connectionParams?.joiningToken;
@@ -53,5 +53,5 @@ export async function httpContextCreatorFactory(services: TServices) {
     };
 }
 
-export type TContextCreator = Awaited<ReturnType<typeof httpContextCreatorFactory>>;
-export type TContext = Awaited<ReturnType<TContextCreator>>;
+export type TServicePlaneContextCreator = Awaited<ReturnType<typeof servicePlaneHTTPContextCreatorFactory>>;
+export type TServicePlaneContext = Awaited<ReturnType<TServicePlaneContextCreator>>;

@@ -1,11 +1,11 @@
 import { applyWSSHandler } from '@trpc/server/adapters/ws';
-import { servicePlaneAppRouter, TServicePlaneAppRouter } from '../trpc/service/routers/index.mjs';
+import { servicePlaneAppRouter, type TServicePlaneAppRouter } from '../trpc/service/routers/index.mjs';
 import { type WebSocketServer } from 'ws';
-import { TContextCreator } from '../trpc/service/context.mjs';
+import { TServicePlaneContextCreator } from '../trpc/service/context.mjs';
 
 export async function registerServicePlaneWebSocketHandler(
     websocketServer: WebSocketServer,
-    createContext: TContextCreator,
+    createContext: TServicePlaneContextCreator,
 ) {
     applyWSSHandler<TServicePlaneAppRouter>({
         wss: websocketServer,
