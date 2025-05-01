@@ -24,17 +24,21 @@ export function resolvePermissions({
 
     const effectiveDefaultPermissions: Required<TPermissions> = {
         yjs: {
-            read: defaultPermission?.yjs?.read ?? env.DEFAULT_YJS_PERMISSION !== 'none',
-            write: defaultPermission?.yjs?.write ?? env.DEFAULT_YJS_PERMISSION === 'read-write',
+            read: defaultPermission?.yjs?.read ?? env.DEFAULT_YJS_READ_PERMISSION.toLowerCase() === 'true',
+            write: defaultPermission?.yjs?.write ?? env.DEFAULT_YJS_WRITE_PERMISSION.toLowerCase() === 'true',
         },
         presence: {
-            show:
-                (defaultPermission?.presence?.show ?? env.DEFAULT_PRESENCE_PERMISSION === 'all')
-                    ? -1
-                    : env.DEFAULT_PRESENCE_PERMISSION === 'none'
-                      ? 0
-                      : parseInt(env.DEFAULT_PRESENCE_PERMISSION),
-            summary: env.DEFAULT_PRESENCE_PERMISSION !== 'none',
+            join: defaultPermission?.presence?.join ?? env.DEFAULT_PRESENCE_JOIN_PERMISSION.toLowerCase() === 'true',
+            update_state:
+                defaultPermission?.presence?.update_state ??
+                env.DEFAULT_PRESENCE_UPDATE_STATE_PERMISSION.toLowerCase() === 'true',
+            read_presence:
+                defaultPermission?.presence?.read_presence ??
+                env.DEFAULT_PRESENCE_READ_PRESENCE_PERMISSION.toLowerCase() === 'true',
+            read_last: defaultPermission?.presence?.read_last ?? parseInt(env.DEFAULT_PRESENCE_READ_LAST_PERMISSION),
+            read_summary:
+                defaultPermission?.presence?.read_summary ??
+                env.DEFAULT_PRESENCE_READ_SUMMARY_PERMISSION.toLowerCase() === 'true',
         },
     };
 
@@ -44,8 +48,14 @@ export function resolvePermissions({
             write: permissionFromToken?.yjs?.write ?? effectiveDefaultPermissions.yjs.write,
         },
         presence: {
-            show: permissionFromToken?.presence?.show ?? effectiveDefaultPermissions.presence?.show,
-            summary: permissionFromToken?.presence?.summary ?? effectiveDefaultPermissions.presence?.summary,
+            join: permissionFromToken?.presence?.join ?? effectiveDefaultPermissions.presence.join,
+            update_state:
+                permissionFromToken?.presence?.update_state ?? effectiveDefaultPermissions.presence.update_state,
+            read_presence:
+                permissionFromToken?.presence?.read_presence ?? effectiveDefaultPermissions.presence.read_presence,
+            read_last: permissionFromToken?.presence?.read_last ?? effectiveDefaultPermissions.presence.read_last,
+            read_summary:
+                permissionFromToken?.presence?.read_summary ?? effectiveDefaultPermissions.presence.read_summary,
         },
     };
 }

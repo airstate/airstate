@@ -2,9 +2,9 @@ import { z } from 'zod';
 import { createHash } from 'node:crypto';
 import { headers } from 'nats';
 import { TRPCError } from '@trpc/server';
-import { passthroughProcedure } from '../../middleware/protected.mjs';
+import { servicePlanePassthroughProcedure } from '../../middleware/protected.mjs';
 
-export const docUpdateMutationProcedure = passthroughProcedure
+export const docUpdateMutationProcedure = servicePlanePassthroughProcedure
     .meta({ writePermissionRequired: true })
     .input(
         z.object({

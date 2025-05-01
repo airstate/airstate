@@ -1,5 +1,5 @@
 import { AckPolicy, DeliverPolicy, StringCodec } from 'nats';
-import { JetStreamServices } from '../../../../types/nats.mjs';
+import { JetStreamServices } from '../../../../../types/nats.mjs';
 import { nanoid } from 'nanoid';
 import * as Y from 'yjs';
 

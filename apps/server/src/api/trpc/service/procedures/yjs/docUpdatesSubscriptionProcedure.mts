@@ -3,8 +3,8 @@ import { createHash } from 'node:crypto';
 import { AckPolicy, DeliverPolicy, StorageType } from 'nats';
 import { getMergedUpdate } from './_helpers.mjs';
 import { returnOf } from 'scope-utilities';
-import { logger } from '../../../../logger.mjs';
-import { passthroughProcedure } from '../../middleware/protected.mjs';
+import { logger } from '../../../../../logger.mjs';
+import { servicePlanePassthroughProcedure } from '../../middleware/protected.mjs';
 import { nanoid } from 'nanoid';
 import { TRPCError } from '@trpc/server';
 
@@ -22,7 +22,7 @@ export type TMessage =
           lastSeq: number;
       };
 
-export const docUpdatesSubscriptionProcedure = passthroughProcedure
+export const docUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
     .input(
         z.object({
             key: z.string(),

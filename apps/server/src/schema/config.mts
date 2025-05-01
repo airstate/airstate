@@ -9,8 +9,11 @@ export const permissionsSchema = z.object({
         .optional(),
     presence: z
         .object({
-            show: z.number().default(-1),
-            summary: z.boolean().default(true),
+            join: z.boolean().default(true),
+            update_state: z.boolean().default(true),
+            read_presence: z.boolean().default(true),
+            read_last: z.number().min(0).default(0),
+            read_summary: z.boolean().default(true),
         })
         .optional(),
 });

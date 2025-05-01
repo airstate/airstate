@@ -34,11 +34,11 @@ services:
               type: volume
 
         depends_on:
-            - redis
+            - valkey
             - nats
 
-    redis:
-        image: bitnami/redis:7.4.2
+    valkey:
+        image: bitnami/valkey:8.1.1
         environment:
             ALLOW_EMPTY_PASSWORD: yes
         ports:
@@ -46,8 +46,8 @@ services:
               published: 6380 # changed; in case you have a local redis running
               protocol: tcp
         volumes:
-            - target: /bitnami/redis/data
-              source: redis-data
+            - target: /bitnami/valkey/data
+              source: valkey-data
               type: volume
 
 
@@ -79,5 +79,5 @@ services:
 volumes:
     # named volumes; they aren't removed on `docker compose down`
     mono-pnpm-store:
-    redis-data:
+    valkey-data:
     nats-storage:
