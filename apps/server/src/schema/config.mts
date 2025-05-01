@@ -7,6 +7,12 @@ export const permissionsSchema = z.object({
             write: z.boolean().default(true),
         })
         .optional(),
+    presence: z
+        .object({
+            show: z.number().default(-1),
+            summary: z.boolean().default(true),
+        })
+        .optional(),
 });
 
 export type TPermissions = z.infer<typeof permissionsSchema>;

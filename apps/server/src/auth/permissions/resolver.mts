@@ -27,12 +27,25 @@ export function resolvePermissions({
             read: defaultPermission?.yjs?.read ?? env.DEFAULT_YJS_PERMISSION !== 'none',
             write: defaultPermission?.yjs?.write ?? env.DEFAULT_YJS_PERMISSION === 'read-write',
         },
+        presence: {
+            show:
+                (defaultPermission?.presence?.show ?? env.DEFAULT_PRESENCE_PERMISSION === 'all')
+                    ? -1
+                    : env.DEFAULT_PRESENCE_PERMISSION === 'none'
+                      ? 0
+                      : parseInt(env.DEFAULT_PRESENCE_PERMISSION),
+            summary: env.DEFAULT_PRESENCE_PERMISSION !== 'none',
+        },
     };
 
     return {
         yjs: {
             read: permissionFromToken?.yjs?.read ?? effectiveDefaultPermissions.yjs.read,
             write: permissionFromToken?.yjs?.write ?? effectiveDefaultPermissions.yjs.write,
+        },
+        presence: {
+            show: permissionFromToken?.presence?.show ?? effectiveDefaultPermissions.presence?.show,
+            summary: permissionFromToken?.presence?.summary ?? effectiveDefaultPermissions.presence?.summary,
         },
     };
 }

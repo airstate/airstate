@@ -11,6 +11,7 @@ export const env = createEnv({
         AIRSTATE_NATS_URLS: z.string().default('nats://localhost:4222'),
         SHARED_SIGNING_KEY: z.string().optional(),
         DEFAULT_YJS_PERMISSION: z.enum(['none', 'read', 'read-write']).default('read-write'),
+        DEFAULT_PRESENCE_PERMISSION: z.union([z.string().regex(/[0-9]+/), z.enum(['all', 'summary-only', 'none'])]),
     },
     runtimeEnv: process.env,
 });
