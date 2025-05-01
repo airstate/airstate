@@ -4,8 +4,9 @@ import { AckPolicy, DeliverPolicy, StorageType } from 'nats';
 import { getMergedUpdate } from './_helpers.mjs';
 import { returnOf } from 'scope-utilities';
 import { logger } from '../../../../logger.mjs';
-import { protectedProcedure } from '../../middleware/protected.mjs';
+import { passthroughProcedure } from '../../middleware/protected.mjs';
 import { nanoid } from 'nanoid';
+import { TRPCError } from '@trpc/server';
 
 export type TMessage =
     | {
@@ -21,7 +22,7 @@ export type TMessage =
           lastSeq: number;
       };
 
-export const docUpdatesSubscriptionProcedure = protectedProcedure
+export const docUpdatesSubscriptionProcedure = passthroughProcedure
     .input(
         z.object({
             key: z.string(),
@@ -29,6 +30,13 @@ export const docUpdatesSubscriptionProcedure = protectedProcedure
         }),
     )
     .subscription(async function* ({ ctx, input, signal }) {
+        if (!ctx.resolvedPermissions.yjs.read) {
+            throw new TRPCError({
+                code: 'FORBIDDEN',
+                message: 'you do not have permission to read yjs updates',
+            });
+        }
+
         const clientSentKey = input.key;
 
         logger.debug(`new subscription for yjs doc update key: ${clientSentKey}`, {

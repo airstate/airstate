@@ -2,9 +2,9 @@ import { z } from 'zod';
 import { createHash } from 'node:crypto';
 import { headers } from 'nats';
 import { TRPCError } from '@trpc/server';
-import { protectedProcedure } from '../../middleware/protected.mjs';
+import { passthroughProcedure } from '../../middleware/protected.mjs';
 
-export const docUpdateMutationProcedure = protectedProcedure
+export const docUpdateMutationProcedure = passthroughProcedure
     .meta({ writePermissionRequired: true })
     .input(
         z.object({
@@ -14,6 +14,13 @@ export const docUpdateMutationProcedure = protectedProcedure
         }),
     )
     .mutation(async function ({ ctx, input, signal }) {
+        if (!ctx.resolvedPermissions.yjs.write) {
+            throw new TRPCError({
+                code: 'FORBIDDEN',
+                message: 'you do not have permission to write yjs updates',
+            });
+        }
+
         const clientSentKey = input.key;
         const hashedClientSentKey: string = createHash('sha256').update(clientSentKey).digest('hex');
 
