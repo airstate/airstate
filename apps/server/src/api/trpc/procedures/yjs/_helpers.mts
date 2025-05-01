@@ -8,34 +8,38 @@ const stringCodec = StringCodec();
 export async function getMergedUpdate(
     jetStream: JetStreamServices,
     streamName: string,
-    lastSeq: number,
-    lastMergedUpdate: string | null,
-): Promise<[string | null, number]> {
+    previous: {
+        lastMergedUpdate: string;
+        lastSeq: number;
+    } | null,
+): Promise<null | {
+    mergedUpdate: string;
+    lastSeq: number;
+}> {
     const ephemeralConsumerName = `coordinator_consumer_${nanoid()}`;
 
-    await jetStream.jetStreamManager.consumers.add(
-        streamName,
-        lastSeq < 0
-            ? {
-                  name: ephemeralConsumerName,
-                  deliver_policy: DeliverPolicy.All,
-                  ack_policy: AckPolicy.None,
-                  inactive_threshold: 0.1 * 1e9,
-              }
-            : {
-                  name: ephemeralConsumerName,
-                  deliver_policy: DeliverPolicy.StartSequence,
-                  opt_start_seq: lastSeq + 1,
-                  ack_policy: AckPolicy.None,
-                  inactive_threshold: 0.1 * 1e9,
-              },
-    );
+    if (!previous) {
+        await jetStream.jetStreamManager.consumers.add(streamName, {
+            name: ephemeralConsumerName,
+            deliver_policy: DeliverPolicy.All,
+            ack_policy: AckPolicy.None,
+            inactive_threshold: 0.1 * 1e9,
+        });
+    } else {
+        await jetStream.jetStreamManager.consumers.add(streamName, {
+            name: ephemeralConsumerName,
+            deliver_policy: DeliverPolicy.StartSequence,
+            opt_start_seq: previous.lastSeq + 1,
+            ack_policy: AckPolicy.None,
+            inactive_threshold: 0.1 * 1e9,
+        });
+    }
 
-    let lastMerged: Uint8Array | null = lastMergedUpdate
-        ? Uint8Array.from(Buffer.from(lastMergedUpdate, 'base64'))
+    let lastMerged: Uint8Array | null = previous?.lastMergedUpdate
+        ? Uint8Array.from(Buffer.from(previous.lastMergedUpdate, 'base64'))
         : null;
 
-    let currSeq = lastSeq;
+    let lastProcessedSeq = previous?.lastSeq ?? null;
 
     const ephemeralStreamConsumer = await jetStream.jetStreamClient.consumers.get(streamName, ephemeralConsumerName);
 
@@ -52,17 +56,24 @@ export async function getMergedUpdate(
 
         for await (const streamMessage of streamMessages) {
             updates.push(Uint8Array.from(Buffer.from(stringCodec.decode(streamMessage.data), 'base64')));
-            currSeq++;
+            lastProcessedSeq = streamMessage.seq;
         }
 
         if (updates.length === 0) {
             break;
+        } else {
+            lastMerged = Y.mergeUpdatesV2(lastMerged ? [lastMerged, ...updates] : updates);
         }
-
-        lastMerged = Y.mergeUpdatesV2(lastMerged ? [lastMerged, ...updates] : updates);
     }
 
     await jetStream.jetStreamManager.consumers.delete(streamName, ephemeralConsumerName);
 
-    return lastMerged ? [Buffer.from(lastMerged).toString('base64'), currSeq] : [null, -1];
+    if (lastMerged) {
+        return {
+            mergedUpdate: Buffer.from(lastMerged).toString('base64'),
+            lastSeq: lastProcessedSeq!,
+        };
+    } else {
+        return null;
+    }
 }

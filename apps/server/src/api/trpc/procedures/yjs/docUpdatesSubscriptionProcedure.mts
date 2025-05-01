@@ -5,17 +5,14 @@ import { getMergedUpdate } from './_helpers.mjs';
 import { returnOf } from 'scope-utilities';
 import { logger } from '../../../../logger.mjs';
 import { protectedProcedure } from '../../middleware/protected.mjs';
+import { nanoid } from 'nanoid';
 
 export type TMessage =
     | {
           type: 'sync';
           updates: string[];
-          lastSeq: number;
+          lastSeq: number | null;
           final: boolean;
-      }
-    | {
-          type: 'first';
-          lastSeq: number;
       }
     | {
           type: 'update';
@@ -43,7 +40,7 @@ export const docUpdatesSubscriptionProcedure = protectedProcedure
         const key = `${ctx.accountingIdentifier}__${hashedClientSentKey}`;
         const streamName = key;
         const subject = `room.${key}`;
-        const consumerName = `consumer_${ctx.connectionID}`;
+        const consumerName = `consumer_${nanoid()}`;
 
         // ensure the stream exists
         await ctx.services.jetStreamManager.streams.add({
@@ -53,7 +50,10 @@ export const docUpdatesSubscriptionProcedure = protectedProcedure
             max_msgs_per_subject: -1,
         });
 
-        const coordinatorValue = await returnOf(async () => {
+        const coordinatorValue: {
+            lastSeq: number;
+            lastMergedUpdate: string;
+        } | null = await returnOf(async () => {
             try {
                 await ctx.services.sharedStateKV.create(`${streamName}__coordinator`, JSON.stringify(null));
                 return null;
@@ -64,42 +64,57 @@ export const docUpdatesSubscriptionProcedure = protectedProcedure
                     return JSON.parse(value.string()) as {
                         lastSeq: number;
                         lastMergedUpdate: string;
-                    };
+                    } | null;
                 }
 
                 return null;
             }
         });
 
-        const [mergedUpdate, lastSeq] = await getMergedUpdate(
-            ctx.services,
-            streamName,
-            coordinatorValue?.lastSeq ?? -1,
-            coordinatorValue?.lastMergedUpdate ?? null,
-        );
+        const merged = await getMergedUpdate(ctx.services, streamName, coordinatorValue);
 
-        if (mergedUpdate) {
+        if (merged) {
+            await ctx.services.sharedStateKV.put(
+                `${streamName}__coordinator`,
+                JSON.stringify({
+                    lastSeq: merged.lastSeq,
+                    lastMergedUpdate: merged.mergedUpdate,
+                }),
+            );
+        }
+
+        if (merged) {
             yield {
                 type: 'sync',
-                lastSeq: lastSeq,
-                updates: [mergedUpdate],
+                lastSeq: merged.lastSeq,
+                updates: [merged.mergedUpdate],
                 final: true,
             } satisfies TMessage;
         } else {
             yield {
                 type: 'sync',
-                lastSeq: lastSeq,
+                lastSeq: null,
                 updates: [],
                 final: true,
             } satisfies TMessage;
         }
 
-        await ctx.services.jetStreamManager.consumers.add(streamName, {
-            name: consumerName,
-            ack_policy: AckPolicy.Explicit,
-            deliver_policy: DeliverPolicy.StartSequence,
-            opt_start_seq: lastSeq + 1,
-        });
+        if (merged) {
+            await ctx.services.jetStreamManager.consumers.add(streamName, {
+                name: consumerName,
+                ack_policy: AckPolicy.Explicit,
+                deliver_policy: DeliverPolicy.StartSequence,
+                opt_start_seq: merged.lastSeq + 1,
+                inactive_threshold: 10 * 1e9,
+            });
+        } else {
+            await ctx.services.jetStreamManager.consumers.add(streamName, {
+                name: consumerName,
+                ack_policy: AckPolicy.Explicit,
+                deliver_policy: DeliverPolicy.All,
+                inactive_threshold: 10 * 1e9,
+            });
+        }
 
         const steamConsumer = await ctx.services.jetStreamClient.consumers.get(streamName, consumerName);
 
