@@ -43,14 +43,17 @@ export async function getMergedUpdate(
 
     const ephemeralStreamConsumer = await jetStream.jetStreamClient.consumers.get(streamName, ephemeralConsumerName);
 
-    while (true) {
+    const streamInfo = await jetStream.jetStreamManager.streams.info(streamName);
+
+    let messagesToRead = streamInfo.state.messages - (previous?.lastSeq ?? 0);
+
+    while (messagesToRead) {
         let updates: Uint8Array[] = [];
 
-        // TODO: optimize this such that we first read the length of the
-        //       stream, and then request the appropriate amount of `max_messages`
-        //       when calling `fetch`
+        const messagesToFetch = Math.min(messagesToRead, 1000);
+
         const streamMessages = await ephemeralStreamConsumer.fetch({
-            max_messages: 1000,
+            max_messages: messagesToFetch,
             expires: 1000,
         });
 
@@ -64,6 +67,8 @@ export async function getMergedUpdate(
         } else {
             lastMerged = Y.mergeUpdatesV2(lastMerged ? [lastMerged, ...updates] : updates);
         }
+
+        messagesToRead -= updates.length;
     }
 
     await jetStream.jetStreamManager.consumers.delete(streamName, ephemeralConsumerName);
