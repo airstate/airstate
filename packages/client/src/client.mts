@@ -1,4 +1,4 @@
-import type { TAppRouter } from '@airstate/server';
+import type { TServicePlaneAppRouter } from '@airstate/server';
 import { createTRPCClient, createWSClient, TRPCClient, wsLink } from '@trpc/client';
 import * as y from 'yjs';
 import { nanoid } from 'nanoid';
@@ -13,7 +13,7 @@ export const defaultOptions: TClientOptions = {
 };
 
 export type TAirStateClient = {
-    readonly client: TRPCClient<TAppRouter>;
+    readonly trpc: TRPCClient<TServicePlaneAppRouter>;
     readonly onOpen: (listener: () => void) => () => boolean;
     readonly onError: (listener: (errorEvent?: Event) => void) => () => boolean;
     readonly onClose: (listener: (cause?: { code?: number }) => void) => () => boolean;
@@ -53,16 +53,16 @@ export function createClient(options?: TClientOptions): TAirStateClient {
         },
     });
 
-    const client = createTRPCClient<TAppRouter>({
+    const client = createTRPCClient<TServicePlaneAppRouter>({
         links: [
-            wsLink<TAppRouter>({
+            wsLink<TServicePlaneAppRouter>({
                 client: wsClient,
             }),
         ],
     });
 
     return {
-        client: client,
+        trpc: client,
         get isOpen() {
             return isOpen;
         },
@@ -150,7 +150,7 @@ export function shareYDoc(options: TSharedYDocOptions) {
 
     options.doc.on('updateV2', async (update, origin) => {
         if (!(origin instanceof RemoteOrigin)) {
-            await airState.client.yjs.docUpdate.mutate({
+            await airState.trpc.yjs.docUpdate.mutate({
                 key: options.key,
                 sessionID: sessionID,
                 encodedUpdates: [Uint8ArrayToBase64(update)],
@@ -158,7 +158,7 @@ export function shareYDoc(options: TSharedYDocOptions) {
         }
     });
 
-    const subscription = airState.client.yjs.docUpdates.subscribe(
+    const subscription = airState.trpc.yjs.docUpdates.subscribe(
         {
             key: options.key,
             sessionID: sessionID,
