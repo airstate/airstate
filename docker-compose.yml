@@ -1,6 +1,7 @@
 name: airstate
 services:
     mono:
+        restart: unless-stopped
         build:
             context: .
             dockerfile: Dockerfile
@@ -38,6 +39,7 @@ services:
             - nats
 
     valkey:
+        restart: unless-stopped
         image: bitnami/valkey:8.1.1
         environment:
             ALLOW_EMPTY_PASSWORD: yes
@@ -52,6 +54,7 @@ services:
 
 
     nats:
+        restart: unless-stopped
         image: nats:2.11.1-alpine3.21
 
         ports:
