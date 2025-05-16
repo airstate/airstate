@@ -25,7 +25,7 @@ export const docUpdateMutationProcedure = servicePlanePassthroughProcedure
         const hashedClientSentKey: string = createHash('sha256').update(clientSentKey).digest('hex');
 
         const key = `${ctx.accountingIdentifier}__${hashedClientSentKey}`;
-        const subject = `room.${key}`;
+        const subject = `yjs.${key}`;
 
         const publishHeaders = headers();
         publishHeaders.set('sessionID', input.sessionID);

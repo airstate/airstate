@@ -2,6 +2,7 @@ import type { TServicePlaneAppRouter } from '@airstate/server';
 import { createTRPCClient, createWSClient, TRPCClient, wsLink } from '@trpc/client';
 import * as y from 'yjs';
 import { nanoid } from 'nanoid';
+import { TJSONAble } from './ydocjson.mjs';
 
 export type TClientOptions = {
     appKey?: string;
@@ -214,6 +215,31 @@ export function shareYDoc(options: TSharedYDocOptions) {
 
         subscription.unsubscribe();
     };
+}
+
+export type TSharedJSONOptions<T> = {
+    client?: TAirStateClient;
+
+    key: string;
+    token?: string;
+};
+
+export type TSharedJSONReturn<T extends TJSONAble> = {
+    readonly update: (update: T | ((previousValue: T) => T)) => void;
+    readonly onUpdate: (value: T) => void;
+    readonly onSynced: (doc: y.Doc) => void;
+
+    readonly onError: (error?: Error) => void;
+    readonly onConnect: () => void;
+    readonly onDisconnect: () => void;
+
+    readonly destroy: () => void;
+};
+
+export function shareJSON<T extends TJSONAble = any>(
+    options: TSharedJSONOptions<T>,
+): TSharedJSONReturn<T> {
+    return null as any;
 }
 
 export * as yjs from 'yjs';
