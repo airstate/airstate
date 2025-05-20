@@ -10,7 +10,7 @@ export const docTokenMutationProcedure = servicePlanePassthroughProcedure
     .input(
         z.object({
             sessionID: z.string(),
-            token: z.string(),
+            token: z.string().nullable(),
         }),
     )
     .mutation(async function ({ ctx, input }) {
