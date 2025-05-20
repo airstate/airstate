@@ -32,10 +32,11 @@ export function createClient(options?: TClientOptions): TAirStateClient {
         url: options?.server ?? `wss://socket.airstate.dev`,
         keepAlive: {
             enabled: true,
-            intervalMs: 5_000,
-            pongTimeoutMs: 2_500,
+            intervalMs: 1_000,
+            pongTimeoutMs: 1_000,
         },
         retryDelayMs: (index) => {
+            console.log('retryDelayMs: ', index);
             return index ** 2 * 100;
         },
         connectionParams: {
@@ -135,7 +136,7 @@ export class RemoteOrigin {
     ) {}
 }
 
-export function shareYDoc(options: TSharedYDocOptions): TSharedYDocReturn {
+export function sharedYDoc(options: TSharedYDocOptions): TSharedYDocReturn {
     const sessionID = nanoid();
 
     const airState = options.client ?? getDefaultClient();
@@ -161,12 +162,27 @@ export function shareYDoc(options: TSharedYDocOptions): TSharedYDocReturn {
     });
 
     options.doc.on('updateV2', async (update, origin) => {
-        console.log('origin', origin);
+        console.log('origin inner', origin);
         if (!(origin instanceof RemoteOrigin)) {
+            // let token: null | string = null;
+            //
+            // if (typeof options.token === 'function') {
+            //     const returned = options.token();
+            //
+            //     if (returned instanceof Promise) {
+            //         token = await returned;
+            //     } else {
+            //         token = returned;
+            //     }
+            // } else {
+            //     token = options.token;
+            // }
+
             await airState.trpc.yjs.docUpdate.mutate({
                 key: options.key,
                 sessionID: sessionID,
                 encodedUpdates: [Uint8ArrayToBase64(update)],
+                // token: token,
             });
         }
     });
@@ -177,21 +193,28 @@ export function shareYDoc(options: TSharedYDocOptions): TSharedYDocReturn {
             sessionID: sessionID,
         },
         {
+            onStarted() {
+                console.log('onStarted');
+            },
             onError(error) {
                 errorListeners.forEach((listener) => listener(error));
             },
             onData(message) {
                 if (message.type === 'sync') {
-                    y.transact(options.doc, () => {
-                        message.updates.forEach((update) => {
-                            const binaryUpdate = Base64ToUint8Array(update);
-                            y.applyUpdateV2(
-                                options.doc,
-                                binaryUpdate,
-                                new RemoteOrigin('sync'),
-                            );
-                        });
-                    });
+                    y.transact(
+                        options.doc,
+                        () => {
+                            message.updates.forEach((update) => {
+                                const binaryUpdate = Base64ToUint8Array(update);
+                                y.applyUpdateV2(
+                                    options.doc,
+                                    binaryUpdate,
+                                    new RemoteOrigin('sync'),
+                                );
+                            });
+                        },
+                        new RemoteOrigin('sync'),
+                    );
 
                     if (message.final) {
                         ready = true;
@@ -199,16 +222,20 @@ export function shareYDoc(options: TSharedYDocOptions): TSharedYDocReturn {
                     }
                 } else if (message.type === 'update') {
                     if (ready) {
-                        y.transact(options.doc, () => {
-                            message.updates.forEach((update) => {
-                                const binaryUpdate = Base64ToUint8Array(update);
-                                y.applyUpdateV2(
-                                    options.doc,
-                                    binaryUpdate,
-                                    new RemoteOrigin('update', message.client),
-                                );
-                            });
-                        });
+                        y.transact(
+                            options.doc,
+                            () => {
+                                message.updates.forEach((update) => {
+                                    const binaryUpdate = Base64ToUint8Array(update);
+                                    y.applyUpdateV2(
+                                        options.doc,
+                                        binaryUpdate,
+                                        new RemoteOrigin('update', message.client),
+                                    );
+                                });
+                            },
+                            new RemoteOrigin('update', message.client),
+                        );
                     } else {
                         console.warn(
                             'the server has sent updates before sync completion',
@@ -267,7 +294,7 @@ export type TSharedJSONReturn<T extends TJSONAbleObject> = {
     readonly destroy: () => void;
 };
 
-export function shareJSON<T extends TJSONAbleObject = any>(
+export function shareJSONObject<T extends TJSONAbleObject = any>(
     options: TSharedJSONOptions<T>,
 ): TSharedJSONReturn<T> {
     const doc = new y.Doc();
@@ -282,7 +309,7 @@ export function shareJSON<T extends TJSONAbleObject = any>(
         encodeObjectToYDoc({ object: options.initialValue, doc: doc });
     }
 
-    const sharedDoc = shareYDoc({
+    const sharedDoc = sharedYDoc({
         client: options.client,
         key: options.key,
         doc: doc,
@@ -308,6 +335,7 @@ export function shareJSON<T extends TJSONAbleObject = any>(
     });
 
     doc.on('updateV2', (update, origin) => {
+        console.log('origin type', origin);
         if (origin instanceof RemoteOrigin) {
             const newValue = decodeYDocToObject({ doc: doc });
             updateListeners.forEach((listener) => listener(newValue as T));
