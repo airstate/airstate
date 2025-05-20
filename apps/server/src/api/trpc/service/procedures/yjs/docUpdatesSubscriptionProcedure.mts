@@ -51,7 +51,7 @@ export const docUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
         const hashedClientSentKey: string = createHash('sha256').update(clientSentKey).digest('hex');
 
         const key = `${ctx.accountingIdentifier}__${hashedClientSentKey}`;
-        const streamName = `yjs.${key}`;
+        const streamName = `yjs_${key}`;
         const subject = `yjs.${key}`;
         const consumerName = `consumer_${nanoid()}`;
 

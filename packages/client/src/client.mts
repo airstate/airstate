@@ -2,7 +2,7 @@ import type { TServicePlaneAppRouter } from '@airstate/server';
 import { createTRPCClient, createWSClient, TRPCClient, wsLink } from '@trpc/client';
 import * as y from 'yjs';
 import { nanoid } from 'nanoid';
-import { TJSONAble } from './ydocjson.mjs';
+import { TJSONAbleObject, encodeObjectToYDoc, decodeYDocToObject } from './ydocjson.mjs';
 
 export type TClientOptions = {
     appKey?: string;
@@ -115,16 +115,17 @@ export function Base64ToUint8Array(base64: string) {
 
 export type TSharedYDocOptions = {
     client?: TAirStateClient;
-
     key: string;
     doc: y.Doc;
-
     token?: string;
+};
 
-    onError?: (error?: Error) => void;
-    onConnect?: () => void;
-    onDisconnect?: () => void;
-    onSynced?: (doc: y.Doc) => void;
+export type TSharedYDocReturn = {
+    readonly onError: (listener: (error?: Error) => void) => () => boolean;
+    readonly onConnect: (listener: () => void) => () => boolean;
+    readonly onDisconnect: (listener: () => void) => () => boolean;
+    readonly onSynced: (listener: (doc: y.Doc) => void) => () => boolean;
+    readonly unsubscribe: () => void;
 };
 
 export class RemoteOrigin {
@@ -134,22 +135,33 @@ export class RemoteOrigin {
     ) {}
 }
 
-export function shareYDoc(options: TSharedYDocOptions) {
+export function shareYDoc(options: TSharedYDocOptions): TSharedYDocReturn {
     const sessionID = nanoid();
 
     const airState = options.client ?? getDefaultClient();
     let ready = false;
 
+    const errorListeners = new Set<(error?: Error) => void>();
+    const connectListeners = new Set<() => void>();
+    const disconnectListeners = new Set<() => void>();
+    const syncedListeners = new Set<(doc: y.Doc) => void>();
+
     if (airState.isOpen) {
-        options.onConnect?.();
+        connectListeners.forEach((listener) => listener());
     } else {
-        options.onDisconnect?.();
+        disconnectListeners.forEach((listener) => listener());
     }
 
-    const cleanupOnOpen = airState.onOpen(() => options.onConnect?.());
-    const cleanupOnClose = airState.onClose(() => options.onDisconnect?.());
+    const cleanupOnOpen = airState.onOpen(() => {
+        connectListeners.forEach((listener) => listener());
+    });
+
+    const cleanupOnClose = airState.onClose(() => {
+        disconnectListeners.forEach((listener) => listener());
+    });
 
     options.doc.on('updateV2', async (update, origin) => {
+        console.log('origin', origin);
         if (!(origin instanceof RemoteOrigin)) {
             await airState.trpc.yjs.docUpdate.mutate({
                 key: options.key,
@@ -166,14 +178,13 @@ export function shareYDoc(options: TSharedYDocOptions) {
         },
         {
             onError(error) {
-                options.onError?.(error);
+                errorListeners.forEach((listener) => listener(error));
             },
             onData(message) {
                 if (message.type === 'sync') {
                     y.transact(options.doc, () => {
                         message.updates.forEach((update) => {
                             const binaryUpdate = Base64ToUint8Array(update);
-
                             y.applyUpdateV2(
                                 options.doc,
                                 binaryUpdate,
@@ -184,14 +195,13 @@ export function shareYDoc(options: TSharedYDocOptions) {
 
                     if (message.final) {
                         ready = true;
-                        options.onSynced?.(options.doc);
+                        syncedListeners.forEach((listener) => listener(options.doc));
                     }
                 } else if (message.type === 'update') {
                     if (ready) {
                         y.transact(options.doc, () => {
                             message.updates.forEach((update) => {
                                 const binaryUpdate = Base64ToUint8Array(update);
-
                                 y.applyUpdateV2(
                                     options.doc,
                                     binaryUpdate,
@@ -209,37 +219,143 @@ export function shareYDoc(options: TSharedYDocOptions) {
         },
     );
 
-    return () => {
+    const unsubscribe = () => {
         cleanupOnOpen();
         cleanupOnClose();
-
         subscription.unsubscribe();
+        errorListeners.clear();
+        connectListeners.clear();
+        disconnectListeners.clear();
+        syncedListeners.clear();
+    };
+
+    return {
+        onError: (listener: (error?: Error) => void) => {
+            errorListeners.add(listener);
+            return () => errorListeners.delete(listener);
+        },
+        onConnect: (listener: () => void) => {
+            connectListeners.add(listener);
+            return () => connectListeners.delete(listener);
+        },
+        onDisconnect: (listener: () => void) => {
+            disconnectListeners.add(listener);
+            return () => disconnectListeners.delete(listener);
+        },
+        onSynced: (listener: (doc: y.Doc) => void) => {
+            syncedListeners.add(listener);
+            return () => syncedListeners.delete(listener);
+        },
+        unsubscribe,
     };
 }
 
 export type TSharedJSONOptions<T> = {
     client?: TAirStateClient;
-
     key: string;
     token?: string;
+    initialValue?: T;
 };
 
-export type TSharedJSONReturn<T extends TJSONAble> = {
+export type TSharedJSONReturn<T extends TJSONAbleObject> = {
     readonly update: (update: T | ((previousValue: T) => T)) => void;
-    readonly onUpdate: (value: T) => void;
-    readonly onSynced: (doc: y.Doc) => void;
-
-    readonly onError: (error?: Error) => void;
-    readonly onConnect: () => void;
-    readonly onDisconnect: () => void;
-
+    readonly onUpdate: (listener: (value: T) => void) => () => boolean;
+    readonly onSynced: (listener: (value: T) => void) => () => boolean;
+    readonly onError: (listener: (error?: Error) => void) => () => boolean;
+    readonly onConnect: (listener: () => void) => () => boolean;
+    readonly onDisconnect: (listener: () => void) => () => boolean;
     readonly destroy: () => void;
 };
 
-export function shareJSON<T extends TJSONAble = any>(
+export function shareJSON<T extends TJSONAbleObject = any>(
     options: TSharedJSONOptions<T>,
 ): TSharedJSONReturn<T> {
-    return null as any;
+    const doc = new y.Doc();
+
+    const updateListeners = new Set<(value: T) => void>();
+    const syncedListeners = new Set<(value: T) => void>();
+    const errorListeners = new Set<(error?: Error) => void>();
+    const connectListeners = new Set<() => void>();
+    const disconnectListeners = new Set<() => void>();
+
+    if (options.initialValue) {
+        encodeObjectToYDoc({ object: options.initialValue, doc: doc });
+    }
+
+    const sharedDoc = shareYDoc({
+        client: options.client,
+        key: options.key,
+        doc: doc,
+        token: options.token,
+    });
+
+    const errorUnsubscribe = sharedDoc.onError((error) => {
+        errorListeners.forEach((listener) => listener(error));
+    });
+
+    const connectUnsubscribe = sharedDoc.onConnect(() => {
+        connectListeners.forEach((listener) => listener());
+    });
+
+    const disconnectUnsubscribe = sharedDoc.onDisconnect(() => {
+        disconnectListeners.forEach((listener) => listener());
+    });
+
+    const syncedUnsubscribe = sharedDoc.onSynced((syncedDoc) => {
+        const syncedValue = decodeYDocToObject({ doc: syncedDoc });
+
+        syncedListeners.forEach((listener) => listener(syncedValue as T));
+    });
+
+    doc.on('updateV2', (update, origin) => {
+        if (origin instanceof RemoteOrigin) {
+            const newValue = decodeYDocToObject({ doc: doc });
+            updateListeners.forEach((listener) => listener(newValue as T));
+        }
+    });
+
+    const update = (update: T | ((previousValue: T) => T)) => {
+        const prevValue = decodeYDocToObject({ doc: doc });
+        const newValue = typeof update === 'function' ? update(prevValue as T) : update;
+
+        encodeObjectToYDoc({
+            object: newValue,
+            doc: doc,
+        });
+    };
+
+    return {
+        update,
+        onUpdate: (listener: (value: T) => void) => {
+            updateListeners.add(listener);
+            return () => updateListeners.delete(listener);
+        },
+        onSynced: (listener: (value: T) => void) => {
+            syncedListeners.add(listener);
+            return () => syncedListeners.delete(listener);
+        },
+        onError: (listener: (error?: Error) => void) => {
+            errorListeners.add(listener);
+            return () => errorListeners.delete(listener);
+        },
+        onConnect: (listener: () => void) => {
+            connectListeners.add(listener);
+            return () => connectListeners.delete(listener);
+        },
+        onDisconnect: (listener: () => void) => {
+            disconnectListeners.add(listener);
+            return () => disconnectListeners.delete(listener);
+        },
+        destroy: () => {
+            sharedDoc.unsubscribe();
+            updateListeners.clear();
+            syncedListeners.clear();
+            errorListeners.clear();
+            connectListeners.clear();
+            disconnectListeners.clear();
+            doc.destroy();
+        },
+    };
 }
 
 export * as yjs from 'yjs';
