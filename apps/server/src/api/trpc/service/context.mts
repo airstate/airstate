@@ -4,14 +4,26 @@ import { TServices } from '../../../services.mjs';
 import { nanoid } from 'nanoid';
 import { returnOf } from 'scope-utilities';
 import { env } from '../../../env.mjs';
-import { configSchema } from '../../../schema/config.mjs';
-import { resolvePermissions } from '../../../auth/permissions/index.mjs';
+import { configSchema, TPermissions } from '../../../schema/config.mjs';
 import { logger } from '../../../logger.mjs';
+import { merge } from 'es-toolkit/object';
+
+export const defaultPermissions: TPermissions = {
+    presence: {
+        join: true,
+        update_state: true,
+        read_presence: true,
+        read_summary: true,
+    },
+    yjs: {
+        read: true,
+        write: true,
+    },
+};
 
 export async function servicePlaneHTTPContextCreatorFactory(services: TServices) {
     return async function (options: trpcExpress.CreateExpressContextOptions | trpcWS.CreateWSSContextFnOptions) {
         const appKey = options.info.connectionParams?.appKey ?? null;
-        const joiningToken = options.info.connectionParams?.joiningToken;
 
         const resolvedConfig = await returnOf(async () => {
             if (!appKey) {
@@ -36,19 +48,18 @@ export async function servicePlaneHTTPContextCreatorFactory(services: TServices)
             }
         });
 
-        const resolvedPermissions = resolvePermissions({
-            secretKey: resolvedConfig?.signing_secret || env.SHARED_SIGNING_KEY,
-            token: joiningToken,
-            defaultPermission: resolvedConfig?.default_permissions,
-        });
+        const resolvedPermissions = resolvedConfig?.default_permissions
+            ? merge(resolvedConfig.default_permissions, defaultPermissions)
+            : defaultPermissions;
 
         return {
             accountingIdentifier: resolvedConfig?.accounting_identifier ?? '__ANONYMOUS',
             connectionID: nanoid(),
             appKey: appKey,
+            appSecret: resolvedConfig?.signing_secret ?? env.SHARED_SIGNING_KEY,
             resolvedConfig: resolvedConfig,
             services: services,
-            resolvedPermissions: resolvedPermissions,
+            permissions: resolvedPermissions,
         };
     };
 }

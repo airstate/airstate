@@ -7,8 +7,9 @@ import { logger } from '../../../../../logger.mjs';
 import { servicePlanePassthroughProcedure } from '../../middleware/passthrough.mjs';
 import { nanoid } from 'nanoid';
 import { TRPCError } from '@trpc/server';
+import { resolvePermissions } from '../../../../../auth/permissions/index.mjs';
 
-export type TMessage =
+export type TYJSMessage =
     | {
           type: 'sync';
           updates: string[];
@@ -20,6 +21,10 @@ export type TMessage =
           client: string;
           updates: string[];
           lastSeq: number;
+      }
+    | {
+          type: 'session-id';
+          id: string;
       };
 
 export const docUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
@@ -27,15 +32,15 @@ export const docUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
         z.object({
             key: z.string(),
             sessionID: z.string(),
+            sessionToken: z.string().optional(),
         }),
     )
     .subscription(async function* ({ ctx, input, signal }) {
-        if (!ctx.resolvedPermissions.yjs.read) {
-            throw new TRPCError({
-                code: 'FORBIDDEN',
-                message: 'you do not have permission to read yjs updates',
-            });
-        }
+        // TODO:
+        // yield session id message
+        // wait for token write
+        // if token written, check permissions
+        // continue function
 
         const clientSentKey = input.key;
 
@@ -97,14 +102,14 @@ export const docUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
                 lastSeq: merged.lastSeq,
                 updates: [merged.mergedUpdate],
                 final: true,
-            } satisfies TMessage;
+            } satisfies TYJSMessage;
         } else {
             yield {
                 type: 'sync',
                 lastSeq: null,
                 updates: [],
                 final: true,
-            } satisfies TMessage;
+            } satisfies TYJSMessage;
         }
 
         if (merged) {
@@ -139,7 +144,7 @@ export const docUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
                     updates: [ctx.services.natsStringCodec.decode(streamMessage.data)],
                     lastSeq: streamMessage.seq,
                     client: updateSessionID ?? '',
-                } satisfies TMessage;
+                } satisfies TYJSMessage;
             }
 
             streamMessage.ack();

@@ -4,31 +4,53 @@ import { AckPolicy, DeliverPolicy, StringCodec } from 'nats';
 
 const stringCodec = StringCodec();
 
+export type TNATSPresenceMessage = {
+    id: string;
+    key: string;
+    timestamp: number;
+} & (
+    | {
+          type: 'static';
+          staticState: Record<string, any>;
+      }
+    | {
+          type: 'dynamic';
+          dynamicState: Record<string, any>;
+      }
+    | {
+          type: 'focus';
+          isFocused: boolean;
+      }
+);
+
 export type TPresenceState = {
-    peers: {
-        id: string;
-        key: string;
+    peers: Record<
+        string,
+        {
+            id: string;
+            key: string;
 
-        connectionState?: {
-            connected: boolean;
-            lastUpdateTimestamp: number;
-        };
+            connectionState?: {
+                connected: boolean;
+                lastUpdateTimestamp: number;
+            };
 
-        focusState?: {
-            isFocused: boolean;
-            lastUpdateTimestamp: number;
-        };
+            focusState?: {
+                isFocused: boolean;
+                lastUpdateTimestamp: number;
+            };
 
-        staticState?: {
-            state: Record<string, any>;
-            lastUpdateTimestamp: number;
-        };
+            staticState?: {
+                state: Record<string, any>;
+                lastUpdateTimestamp: number;
+            };
 
-        dynamicState?: {
-            state: Record<string, any>;
-            lastUpdateTimestamp: number;
-        };
-    }[];
+            dynamicState?: {
+                state: Record<string, any>;
+                lastUpdateTimestamp: number;
+            };
+        }
+    >;
     summary: {
         totalPeers: number;
         focusedPeers: number;
@@ -38,7 +60,7 @@ export type TPresenceState = {
 export async function getInitialPresenceState(
     jetStream: JetStreamServices,
     streamName: string,
-): Promise<TPresenceState & { lastSeq: number }> {
+): Promise<{ state: TPresenceState; lastSeq: number }> {
     const ephemeralConsumerName = `coordinator_consumer_${nanoid()}`;
 
     await jetStream.jetStreamManager.consumers.add(streamName, {
@@ -92,24 +114,7 @@ export async function getInitialPresenceState(
 
         for await (const streamMessage of streamMessages) {
             const messageData = stringCodec.decode(streamMessage.data);
-            const message = JSON.parse(messageData) as {
-                id: string;
-                key: string;
-                timestamp: number;
-            } & (
-                | {
-                      type: 'static';
-                      staticState: Record<string, any>;
-                  }
-                | {
-                      type: 'dynamic';
-                      dynamicState: Record<string, any>;
-                  }
-                | {
-                      type: 'focus-state';
-                      isFocused: boolean;
-                  }
-            );
+            const message = JSON.parse(messageData) as TNATSPresenceMessage;
 
             keySet.add(message.key);
 
@@ -134,7 +139,7 @@ export async function getInitialPresenceState(
                     state: message.dynamicState,
                     lastUpdateTimestamp: message.timestamp,
                 };
-            } else if (message.type === 'focus-state') {
+            } else if (message.type === 'focus') {
                 peer.focusState = {
                     isFocused: message.isFocused,
                     lastUpdateTimestamp: message.timestamp,
@@ -153,10 +158,12 @@ export async function getInitialPresenceState(
     const peers = Object.values(peerMap);
 
     return {
-        peers: peers,
-        summary: {
-            totalPeers: peers.length,
-            focusedPeers: peers.filter((peer) => peer.focusState?.isFocused ?? false).length,
+        state: {
+            peers: peerMap,
+            summary: {
+                totalPeers: peers.length,
+                focusedPeers: peers.filter((peer) => peer.focusState?.isFocused ?? false).length,
+            },
         },
         lastSeq: lastSeq,
     };

@@ -3,7 +3,7 @@ import { permissionsSchema } from './config.mjs';
 
 export const tokenPayloadSchema = z
     .object({
-        permissions: permissionsSchema,
+        permissions: permissionsSchema.partial().optional(),
     })
     .passthrough();
 
