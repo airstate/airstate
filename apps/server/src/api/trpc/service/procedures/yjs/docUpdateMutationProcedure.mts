@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { headers } from 'nats';
 import { TRPCError } from '@trpc/server';
 import { servicePlanePassthroughProcedure } from '../../middleware/passthrough.mjs';
+import { resolvePermissions } from '../../../../../auth/permissions/index.mjs';
 
 export const docUpdateMutationProcedure = servicePlanePassthroughProcedure
     .meta({ writePermissionRequired: true })
@@ -14,12 +15,7 @@ export const docUpdateMutationProcedure = servicePlanePassthroughProcedure
         }),
     )
     .mutation(async function ({ ctx, input, signal }) {
-        if (!ctx.resolvedPermissions.yjs.write) {
-            throw new TRPCError({
-                code: 'FORBIDDEN',
-                message: 'you do not have permission to write yjs updates',
-            });
-        }
+        // TODO: check permissions based on the sessionID
 
         const clientSentKey = input.key;
         const hashedClientSentKey: string = createHash('sha256').update(clientSentKey).digest('hex');
