@@ -6,8 +6,8 @@ import { returnOf } from 'scope-utilities';
 import { logger } from '../../../../../logger.mjs';
 import { servicePlanePassthroughProcedure } from '../../middleware/passthrough.mjs';
 import { nanoid } from 'nanoid';
-import { TRPCError } from '@trpc/server';
-import { resolvePermissions } from '../../../../../auth/permissions/index.mjs';
+import { sessionStore } from '../../../../../services/sessionStore.mjs';
+import { when } from 'mobx';
 
 export type TYJSMessage =
     | {
@@ -31,16 +31,17 @@ export const docUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
     .input(
         z.object({
             key: z.string(),
-            sessionID: z.string(),
-            sessionToken: z.string().optional(),
         }),
     )
-    .subscription(async function* ({ ctx, input, signal }) {
-        // TODO:
-        // yield session id message
-        // wait for token write
-        // if token written, check permissions
-        // continue function
+    .subscription(async function* ({ ctx, input, signal }): AsyncIterable<TYJSMessage> {
+        const sessionID = nanoid();
+
+        yield {
+            type: 'session-id',
+            id: sessionID,
+        } satisfies TYJSMessage;
+
+        await when(() => sessionStore.sessions.has(sessionID));
 
         const clientSentKey = input.key;
 
@@ -138,7 +139,7 @@ export const docUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
         for await (const streamMessage of streamMessages) {
             const updateSessionID = streamMessage.headers?.get('sessionID');
 
-            if (updateSessionID !== input.sessionID) {
+            if (updateSessionID !== sessionID) {
                 yield {
                     type: 'update',
                     updates: [ctx.services.natsStringCodec.decode(streamMessage.data)],
