@@ -30,7 +30,7 @@ export const peerInitMutationProcedure = servicePlanePassthroughProcedure
         const hashedPeerKey = createHash('sha256').update(input.peerKey).digest('hex');
 
         const key = `${ctx.accountingIdentifier}__${hashedRoomKey}`;
-        const subject = `presence.${key}`;
+        const commonSubjectPrefix = `presence.${key}`;
 
         const commonMeta = {
             peerKey: input.peerKey,
@@ -61,7 +61,7 @@ export const peerInitMutationProcedure = servicePlanePassthroughProcedure
 
                     if (extracted.data.presence?.staticState) {
                         await ctx.services.jetStreamClient.publish(
-                            `${subject}.static.${hashedPeerKey}`,
+                            `${commonSubjectPrefix}.static.${hashedPeerKey}`,
                             ctx.services.natsStringCodec.encode(
                                 JSON.stringify({
                                     type: 'static',

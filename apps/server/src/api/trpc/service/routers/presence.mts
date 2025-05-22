@@ -7,10 +7,15 @@ import {
     peerInitMutationProcedure,
     TPeerInitMutationProcedure,
 } from '../procedures/presence/peerInitMutationProcedure.mjs';
+import {
+    presenceUpdateMutationProcedure,
+    TPresenceUpdateMutationProcedure,
+} from '../procedures/presence/presenceUpdateMutationProcedure.mjs';
 
 export const presenceRouter = servicePlaneRouter({
     roomUpdates: roomUpdatesSubscriptionProcedure as TRoomUpdatesSubscriptionProcedure,
     peerInit: peerInitMutationProcedure as TPeerInitMutationProcedure,
+    update: presenceUpdateMutationProcedure as TPresenceUpdateMutationProcedure,
 });
 
 export type TPresenceRouter = typeof presenceRouter;
