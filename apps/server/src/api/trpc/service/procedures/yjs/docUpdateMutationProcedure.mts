@@ -17,6 +17,8 @@ export const docUpdateMutationProcedure = servicePlanePassthroughProcedure
     .mutation(async function ({ ctx, input, signal }) {
         // TODO: check permissions based on the sessionID
 
+        console.log('server received update for session', input.sessionID);
+
         const clientSentKey = input.key;
         const hashedClientSentKey: string = createHash('sha256').update(clientSentKey).digest('hex');
 

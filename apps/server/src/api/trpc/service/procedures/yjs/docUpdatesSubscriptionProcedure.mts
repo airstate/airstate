@@ -138,7 +138,6 @@ export const docUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
 
         for await (const streamMessage of streamMessages) {
             const updateSessionID = streamMessage.headers?.get('sessionID');
-
             if (updateSessionID !== sessionID) {
                 yield {
                     type: 'update',

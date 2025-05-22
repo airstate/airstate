@@ -158,7 +158,8 @@ export function sharedYDoc(options: TSharedYDocOptions): TSharedYDocReturn {
     });
 
     options.doc.on('updateV2', async (update, origin) => {
-        if (!(origin instanceof RemoteOrigin)) {
+        console.log('bairer update', origin);
+        if (!(origin instanceof RemoteOrigin) && sessionID) {
             await airState.trpc.yjs.docUpdate.mutate({
                 key: options.key,
                 sessionID: sessionID,
@@ -177,7 +178,9 @@ export function sharedYDoc(options: TSharedYDocOptions): TSharedYDocReturn {
             },
             async onData(message) {
                 if (message.type === 'session-id') {
+                    console.log('got session id');
                     sessionID = message.id;
+                    console.log(sessionID);
                     let token: null | string = null;
                     if (typeof options.token === 'function') {
                         const returned = options.token();
@@ -217,15 +220,24 @@ export function sharedYDoc(options: TSharedYDocOptions): TSharedYDocReturn {
                     }
                 } else if (message.type === 'update') {
                     if (ready) {
+                        console.log(
+                            'got update message in subscription',
+                            message.updates,
+                        );
                         y.transact(
                             options.doc,
                             () => {
                                 message.updates.forEach((update) => {
+                                    console.log('update loop', update);
                                     const binaryUpdate = Base64ToUint8Array(update);
                                     y.applyUpdateV2(
                                         options.doc,
                                         binaryUpdate,
                                         new RemoteOrigin('update', message.client),
+                                    );
+                                    console.log(
+                                        'after update',
+                                        decodeYDocToObject({ doc: options.doc }),
                                     );
                                 });
                             },
@@ -276,7 +288,7 @@ export type TSharedStateOptions<T extends TJSONAble> = {
     client?: TAirStateClient;
     key: string;
     token?: string | (() => string | Promise<string>);
-    initialValue?: T;
+    initialValue?: T | (() => T);
 };
 
 export type TSharedStateReturn<T extends TJSONAble> = {
@@ -293,6 +305,7 @@ export function createSharedState<T extends TJSONAble = any>(
     options: TSharedStateOptions<T>,
 ): TSharedStateReturn<T> {
     const doc = new y.Doc();
+    console.log('decoded doc', decodeYDocToObject({ doc: doc }));
 
     const updateListeners = new Set<(value: T) => void>();
     const syncedListeners = new Set<(value: T) => void>();
@@ -310,7 +323,10 @@ export function createSharedState<T extends TJSONAble = any>(
     if (options.initialValue) {
         encodeObjectToYDoc({
             object: {
-                sharedData: options.initialValue,
+                sharedData:
+                    typeof options.initialValue === 'function'
+                        ? options.initialValue()
+                        : options.initialValue,
             },
             doc: doc,
             avoidRemovingKeys: true,
@@ -331,13 +347,15 @@ export function createSharedState<T extends TJSONAble = any>(
 
     const syncedUnsubscribe = sharedDoc.onSynced((syncedDoc) => {
         const syncedValue = decodeYDocToObject({ doc: syncedDoc });
-
+        console.log('synced value', syncedValue);
         syncedListeners.forEach((listener) => listener(syncedValue?.sharedData as T));
     });
 
     doc.on('updateV2', (update, origin) => {
+        console.log('updateV2', origin);
         if (origin instanceof RemoteOrigin) {
             const newValue = decodeYDocToObject({ doc: doc });
+            console.log('FOREIGN UPDATE', newValue);
             updateListeners.forEach((listener) => listener(newValue?.sharedData as T));
         }
     });

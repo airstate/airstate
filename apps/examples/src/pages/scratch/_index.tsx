@@ -1,15 +1,17 @@
-import { configure, shareYDoc, yjs, encodeObjectToYDoc, decodeYDocToObject } from '@airstate/client';
+import { configure, sharedYDoc, yjs, createSharedState } from '@airstate/client';
 import { useEffect, useState } from 'react';
 import { IndexeddbPersistence } from 'y-indexeddb';
 
 configure({
     appKey: '',
-    server: `ws://localhost:11001/ws`,
+    server: `ws://${window.location.hostname}:11001/ws`,
 });
 
-export function Scratch() {
-    const [run2, setRun2] = useState(false);
+type AnyObject = {
+    [key: string]: any;
+};
 
+export function Scratch() {
     // useEffect(() => {
     //     const doc = new yjs.Doc();
     //
@@ -114,58 +116,32 @@ export function Scratch() {
     // }, []);
 
     useEffect(() => {
-        setTimeout(() => {
-            setRun2(true);
-        }, 2000);
-    }, []);
-
-    useEffect(() => {
-        const doc = new yjs.Doc();
-
-        return shareYDoc({
-            key: 'test',
-            doc: doc,
-            onConnect() {
-                console.log('1 connected');
-            },
-            onDisconnect() {
-                console.log('1 disconnected');
-            },
-            onSynced(doc) {
-                console.log('1 synced', doc.getMap('main').toJSON());
-
-                doc.on('update', () => {
-                    console.log('1:', doc.getMap('main').toJSON());
-                });
+        const sharedDOC = createSharedState<AnyObject>({
+            key: 'takashi',
+            initialValue: {
+                name: 'LUCY',
             },
         });
+        sharedDOC.onConnect(() => {
+            console.log('1 connected');
+        });
+        sharedDOC.onError((error) => {
+            console.error('1', error);
+        });
+        sharedDOC.onDisconnect(() => {
+            console.log('1 disconnected');
+        });
+        sharedDOC.onSynced((val) => {
+            console.log('Client 1 received synced value:', val);
+            // setTimeout(() => {
+            //     sharedDOC.update({ name: 'kaka', profession: 'kaka' });
+            //     console.log('Client 1 sent update synced value:');
+            // }, 7000);
+        });
+        sharedDOC.onUpdate((update) => {
+            console.log('Client 1 received update:', update);
+        });
     }, []);
-
-    useEffect(() => {
-        if (run2) {
-            const doc = new yjs.Doc();
-
-            return shareYDoc({
-                key: 'test',
-                doc: doc,
-                onConnect() {
-                    console.log('2 connected');
-                },
-                onDisconnect() {
-                    console.log('2 disconnected');
-                },
-                onSynced(doc) {
-                    console.log('2 synced', doc.getMap('main').toJSON());
-
-                    doc.on('update', () => {
-                        console.log('2:', doc.getMap('main').toJSON());
-                    });
-
-                    doc.getMap('main').set('location', `Denver, CO ${Math.random()}`);
-                },
-            });
-        }
-    }, [run2]);
 
     return <div>tomato</div>;
 }
