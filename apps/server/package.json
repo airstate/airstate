@@ -23,6 +23,7 @@
         "express": "4.21.2",
         "iovalkey": "^0.3.1",
         "jsonwebtoken": "9.0.2",
+        "mobx": "^6.13.7",
         "nanoid": "5.1.5",
         "nats": "2.29.0",
         "scope-utilities": "^2.2.1",
