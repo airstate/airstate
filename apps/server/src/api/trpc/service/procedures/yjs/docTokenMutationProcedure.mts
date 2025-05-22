@@ -1,9 +1,7 @@
 import { z } from 'zod';
-import { createHash } from 'node:crypto';
-import { headers } from 'nats';
-import { TRPCError } from '@trpc/server';
 import { servicePlanePassthroughProcedure } from '../../middleware/passthrough.mjs';
 import { resolvePermissions } from '../../../../../auth/permissions/index.mjs';
+import { sessionStore } from '../../../../../services/sessionStore.mjs';
 
 export const docTokenMutationProcedure = servicePlanePassthroughProcedure
     .meta({ writePermissionRequired: true })
@@ -14,7 +12,17 @@ export const docTokenMutationProcedure = servicePlanePassthroughProcedure
         }),
     )
     .mutation(async function ({ ctx, input }) {
-        // TODO: this. (write the token to a common mobx or something)
+        const permission = resolvePermissions({
+            secretKey: ctx.appSecret,
+            token: input.token,
+            defaultPermission: ctx.permissions,
+        });
+
+        sessionStore.setSessionData(input.sessionID, {
+            token: input.token,
+            permissions: permission,
+        });
+
         return null as any;
     });
 

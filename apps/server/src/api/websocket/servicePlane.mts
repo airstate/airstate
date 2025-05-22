@@ -13,8 +13,8 @@ export async function registerServicePlaneWebSocketHandler(
         createContext: createContext,
         keepAlive: {
             enabled: true,
-            pingMs: 5_000,
-            pongWaitMs: 2_500,
+            pingMs: 1_000,
+            pongWaitMs: 1_000,
         },
     });
 }
