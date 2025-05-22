@@ -6,7 +6,7 @@ const stringCodec = StringCodec();
 
 export type TNATSPresenceMessage = {
     session_id: string;
-    client_key: string;
+    peer_key: string;
     timestamp: number;
 } & (
     | {
@@ -114,15 +114,15 @@ export async function getInitialPresenceState(
             const messageData = stringCodec.decode(streamMessage.data);
             const message = JSON.parse(messageData) as TNATSPresenceMessage;
 
-            keySet.add(message.client_key);
+            keySet.add(message.peer_key);
 
-            if (!(message.client_key in peerMap)) {
-                peerMap[message.client_key] = {
-                    client_key: message.client_key,
+            if (!(message.peer_key in peerMap)) {
+                peerMap[message.peer_key] = {
+                    client_key: message.peer_key,
                 };
             }
 
-            const peer = peerMap[message.client_key];
+            const peer = peerMap[message.peer_key];
 
             if (message.type === 'static') {
                 peer.staticState = {

@@ -2,17 +2,18 @@ import { makeAutoObservable } from 'mobx';
 import { TPermissions } from '../schema/config.mjs';
 
 export type TLocalState = {
-    sessionMeta: Record<
-        string,
-        {
+    sessionMeta: {
+        [sessionID: string]: {
             roomKey: string;
             roomKeyHashed: string;
 
-            set: boolean;
-
-            permissions?: TPermissions;
-        }
-    >;
+            meta?: {
+                peerKey: string;
+                hashedPeerKey: string;
+                permissions: TPermissions;
+            };
+        };
+    };
 };
 
 export async function createLocalState() {

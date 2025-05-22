@@ -6,6 +6,7 @@ import { logger } from '../../../../../logger.mjs';
 import { nanoid } from 'nanoid';
 import { getInitialPresenceState, TNATSPresenceMessage, TPresenceState } from './_helpers.mjs';
 import { when } from 'mobx';
+import { TRPCError } from '@trpc/server';
 
 export type TPresenceMessage =
     | {
@@ -17,8 +18,7 @@ export type TPresenceMessage =
           state: TPresenceState;
       }
     | {
-          id: string;
-          key: string;
+          peer_key: string;
 
           timestamp: number;
 
@@ -26,8 +26,7 @@ export type TPresenceMessage =
           state: Record<string, any>;
       }
     | {
-          id: string;
-          key: string;
+          peer_key: string;
 
           timestamp: number;
 
@@ -35,15 +34,14 @@ export type TPresenceMessage =
           state: Record<string, any>;
       }
     | {
-          id: string;
-          key: string;
+          peer_key: string;
 
           timestamp: number;
           type: 'focus-update';
           isFocused: boolean;
       };
 
-export const docUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
+export const roomUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
     .input(
         z.object({
             key: z.string(),
@@ -57,7 +55,6 @@ export const docUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
         ctx.services.localState.sessionMeta[sessionID] = {
             roomKey: clientSentKey,
             roomKeyHashed: hashedClientSentKey,
-            set: false,
         };
 
         try {
@@ -69,7 +66,7 @@ export const docUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
             await when(
                 () =>
                     !(sessionID in ctx.services.localState.sessionMeta) ||
-                    ctx.services.localState.sessionMeta[sessionID].set,
+                    !!ctx.services.localState.sessionMeta[sessionID].meta,
                 {
                     signal: signal,
                 },
@@ -79,8 +76,17 @@ export const docUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
                 return;
             }
 
-            if (!ctx.services.localState.sessionMeta[sessionID].permissions?.presence.join) {
+            const sessionMeta = ctx.services.localState.sessionMeta[sessionID];
+
+            if (!sessionMeta.meta) {
                 return;
+            }
+
+            if (sessionMeta.meta.permissions.presence.join !== true) {
+                throw new TRPCError({
+                    code: 'FORBIDDEN',
+                    message: 'permission to join presence room is not set',
+                });
             }
 
             logger.debug(`new subscription for presence room: ${clientSentKey}`, {
@@ -139,24 +145,21 @@ export const docUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
                     if (message.type === 'static') {
                         yield {
                             type: 'static-update',
-                            key: message.client_key,
-                            id: message.session_id,
+                            peer_key: message.peer_key,
                             state: message.staticState,
                             timestamp: message.timestamp,
                         } satisfies TPresenceMessage;
                     } else if (message.type === 'dynamic') {
                         yield {
                             type: 'dynamic-update',
-                            key: message.client_key,
-                            id: message.session_id,
+                            peer_key: message.peer_key,
                             state: message.dynamicState,
                             timestamp: message.timestamp,
                         } satisfies TPresenceMessage;
                     } else if (message.type === 'focus') {
                         yield {
                             type: 'focus-update',
-                            key: message.client_key,
-                            id: message.session_id,
+                            peer_key: message.peer_key,
                             isFocused: message.isFocused,
                             timestamp: message.timestamp,
                         } satisfies TPresenceMessage;
@@ -171,3 +174,5 @@ export const docUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
             delete ctx.services.localState.sessionMeta[sessionID];
         }
     });
+
+export type TRoomUpdatesSubscriptionProcedure = typeof roomUpdatesSubscriptionProcedure;

@@ -3,7 +3,15 @@ import { permissionsSchema } from './config.mjs';
 
 export const tokenPayloadSchema = z
     .object({
-        permissions: permissionsSchema.partial().optional(),
+        data: z.object({
+            permissions: permissionsSchema.partial().optional(),
+            presence: z
+                .object({
+                    peerKey: z.string().optional(),
+                    staticState: z.record(z.string(), z.any()).optional(),
+                })
+                .optional(),
+        }),
     })
     .passthrough();
 
