@@ -141,6 +141,9 @@ importers:
       nanoid:
         specifier: ^5.1.5
         version: 5.1.5
+      synchronization-atom:
+        specifier: ^2.0.2
+        version: 2.0.2
       yjs:
         specifier: ^13.6.26
         version: 13.6.26
@@ -3041,6 +3044,9 @@ packages:
   supports-preserve-symlinks-flag@1.0.0:
     resolution: {integrity: sha512-ot0WnXS9fgdkgIcePe6RHNk1WA8+muPa6cSjeR3V8K27q9BB1rTE3R1p7Hv0z1ZyAc8s6Vvv8DIyWf681MAt0w==}
     engines: {node: '>= 0.4'}
+
+  synchronization-atom@2.0.2:
+    resolution: {integrity: sha512-txMmdvLcsejOHFr4z8UD+ybaHB5RmSU6K/4iRXQlrKvw8/G1d9p5fBviWJTIbddMBxLY3AouSKmdHSRwBvVY9g==}
 
   tailwindcss@4.1.4:
     resolution: {integrity: sha512-1ZIUqtPITFbv/DxRmDr5/agPqJwF69d24m9qmM1939TJehgY539CtzeZRjbLt5G6fSy/7YqqYsfvoTEw9xUI2A==}
@@ -6958,6 +6964,8 @@ snapshots:
       has-flag: 4.0.0
 
   supports-preserve-symlinks-flag@1.0.0: {}
+
+  synchronization-atom@2.0.2: {}
 
   tailwindcss@4.1.4: {}
 

@@ -1,17 +1,22 @@
-import { configure, sharedYDoc, yjs, createSharedState } from '@airstate/client';
+import {
+    configure,
+    sharedYDoc,
+    yjs,
+    encodeObjectToYDoc,
+    decodeYDocToObject,
+    createSharedState,
+} from '@airstate/client';
 import { useEffect, useState } from 'react';
 import { IndexeddbPersistence } from 'y-indexeddb';
 
 configure({
     appKey: '',
-    server: `ws://${window.location.hostname}:11001/ws`,
+    server: `ws://localhost:11001/ws`,
 });
 
-type AnyObject = {
-    [key: string]: any;
-};
-
 export function Scratch() {
+    const [run2, setRun2] = useState(false);
+
     // useEffect(() => {
     //     const doc = new yjs.Doc();
     //
@@ -116,32 +121,96 @@ export function Scratch() {
     // }, []);
 
     useEffect(() => {
-        const sharedDOC = createSharedState<AnyObject>({
-            key: 'takashi',
-            initialValue: {
-                name: 'LUCY',
+        setTimeout(() => {
+            setRun2(true);
+        }, 2000);
+    }, []);
+
+    // useEffect(() => {
+    //     const doc = new yjs.Doc();
+    //
+    //     const s = sharedYDoc({
+    //         key: 'test',
+    //         doc: doc,
+    //     });
+    //
+    //     s.onConnect(() => {
+    //         console.log(1, 'connected');
+    //     });
+    //
+    //     s.onSynced(() => {
+    //         console.log('1 synced', doc.getMap('main').toJSON());
+    //
+    //         doc.on('update', () => {
+    //             console.log('1:', doc.getMap('main').toJSON());
+    //         });
+    //     });
+    // }, []);
+    //
+    // useEffect(() => {
+    //     if (run2) {
+    //         const doc = new yjs.Doc();
+    //
+    //         const s = sharedYDoc({
+    //             key: 'test',
+    //             doc: doc,
+    //         });
+    //
+    //         s.onConnect(() => {
+    //             console.log('2 connected');
+    //         });
+    //
+    //         s.onSynced(() => {
+    //             console.log('2 synced', doc.getMap('main').toJSON());
+    //
+    //             doc.on('update', () => {
+    //                 console.log('2:', doc.getMap('main').toJSON());
+    //             });
+    //
+    //             doc.getMap('main').set('location', `Denver, CO ${Math.random()}`);
+    //         });
+    //     }
+    // }, [run2]);
+
+    useEffect(() => {
+        const ss = createSharedState<any>({
+            key: 's1',
+        });
+
+        ss.subscribe((value, origin) => {
+            console.log('a', value, origin);
+        });
+
+        ss.update({
+            users: {
+                tanvir: {
+                    name: 'Tanvir Hossen',
+                },
             },
         });
-        sharedDOC.onConnect(() => {
-            console.log('1 connected');
-        });
-        sharedDOC.onError((error) => {
-            console.error('1', error);
-        });
-        sharedDOC.onDisconnect(() => {
-            console.log('1 disconnected');
-        });
-        sharedDOC.onSynced((val) => {
-            console.log('Client 1 received synced value:', val);
-            // setTimeout(() => {
-            //     sharedDOC.update({ name: 'kaka', profession: 'kaka' });
-            //     console.log('Client 1 sent update synced value:');
-            // }, 7000);
-        });
-        sharedDOC.onUpdate((update) => {
-            console.log('Client 1 received update:', update);
-        });
     }, []);
+
+    useEffect(() => {
+        if (run2) {
+            const ss = createSharedState<any>({
+                key: 's1',
+            });
+
+            ss.subscribe((value, origin) => {
+                console.log('b', value, origin);
+            });
+
+            // ss.onSynced(() => {
+            ss.update({
+                users: {
+                    omran: {
+                        name: 'Omran Jamal',
+                    },
+                },
+            });
+            // });
+        }
+    }, [run2]);
 
     return <div>tomato</div>;
 }

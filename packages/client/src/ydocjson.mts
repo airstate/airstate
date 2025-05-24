@@ -9,48 +9,60 @@ export type TJSONAbleObject = {
 
 export type TObjectStored =
     | {
+          // string
           t: 's';
           v: string;
       }
     | {
+          // number
           t: 'n';
           v: number;
       }
     | {
+          // boolean
           t: 'b';
           v: boolean;
       }
     | {
+          // null
           t: 'u';
       }
     | {
+          // array
           t: 'a';
       }
     | {
+          // object
           t: 'o';
       };
 
 export type TArrayStored =
     | {
+          // string
           t: 's';
           v: string;
       }
     | {
+          // number
           t: 'n';
           v: number;
       }
     | {
+          // boolean
           t: 'b';
           v: boolean;
       }
     | {
+          // null
           t: 'u';
       }
     | {
+          // array
           t: 'a';
           i: string;
       }
     | {
+          // object
           t: 'o';
           i: string;
       };
