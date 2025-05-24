@@ -18,6 +18,7 @@ export type TSharedYDocReturn = {
         listener: (doc: y.Doc, initMeta: { hasWrittenFirstUpdate: boolean }) => void,
     ) => () => boolean;
     readonly unsubscribe: () => void;
+    readonly clearUpdates: () => void;
 };
 
 export function sharedYDoc(options: TSharedYDocOptions): TSharedYDocReturn {
@@ -216,5 +217,8 @@ export function sharedYDoc(options: TSharedYDocOptions): TSharedYDocReturn {
             return () => syncedListeners.delete(listener);
         },
         unsubscribe,
+        clearUpdates: () => {
+            updates = [];
+        },
     };
 }

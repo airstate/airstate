@@ -24,6 +24,28 @@ export function createSharedState<T extends TJSONAble = any>(
 ): TSharedStateReturn<T> {
     const doc = new y.Doc();
 
+    const undoManager = new y.UndoManager(doc, {
+        // the entire year basically, because we want to capture
+        // everything until init
+        captureTimeout: 3_600 * 24 * 365,
+    });
+
+    const resolvedInitialValue =
+        typeof options.initialValue === 'function'
+            ? options.initialValue()
+            : options.initialValue;
+
+    if (resolvedInitialValue) {
+        y.transact(doc, () => {
+            encodeObjectToYDoc({
+                object: {
+                    sharedData: resolvedInitialValue,
+                },
+                doc: doc,
+            });
+        });
+    }
+
     const updateListeners = new Set<(value: T, origin: any) => void>();
     const syncedListeners = new Set<(value: T) => void>();
     const errorListeners = new Set<(error?: Error) => void>();
@@ -35,6 +57,24 @@ export function createSharedState<T extends TJSONAble = any>(
         key: options.key,
         doc: doc,
         token: options.token,
+    });
+
+    let hasInitializedOnce = false;
+    let needsInitAfterSync = false;
+
+    sharedDoc.onInit((doc, initMeta) => {
+        if (
+            !hasInitializedOnce &&
+            resolvedInitialValue &&
+            !initMeta.hasWrittenFirstUpdate
+        ) {
+            needsInitAfterSync = true;
+            hasInitializedOnce = true;
+
+            undoManager.stopCapturing();
+            undoManager.undo();
+            sharedDoc.clearUpdates();
+        }
     });
 
     const errorUnsubscribe = sharedDoc.onError((error) => {
@@ -63,16 +103,16 @@ export function createSharedState<T extends TJSONAble = any>(
     });
 
     sharedDoc.onSynced(() => {
-        if (options.initialValue) {
-            encodeObjectToYDoc({
-                object: {
-                    sharedData:
-                        typeof options.initialValue === 'function'
-                            ? options.initialValue()
-                            : options.initialValue,
-                },
-                doc: doc,
-                avoidRemovingKeys: true,
+        if (needsInitAfterSync && resolvedInitialValue) {
+            needsInitAfterSync = false;
+
+            y.transact(doc, () => {
+                encodeObjectToYDoc({
+                    object: {
+                        sharedData: resolvedInitialValue,
+                    },
+                    doc: doc,
+                });
             });
         }
     });
