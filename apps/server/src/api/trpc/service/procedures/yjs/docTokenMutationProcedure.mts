@@ -9,6 +9,7 @@ export const docTokenMutationProcedure = servicePlanePassthroughProcedure
         z.object({
             sessionID: z.string(),
             token: z.string().nullable(),
+            firstUpdate: z.string().optional(),
         }),
     )
     .mutation(async function ({ ctx, input }) {
@@ -23,7 +24,9 @@ export const docTokenMutationProcedure = servicePlanePassthroughProcedure
             permissions: permission,
         });
 
-        return null as any;
+        return {
+            hasWrittenFirstUpdate: false,
+        };
     });
 
 export type TDocTokenMutationProcedure = typeof docTokenMutationProcedure;

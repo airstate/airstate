@@ -14,6 +14,9 @@ export type TSharedYDocReturn = {
     readonly onConnect: (listener: () => void) => () => boolean;
     readonly onDisconnect: (listener: () => void) => () => boolean;
     readonly onSynced: (listener: (doc: y.Doc) => void) => () => boolean;
+    readonly onInit: (
+        listener: (doc: y.Doc, initMeta: { hasWrittenFirstUpdate: boolean }) => void,
+    ) => () => boolean;
     readonly unsubscribe: () => void;
 };
 
@@ -26,12 +29,9 @@ export function sharedYDoc(options: TSharedYDocOptions): TSharedYDocReturn {
     const connectListeners = new Set<() => void>();
     const disconnectListeners = new Set<() => void>();
     const syncedListeners = new Set<(doc: y.Doc) => void>();
-
-    if (airState.isOpen) {
-        connectListeners.forEach((listener) => listener());
-    } else {
-        disconnectListeners.forEach((listener) => listener());
-    }
+    const initListeners = new Set<
+        (doc: y.Doc, initMeta: { hasWrittenFirstUpdate: boolean }) => void
+    >();
 
     const cleanupOnOpen = airState.onOpen(() => {
         connectListeners.forEach((listener) => listener());
@@ -121,10 +121,20 @@ export function sharedYDoc(options: TSharedYDocOptions): TSharedYDocReturn {
                         token = options.token ?? null;
                     }
 
-                    await airState.trpc.yjs.docToken.mutate({
-                        sessionID: sessionID,
-                        token: token,
-                    });
+                    const { hasWrittenFirstUpdate } =
+                        await airState.trpc.yjs.docToken.mutate({
+                            sessionID: sessionID,
+                            token: token,
+                            firstUpdate: uint8ArrayToBase64(
+                                y.encodeStateAsUpdateV2(options.doc),
+                            ),
+                        });
+
+                    initListeners.forEach((listener) =>
+                        listener(options.doc, {
+                            hasWrittenFirstUpdate: hasWrittenFirstUpdate,
+                        }),
+                    );
                 } else if (message.type === 'sync') {
                     y.transact(
                         options.doc,
@@ -181,22 +191,27 @@ export function sharedYDoc(options: TSharedYDocOptions): TSharedYDocReturn {
         connectListeners.clear();
         disconnectListeners.clear();
         syncedListeners.clear();
+        initListeners.clear();
     };
 
     return {
-        onError: (listener: (error?: Error) => void) => {
+        onError: (listener) => {
             errorListeners.add(listener);
             return () => errorListeners.delete(listener);
         },
-        onConnect: (listener: () => void) => {
+        onConnect: (listener) => {
             connectListeners.add(listener);
             return () => connectListeners.delete(listener);
         },
-        onDisconnect: (listener: () => void) => {
+        onDisconnect: (listener) => {
             disconnectListeners.add(listener);
             return () => disconnectListeners.delete(listener);
         },
-        onSynced: (listener: (doc: y.Doc) => void) => {
+        onInit: (listener) => {
+            initListeners.add(listener);
+            return () => initListeners.delete(listener);
+        },
+        onSynced: (listener) => {
             syncedListeners.add(listener);
             return () => syncedListeners.delete(listener);
         },
