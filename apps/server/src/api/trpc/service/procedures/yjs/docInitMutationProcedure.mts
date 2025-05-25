@@ -6,7 +6,7 @@ import { env } from '../../../../../env.mjs';
 import { logger } from '../../../../../logger.mjs';
 import { extractTokenPayload } from '../../../../../auth/permissions/index.mjs';
 import { merge } from 'es-toolkit/object';
-import { StorageType } from 'nats';
+import { headers, StorageType } from 'nats';
 
 export const docInitMutationProcedure = servicePlanePassthroughProcedure
     .meta({ writePermissionRequired: true })
@@ -59,9 +59,46 @@ export const docInitMutationProcedure = servicePlanePassthroughProcedure
         });
 
         sessionMeta.meta = meta;
+        let hasWrittenFirstUpdate: boolean = false;
+
+        const publishHeaders = headers();
+        publishHeaders.set('sessionID', input.sessionID);
+
+        while (!!input.initialState) {
+            try {
+                await ctx.services.sharedStateKV.create(`${streamName}__init`, JSON.stringify(null));
+
+                await ctx.services.jetStreamClient.publish(
+                    subject,
+                    ctx.services.natsStringCodec.encode(input.initialState),
+                    {
+                        headers: publishHeaders,
+                    },
+                );
+
+                const streamInfo = await ctx.services.jetStreamManager.streams.info(streamName);
+                const messageCount = streamInfo.state.messages;
+
+                if (messageCount === 1) {
+                    hasWrittenFirstUpdate = true;
+                    break;
+                } else {
+                    await ctx.services.sharedStateKV.delete(`${streamName}__init`);
+                }
+            } catch {
+                const streamInfo = await ctx.services.jetStreamManager.streams.info(streamName);
+                const messageCount = streamInfo.state.messages;
+
+                if (messageCount === 0) {
+                    await ctx.services.sharedStateKV.delete(`${streamName}__init`);
+                } else {
+                    break;
+                }
+            }
+        }
 
         return {
-            hasWrittenFirstUpdate: false,
+            hasWrittenFirstUpdate: hasWrittenFirstUpdate,
         };
     });
 

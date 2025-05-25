@@ -126,91 +126,91 @@ export function Scratch() {
         }, 2000);
     }, []);
 
+    useEffect(() => {
+        const doc = new yjs.Doc();
+
+        const s = sharedYDoc({
+            key: 'test',
+            doc: doc,
+        });
+
+        s.onConnect(() => {
+            console.log(1, 'connected');
+        });
+
+        s.onSynced(() => {
+            console.log('1 synced', doc.getMap('main').toJSON());
+
+            doc.on('update', () => {
+                console.log('1:', doc.getMap('main').toJSON());
+            });
+        });
+    }, []);
+    //
+    useEffect(() => {
+        if (run2) {
+            const doc = new yjs.Doc();
+
+            const s = sharedYDoc({
+                key: 'test',
+                doc: doc,
+            });
+
+            s.onConnect(() => {
+                console.log('2 connected');
+            });
+
+            s.onSynced(() => {
+                console.log('2 synced', doc.getMap('main').toJSON());
+
+                doc.on('update', () => {
+                    console.log('2:', doc.getMap('main').toJSON());
+                });
+
+                doc.getMap('main').set('location', `Denver, CO ${Math.random()}`);
+            });
+        }
+    }, [run2]);
+
     // useEffect(() => {
-    //     const doc = new yjs.Doc();
-    //
-    //     const s = sharedYDoc({
-    //         key: 'test',
-    //         doc: doc,
+    //     const ss = createSharedState<any>({
+    //         key: 's1',
+    //         initialValue: {
+    //             ordinalNumbers: [1, 2],
+    //         },
     //     });
     //
-    //     s.onConnect(() => {
-    //         console.log(1, 'connected');
-    //     });
-    //
-    //     s.onSynced(() => {
-    //         console.log('1 synced', doc.getMap('main').toJSON());
-    //
-    //         doc.on('update', () => {
-    //             console.log('1:', doc.getMap('main').toJSON());
-    //         });
+    //     ss.subscribe((value, origin) => {
+    //         console.log('a', value, origin);
     //     });
     // }, []);
-    //
+
     // useEffect(() => {
     //     if (run2) {
-    //         const doc = new yjs.Doc();
-    //
-    //         const s = sharedYDoc({
-    //             key: 'test',
-    //             doc: doc,
+    //         const ss = createSharedState({
+    //             key: 's1',
+    //             initialValue: {
+    //                 ordinalNumbers: [1, 2],
+    //             },
     //         });
     //
-    //         s.onConnect(() => {
-    //             console.log('2 connected');
+    //         ss.subscribe((value, origin) => {
+    //             console.log('b', value, origin);
     //         });
     //
-    //         s.onSynced(() => {
-    //             console.log('2 synced', doc.getMap('main').toJSON());
-    //
-    //             doc.on('update', () => {
-    //                 console.log('2:', doc.getMap('main').toJSON());
-    //             });
-    //
-    //             doc.getMap('main').set('location', `Denver, CO ${Math.random()}`);
+    //         ss.onSynced(() => {
+    //             ss.update((state) =>
+    //                 state && state.ordinalNumbers
+    //                     ? {
+    //                           ordinalNumbers: [...state.ordinalNumbers, 3],
+    //                       }
+    //                     : {
+    //                           ordinalNumbers: [],
+    //                       },
+    //             );
     //         });
     //     }
     // }, [run2]);
-
-    useEffect(() => {
-        const ss = createSharedState<any>({
-            key: 's1',
-        });
-
-        ss.subscribe((value, origin) => {
-            console.log('a', value, origin);
-        });
-
-        ss.update({
-            users: {
-                tanvir: {
-                    name: 'Tanvir Hossen',
-                },
-            },
-        });
-    }, []);
-
-    useEffect(() => {
-        if (run2) {
-            const ss = createSharedState<any>({
-                key: 's1',
-            });
-
-            ss.subscribe((value, origin) => {
-                console.log('b', value, origin);
-            });
-
-            // ss.onSynced(() => {
-            ss.update({
-                users: {
-                    omran: {
-                        name: 'Omran Jamal',
-                    },
-                },
-            });
-            // });
-        }
-    }, [run2]);
 
     return <div>tomato</div>;
 }

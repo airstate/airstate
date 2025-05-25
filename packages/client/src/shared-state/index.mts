@@ -128,7 +128,6 @@ export function createSharedState<T extends TJSONAble = any>(
                     sharedData: newValue,
                 },
                 doc: doc,
-                avoidRemovingKeys: true,
             });
         });
     };
