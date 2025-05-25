@@ -1,12 +1,18 @@
 import { servicePlaneRouter } from '../index.mjs';
-import { docUpdatesSubscriptionProcedure } from '../procedures/yjs/docUpdatesSubscriptionProcedure.mjs';
-import { docUpdateMutationProcedure } from '../procedures/yjs/docUpdateMutationProcedure.mjs';
-import { docTokenMutationProcedure } from '../procedures/yjs/docTokenMutationProcedure.mjs';
+import {
+    docUpdatesSubscriptionProcedure,
+    TDocUpdatesSubscriptionProcedure,
+} from '../procedures/yjs/docUpdatesSubscriptionProcedure.mjs';
+import {
+    docUpdateMutationProcedure,
+    TDocUpdateMutationProcedure,
+} from '../procedures/yjs/docUpdateMutationProcedure.mjs';
+import { docInitMutationProcedure, TDocInitMutationProcedure } from '../procedures/yjs/docInitMutationProcedure.mjs';
 
 export const yjsRouter = servicePlaneRouter({
-    docUpdates: docUpdatesSubscriptionProcedure,
-    docUpdate: docUpdateMutationProcedure,
-    docToken: docTokenMutationProcedure,
+    docUpdates: docUpdatesSubscriptionProcedure as TDocUpdatesSubscriptionProcedure,
+    docUpdate: docUpdateMutationProcedure as TDocUpdateMutationProcedure,
+    docInit: docInitMutationProcedure as TDocInitMutationProcedure,
 });
 
 export type TYJSRouter = typeof yjsRouter;

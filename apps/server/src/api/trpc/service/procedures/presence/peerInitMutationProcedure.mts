@@ -8,6 +8,7 @@ import { merge } from 'es-toolkit/object';
 import { defaultPermissions } from '../../context.mjs';
 import { TNATSPresenceMessage } from './_helpers.mjs';
 import { createHash } from 'node:crypto';
+import { StorageType } from 'nats';
 
 export const peerInitMutationProcedure = servicePlanePassthroughProcedure
     .meta({ writePermissionRequired: true })
@@ -31,6 +32,7 @@ export const peerInitMutationProcedure = servicePlanePassthroughProcedure
 
         const key = `${ctx.accountingIdentifier}__${hashedRoomKey}`;
         const commonSubjectPrefix = `presence.${key}`;
+        const streamName = `presence.${key}`;
 
         const commonMeta = {
             peerKey: input.peerKey,
@@ -60,6 +62,14 @@ export const peerInitMutationProcedure = servicePlanePassthroughProcedure
                     };
 
                     if (extracted.data.presence?.staticState) {
+                        // ensure the stream exists
+                        await ctx.services.jetStreamManager.streams.add({
+                            name: streamName,
+                            subjects: [`presence.${key}.>`],
+                            storage: StorageType.File,
+                            max_msgs_per_subject: 1,
+                        });
+
                         await ctx.services.jetStreamClient.publish(
                             `${commonSubjectPrefix}.static.${hashedPeerKey}`,
                             ctx.services.natsStringCodec.encode(

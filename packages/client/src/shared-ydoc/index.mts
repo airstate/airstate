@@ -105,8 +105,8 @@ export function sharedYDoc(options: TSharedYDocOptions): TSharedYDocReturn {
                 errorListeners.forEach((listener) => listener(error));
             },
             async onData(message) {
-                if (message.type === 'session-id') {
-                    sessionID = message.id;
+                if (message.type === 'session-info') {
+                    sessionID = message.session_id;
 
                     let token: null | string = null;
 
@@ -123,10 +123,10 @@ export function sharedYDoc(options: TSharedYDocOptions): TSharedYDocReturn {
                     }
 
                     const { hasWrittenFirstUpdate } =
-                        await airState.trpc.yjs.docToken.mutate({
+                        await airState.trpc.yjs.docInit.mutate({
                             sessionID: sessionID,
                             token: token,
-                            firstUpdate: uint8ArrayToBase64(
+                            initialState: uint8ArrayToBase64(
                                 y.encodeStateAsUpdateV2(options.doc),
                             ),
                         });
