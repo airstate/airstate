@@ -12,8 +12,6 @@ export const defaultPermissions: TPermissions = {
     presence: {
         join: true,
         update_state: true,
-        read_presence: true,
-        read_summary: true,
     },
     yjs: {
         read: true,

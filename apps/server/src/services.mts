@@ -6,8 +6,11 @@ import { NATSServices } from './types/nats.mjs';
 import { createValkeyConnection, TValkeyService } from './db/valkey/index.mjs';
 import { createInfoService, TInfoService } from './services/info.mjs';
 import { createControlClients, TControlClientsService } from './services/controlClients.mjs';
+import { createLocalState, TLocalStateService } from './services/localState.mjs';
 
-export async function createServices(): Promise<NATSServices & TValkeyService & TInfoService & TControlClientsService> {
+export async function createServices(): Promise<
+    NATSServices & TValkeyService & TInfoService & TControlClientsService & TLocalStateService
+> {
     const natsStringCodec = createStringCodec();
     const natsConnection = await createNATSConnection(env.AIRSTATE_NATS_URLS.split(',').map((url) => url.trim()));
 
@@ -20,6 +23,8 @@ export async function createServices(): Promise<NATSServices & TValkeyService & 
     const info = await createInfoService();
     const controlClients = await createControlClients();
 
+    const localState = await createLocalState();
+
     return {
         natsStringCodec,
         natsConnection,
@@ -29,6 +34,7 @@ export async function createServices(): Promise<NATSServices & TValkeyService & 
         valkey,
         info,
         controlClients,
+        localState,
     };
 }
 

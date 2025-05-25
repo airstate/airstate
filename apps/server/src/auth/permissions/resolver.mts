@@ -6,7 +6,7 @@ import { logger } from '../../logger.mjs';
 import { TPermissions } from '../../schema/config.mjs';
 import { merge } from 'es-toolkit/object';
 
-function validateToken(token: string, signingSecret: string) {
+export function extractTokenPayload(token: string, signingSecret: string) {
     try {
         const decodedToken = jwt.verify(token, signingSecret);
         return tokenPayloadSchema.parse(decodedToken);
@@ -17,6 +17,6 @@ function validateToken(token: string, signingSecret: string) {
 }
 
 export function resolvePermissions({ secretKey, token, defaultPermission }: PermissionResolverOptions): TPermissions {
-    const permissionFromToken = token && secretKey ? validateToken(token, secretKey)?.permissions : null;
+    const permissionFromToken = token && secretKey ? extractTokenPayload(token, secretKey)?.permissions : null;
     return permissionFromToken ? merge(defaultPermission, permissionFromToken) : defaultPermission;
 }

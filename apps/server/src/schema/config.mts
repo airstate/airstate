@@ -8,8 +8,6 @@ export const permissionsSchema = z.object({
     presence: z.object({
         join: z.boolean().default(true),
         update_state: z.boolean().default(true),
-        read_presence: z.boolean().default(true),
-        read_summary: z.boolean().default(true),
     }),
 });
 

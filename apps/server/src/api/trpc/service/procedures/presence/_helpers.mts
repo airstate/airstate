@@ -5,8 +5,8 @@ import { AckPolicy, DeliverPolicy, StringCodec } from 'nats';
 const stringCodec = StringCodec();
 
 export type TNATSPresenceMessage = {
-    id: string;
-    key: string;
+    session_id: string;
+    peer_key: string;
     timestamp: number;
 } & (
     | {
@@ -27,8 +27,7 @@ export type TPresenceState = {
     peers: Record<
         string,
         {
-            id: string;
-            key: string;
+            client_key: string;
 
             connectionState?: {
                 connected: boolean;
@@ -79,8 +78,7 @@ export async function getInitialPresenceState(
     const peerMap: Record<
         string,
         {
-            id: string;
-            key: string;
+            client_key: string;
 
             focusState?: {
                 isFocused: boolean;
@@ -116,18 +114,15 @@ export async function getInitialPresenceState(
             const messageData = stringCodec.decode(streamMessage.data);
             const message = JSON.parse(messageData) as TNATSPresenceMessage;
 
-            keySet.add(message.key);
+            keySet.add(message.peer_key);
 
-            if (!(message.key in peerMap)) {
-                peerMap[message.key] = {
-                    id: message.id,
-                    key: message.key,
+            if (!(message.peer_key in peerMap)) {
+                peerMap[message.peer_key] = {
+                    client_key: message.peer_key,
                 };
             }
 
-            const peer = peerMap[message.key];
-
-            peer.id = message.id;
+            const peer = peerMap[message.peer_key];
 
             if (message.type === 'static') {
                 peer.staticState = {
