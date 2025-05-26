@@ -6,11 +6,7 @@ export { uint8ArrayToBase64 } from './utils.mjs';
 
 export { RemoteOrigin } from './nominal-types.mjs';
 
-export {
-    TSharedYDocReturn,
-    TSharedYDocOptions,
-    sharedYDoc,
-} from './shared-ydoc/index.mjs';
+export { TSharedYDoc, TSharedYDocOptions, sharedYDoc } from './shared-ydoc/index.mjs';
 
 export {
     TSharedStateReturn,

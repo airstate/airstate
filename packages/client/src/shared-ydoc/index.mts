@@ -1,5 +1,5 @@
 import * as y from 'yjs';
-import { RemoteOrigin } from '../nominal-types.mjs';
+import { AirStateInitialStateUndoManager, RemoteOrigin } from '../nominal-types.mjs';
 import { base64ToUint8Array, uint8ArrayToBase64 } from '../utils.mjs';
 import { getDefaultClient, TAirStateClient } from '../client.mjs';
 
@@ -9,7 +9,8 @@ export type TSharedYDocOptions = {
     doc: y.Doc;
     token?: string | (() => string | Promise<string>);
 };
-export type TSharedYDocReturn = {
+
+export type TSharedYDoc = {
     readonly onError: (listener: (error?: Error) => void) => () => boolean;
     readonly onConnect: (listener: () => void) => () => boolean;
     readonly onDisconnect: (listener: () => void) => () => boolean;
@@ -17,11 +18,13 @@ export type TSharedYDocReturn = {
     readonly onInit: (
         listener: (doc: y.Doc, initMeta: { hasWrittenFirstUpdate: boolean }) => void,
     ) => () => boolean;
-    readonly unsubscribe: () => void;
-    readonly clearUpdates: () => void;
+    readonly destroy: () => void;
+    readonly filterUpdates: (
+        filterFunc: (updates: [string, any][]) => [string, any][],
+    ) => void;
 };
 
-export function sharedYDoc(options: TSharedYDocOptions): TSharedYDocReturn {
+export function sharedYDoc(options: TSharedYDocOptions): TSharedYDoc {
     const airState = options.client ?? getDefaultClient();
 
     let ready = false;
@@ -42,7 +45,7 @@ export function sharedYDoc(options: TSharedYDocOptions): TSharedYDocReturn {
         disconnectListeners.forEach((listener) => listener());
     });
 
-    let updates: string[] = [];
+    let updates: [string, any][] = [];
     let scheduled = false;
     let sessionID: null | string = null;
     let syncerTimeout = setTimeout(() => {}, 0);
@@ -60,10 +63,17 @@ export function sharedYDoc(options: TSharedYDocOptions): TSharedYDocReturn {
         try {
             const syncedUpdateCount = updates.length;
 
+            const updatesToSync = updates
+                .slice(0, syncedUpdateCount)
+                .filter(
+                    ([update, origin]) =>
+                        !(origin instanceof AirStateInitialStateUndoManager),
+                );
+
             await airState.trpc.yjs.docUpdate.mutate({
                 key: options.key,
                 sessionID: sessionID,
-                encodedUpdates: updates.slice(0, syncedUpdateCount),
+                encodedUpdates: updatesToSync.map(([update, origin]) => update),
             });
 
             updates = updates.slice(syncedUpdateCount);
@@ -91,7 +101,7 @@ export function sharedYDoc(options: TSharedYDocOptions): TSharedYDocReturn {
 
     options.doc.on('updateV2', async (update, origin) => {
         if (!(origin instanceof RemoteOrigin)) {
-            updates.push(uint8ArrayToBase64(update));
+            updates.push([uint8ArrayToBase64(update), origin]);
             triggerSync();
         }
     });
@@ -184,7 +194,7 @@ export function sharedYDoc(options: TSharedYDocOptions): TSharedYDocReturn {
         },
     );
 
-    const unsubscribe = () => {
+    const destroy = () => {
         cleanupOnOpen();
         cleanupOnClose();
         subscription.unsubscribe();
@@ -216,9 +226,9 @@ export function sharedYDoc(options: TSharedYDocOptions): TSharedYDocReturn {
             syncedListeners.add(listener);
             return () => syncedListeners.delete(listener);
         },
-        unsubscribe,
-        clearUpdates: () => {
-            updates = [];
+        destroy: destroy,
+        filterUpdates: (filterFunc) => {
+            updates = filterFunc(updates);
         },
     };
 }

@@ -1,6 +1,6 @@
 import { decodeYDocToObject, encodeObjectToYDoc, TJSONAble } from '../ydocjson.mjs';
 import * as y from 'yjs';
-import { sharedYDoc } from '../shared-ydoc/index.mjs';
+import { sharedYDoc, TSharedYDoc } from '../shared-ydoc/index.mjs';
 import { TAirStateClient } from '../client.mjs';
 
 export type TSharedStateOptions<T extends TJSONAble> = {
@@ -9,132 +9,155 @@ export type TSharedStateOptions<T extends TJSONAble> = {
     token?: string | (() => string | Promise<string>);
     initialValue?: T | (() => T);
 };
+
 export type TSharedStateReturn<T extends TJSONAble> = {
     readonly update: (update: T | ((previousValue: T) => T)) => void;
-    readonly subscribe: (listener: (value: T, origin: any) => void) => () => boolean;
+    readonly onUpdate: (listener: (value: T, origin: any) => void) => () => boolean;
     readonly onSynced: (listener: (value: T) => void) => () => boolean;
     readonly onError: (listener: (error?: Error) => void) => () => boolean;
     readonly onConnect: (listener: () => void) => () => boolean;
     readonly onDisconnect: (listener: () => void) => () => boolean;
     readonly destroy: () => void;
+    readonly synced: boolean;
 };
 
 export function createSharedState<T extends TJSONAble = any>(
     options: TSharedStateOptions<T>,
 ): TSharedStateReturn<T> {
-    const doc = new y.Doc();
-
-    const undoManager = new y.UndoManager(doc, {
-        // the entire year basically, because we want to capture
-        // everything until init
-        captureTimeout: 3_600 * 24 * 365,
-    });
-
-    const resolvedInitialValue =
-        typeof options.initialValue === 'function'
-            ? options.initialValue()
-            : options.initialValue;
-
-    if (resolvedInitialValue) {
-        y.transact(doc, () => {
-            encodeObjectToYDoc({
-                object: {
-                    sharedData: resolvedInitialValue,
-                },
-                doc: doc,
-            });
-        });
-    }
-
     const updateListeners = new Set<(value: T, origin: any) => void>();
     const syncedListeners = new Set<(value: T) => void>();
     const errorListeners = new Set<(error?: Error) => void>();
     const connectListeners = new Set<() => void>();
     const disconnectListeners = new Set<() => void>();
 
+    let usingDoc = new y.Doc();
+    let isSynced = false;
+
+    const resolvedInitialValue =
+        typeof options.initialValue === 'function'
+            ? options.initialValue()
+            : options.initialValue;
+
+    function register(doc: y.Doc, sharedDoc: TSharedYDoc) {
+        const updateHandler = (update: Uint8Array, origin: any) => {
+            const decoded = decodeYDocToObject({ doc: doc });
+
+            updateListeners.forEach((listener) => {
+                listener(decoded.data as any, origin);
+            });
+        };
+
+        doc.on('update', updateHandler);
+
+        const cleanupOnConnect = sharedDoc.onConnect(() => {
+            connectListeners.forEach((listener) => listener());
+        });
+
+        const cleanupOnDisconnect = sharedDoc.onDisconnect(() => {
+            disconnectListeners.forEach((listener) => listener());
+        });
+
+        const cleanupOnError = sharedDoc.onError((error) => {
+            errorListeners.forEach((listener) => listener(error));
+        });
+
+        const cleanupOnSynced = sharedDoc.onSynced((doc) => {
+            isSynced = true;
+
+            const decoded = decodeYDocToObject({ doc: doc });
+
+            syncedListeners.forEach((listener) => {
+                listener(decoded.data as any);
+            });
+        });
+
+        return () => {
+            cleanupOnConnect();
+            cleanupOnDisconnect();
+            cleanupOnError();
+            cleanupOnSynced();
+
+            doc.off('update', updateHandler);
+        };
+    }
+
+    if (resolvedInitialValue) {
+        y.transact(
+            usingDoc,
+            () => {
+                encodeObjectToYDoc({
+                    doc: usingDoc,
+                    object: {
+                        data: resolvedInitialValue,
+                    },
+                });
+            },
+            'initialState',
+        );
+    }
+
     const sharedDoc = sharedYDoc({
-        client: options.client,
+        doc: usingDoc,
         key: options.key,
-        doc: doc,
+        client: options.client,
         token: options.token,
     });
 
-    let hasInitializedOnce = false;
-    let needsInitAfterSync = false;
+    const unsubscribeOriginal = register(usingDoc, sharedDoc);
+    let unsubscribeNext = () => {};
 
     sharedDoc.onInit((doc, initMeta) => {
-        if (
-            !hasInitializedOnce &&
-            resolvedInitialValue &&
-            !initMeta.hasWrittenFirstUpdate
-        ) {
-            needsInitAfterSync = true;
-            hasInitializedOnce = true;
+        if (!initMeta.hasWrittenFirstUpdate) {
+            sharedDoc.filterUpdates(() => []);
 
-            undoManager.stopCapturing();
-            undoManager.undo();
-            sharedDoc.clearUpdates();
+            unsubscribeOriginal();
+            usingDoc.destroy();
+            sharedDoc.destroy();
+
+            const nextDoc = new y.Doc();
+
+            const nextSharedDoc = sharedYDoc({
+                doc: nextDoc,
+                key: options.key,
+                client: options.client,
+                token: options.token,
+            });
+
+            unsubscribeNext = register(nextDoc, nextSharedDoc);
+            usingDoc = nextDoc;
         }
     });
-
-    const errorUnsubscribe = sharedDoc.onError((error) => {
-        errorListeners.forEach((listener) => listener(error));
-    });
-
-    const connectUnsubscribe = sharedDoc.onConnect(() => {
-        connectListeners.forEach((listener) => listener());
-    });
-
-    const disconnectUnsubscribe = sharedDoc.onDisconnect(() => {
-        disconnectListeners.forEach((listener) => listener());
-    });
-
-    const syncedUnsubscribe = sharedDoc.onSynced((syncedDoc) => {
-        const syncedValue = decodeYDocToObject({ doc: syncedDoc });
-        syncedListeners.forEach((listener) => listener(syncedValue?.sharedData as T));
-    });
-
-    doc.on('update', (update, origin) => {
-        const newValue = decodeYDocToObject({ doc: doc });
-
-        updateListeners.forEach((listener) =>
-            listener(newValue?.sharedData as T, origin),
-        );
-    });
-
-    sharedDoc.onSynced(() => {
-        if (needsInitAfterSync && resolvedInitialValue) {
-            needsInitAfterSync = false;
-
-            y.transact(doc, () => {
-                encodeObjectToYDoc({
-                    object: {
-                        sharedData: resolvedInitialValue,
-                    },
-                    doc: doc,
-                });
-            });
-        }
-    });
-
-    const update = (update: T | ((previousValue: T) => T)) => {
-        const prevValue = decodeYDocToObject({ doc: doc });
-        const newValue =
-            typeof update === 'function' ? update(prevValue?.sharedData as T) : update;
-
-        y.transact(doc, () => {
-            encodeObjectToYDoc({
-                object: {
-                    sharedData: newValue,
-                },
-                doc: doc,
-            });
-        });
-    };
 
     return {
-        update,
-        subscribe: (listener: (value: T, origin: any) => void) => {
+        get synced() {
+            return isSynced;
+        },
+        update: (update) => {
+            if (!isSynced) {
+                console.warn(
+                    'the shared state is not synced yet, this update may be lost',
+                );
+            }
+
+            const nextValue =
+                update instanceof Function
+                    ? update(
+                          (decodeYDocToObject({
+                              doc: usingDoc,
+                          })?.data ?? resolvedInitialValue) as any,
+                      )
+                    : update;
+
+            y.transact(usingDoc, () => {
+                encodeObjectToYDoc({
+                    doc: usingDoc,
+                    object: {
+                        data: nextValue,
+                    },
+                });
+            });
+        },
+        onUpdate: (listener: (value: T, origin: any) => void) => {
             updateListeners.add(listener);
             return () => updateListeners.delete(listener);
         },
@@ -155,13 +178,14 @@ export function createSharedState<T extends TJSONAble = any>(
             return () => disconnectListeners.delete(listener);
         },
         destroy: () => {
-            sharedDoc.unsubscribe();
             updateListeners.clear();
             syncedListeners.clear();
             errorListeners.clear();
             connectListeners.clear();
             disconnectListeners.clear();
-            doc.destroy();
+
+            unsubscribeNext();
+            usingDoc.destroy();
         },
     };
 }

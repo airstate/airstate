@@ -6,6 +6,7 @@ import {
     decodeYDocToObject,
     createSharedState,
 } from '@airstate/client';
+import { nanoid } from 'nanoid';
 import { useEffect, useState } from 'react';
 import { IndexeddbPersistence } from 'y-indexeddb';
 
@@ -13,6 +14,8 @@ configure({
     appKey: '',
     server: `ws://localhost:11001/ws`,
 });
+
+const id = nanoid();
 
 export function Scratch() {
     const [run2, setRun2] = useState(false);
@@ -123,94 +126,89 @@ export function Scratch() {
     useEffect(() => {
         setTimeout(() => {
             setRun2(true);
-        }, 2000);
+        }, 1000);
     }, []);
-
-    useEffect(() => {
-        const doc = new yjs.Doc();
-
-        const s = sharedYDoc({
-            key: 'test',
-            doc: doc,
-        });
-
-        s.onConnect(() => {
-            console.log(1, 'connected');
-        });
-
-        s.onSynced(() => {
-            console.log('1 synced', doc.getMap('main').toJSON());
-
-            doc.on('update', () => {
-                console.log('1:', doc.getMap('main').toJSON());
-            });
-        });
-    }, []);
-    //
-    useEffect(() => {
-        if (run2) {
-            const doc = new yjs.Doc();
-
-            const s = sharedYDoc({
-                key: 'test',
-                doc: doc,
-            });
-
-            s.onConnect(() => {
-                console.log('2 connected');
-            });
-
-            s.onSynced(() => {
-                console.log('2 synced', doc.getMap('main').toJSON());
-
-                doc.on('update', () => {
-                    console.log('2:', doc.getMap('main').toJSON());
-                });
-
-                doc.getMap('main').set('location', `Denver, CO ${Math.random()}`);
-            });
-        }
-    }, [run2]);
 
     // useEffect(() => {
-    //     const ss = createSharedState<any>({
-    //         key: 's1',
-    //         initialValue: {
-    //             ordinalNumbers: [1, 2],
-    //         },
+    //     const doc = new yjs.Doc();
+    //
+    //     const s = sharedYDoc({
+    //         key: 'test',
+    //         doc: doc,
     //     });
     //
-    //     ss.subscribe((value, origin) => {
-    //         console.log('a', value, origin);
+    //     s.onConnect(() => {
+    //         console.log(1, 'connected');
+    //     });
+    //
+    //     s.onSynced(() => {
+    //         console.log('1 synced', doc.getMap('main').toJSON());
+    //
+    //         doc.on('update', () => {
+    //             console.log('1:', doc.getMap('main').toJSON());
+    //         });
     //     });
     // }, []);
-
+    // //
     // useEffect(() => {
     //     if (run2) {
-    //         const ss = createSharedState({
-    //             key: 's1',
-    //             initialValue: {
-    //                 ordinalNumbers: [1, 2],
-    //             },
+    //         const doc = new yjs.Doc();
+    //
+    //         const s = sharedYDoc({
+    //             key: 'test',
+    //             doc: doc,
     //         });
     //
-    //         ss.subscribe((value, origin) => {
-    //             console.log('b', value, origin);
+    //         s.onConnect(() => {
+    //             console.log('2 connected');
     //         });
     //
-    //         ss.onSynced(() => {
-    //             ss.update((state) =>
-    //                 state && state.ordinalNumbers
-    //                     ? {
-    //                           ordinalNumbers: [...state.ordinalNumbers, 3],
-    //                       }
-    //                     : {
-    //                           ordinalNumbers: [],
-    //                       },
-    //             );
+    //         s.onSynced(() => {
+    //             console.log('2 synced', doc.getMap('main').toJSON());
+    //
+    //             doc.on('update', () => {
+    //                 console.log('2:', doc.getMap('main').toJSON());
+    //             });
+    //
+    //             doc.getMap('main').set('location', `Denver, CO ${Math.random()}`);
     //         });
     //     }
     // }, [run2]);
+
+    useEffect(() => {
+        const ss = createSharedState<any>({
+            key: id,
+            initialValue: {
+                ordinalNumbers: [1, 2],
+            },
+        });
+
+        ss.onUpdate((value, origin) => {
+            console.log('a', value, JSON.stringify(value), origin);
+        });
+    }, []);
+
+    useEffect(() => {
+        if (run2) {
+            const ss = createSharedState({
+                key: id,
+                initialValue: {
+                    ordinalNumbers: [3, 4],
+                },
+            });
+
+            ss.onUpdate((value, origin) => {
+                console.log('b', value, JSON.stringify(value), origin);
+            });
+
+            ss.onSynced(() => {
+                ss.update((prev) => ({
+                    ...prev,
+                    tomato: 'tomato',
+                }));
+            });
+        }
+    }, [run2]);
 
     return <div>tomato</div>;
 }
