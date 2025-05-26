@@ -172,13 +172,13 @@ importers:
 
   packages/react:
     dependencies:
-      '@airstate/client':
-        specifier: workspace:*
-        version: link:../client
       react:
         specifier: '>=17'
         version: 19.1.0
     devDependencies:
+      '@airstate/client':
+        specifier: workspace:*
+        version: link:../client
       '@types/jest':
         specifier: 29.5.12
         version: 29.5.12
