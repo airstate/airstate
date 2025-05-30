@@ -6,6 +6,7 @@ on:
     paths:
       - 'apps/server/**'
       - '.github/workflows/publish-server-to-dockerhub.yml'
+      - 'Dockerfile_server'
 
   release:
     types: [published]

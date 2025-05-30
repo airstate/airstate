@@ -1,16 +1,22 @@
-FROM node:22.6.0-alpine3.20 AS common
+FROM node:22.12.0-bookworm AS build
+
 WORKDIR /app
 
-FROM common AS build
-COPY . /app
+RUN apt-get update && apt-get install -y \
+  build-essential \
+  python3
+
+COPY . .
+
 RUN npm install -g pnpm@9.12.0
 RUN pnpm install
 RUN pnpm turbo run build --filter=@airstate/server
 RUN pnpm --filter=@airstate/server --prod deploy /airstate-server
 
-FROM common
+FROM node:22.6.0-alpine3.20 AS production
 
-ENV NODE_ENV=production
+WORKDIR /app
+
 COPY --from=build /airstate-server .
 
-CMD node .
+CMD ["node", "."]
