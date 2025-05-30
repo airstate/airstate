@@ -6,7 +6,7 @@ import { returnOf } from 'scope-utilities';
 import { logger } from '../../../../../logger.mjs';
 import { servicePlanePassthroughProcedure } from '../../middleware/passthrough.mjs';
 import { nanoid } from 'nanoid';
-import { when } from 'mobx';
+import { runInAction, when } from 'mobx';
 import { TRPCError } from '@trpc/server';
 
 export type TYJSMessage =
@@ -38,10 +38,12 @@ export const docUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
         const sessionID = nanoid();
         const hashedClientSentKey: string = createHash('sha256').update(clientSentKey).digest('hex');
 
-        ctx.services.localState.sessionMeta[sessionID] = {
-            roomKey: clientSentKey,
-            roomKeyHashed: hashedClientSentKey,
-        };
+        runInAction(() => {
+            ctx.services.localState.sessionMeta[sessionID] = {
+                roomKey: clientSentKey,
+                roomKeyHashed: hashedClientSentKey,
+            };
+        });
 
         try {
             yield {

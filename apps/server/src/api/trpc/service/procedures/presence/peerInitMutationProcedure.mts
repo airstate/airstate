@@ -9,6 +9,7 @@ import { defaultPermissions } from '../../context.mjs';
 import { TNATSPresenceMessage } from './_helpers.mjs';
 import { createHash } from 'node:crypto';
 import { StorageType } from 'nats';
+import { runInAction } from 'mobx';
 
 export const peerInitMutationProcedure = servicePlanePassthroughProcedure
     .meta({ writePermissionRequired: true })
@@ -44,7 +45,9 @@ export const peerInitMutationProcedure = servicePlanePassthroughProcedure
             if (!env.SHARED_SIGNING_KEY) {
                 logger.warn('no shared signing key, cannot verify token');
 
-                ctx.services.localState.sessionMeta[input.sessionID].meta = commonMeta;
+                runInAction(() => {
+                    ctx.services.localState.sessionMeta[input.sessionID].meta = commonMeta;
+                });
             } else {
                 const extracted = extractTokenPayload(input.token, env.SHARED_SIGNING_KEY);
 
@@ -56,10 +59,12 @@ export const peerInitMutationProcedure = servicePlanePassthroughProcedure
                         });
                     }
 
-                    ctx.services.localState.sessionMeta[input.sessionID].meta = {
-                        ...commonMeta,
-                        permissions: merge(defaultPermissions, extracted.data.permissions ?? {}),
-                    };
+                    runInAction(() => {
+                        ctx.services.localState.sessionMeta[input.sessionID].meta = {
+                            ...commonMeta,
+                            permissions: merge(defaultPermissions, extracted.data.permissions ?? {}),
+                        };
+                    });
 
                     if (extracted.data.presence?.staticState) {
                         // ensure the stream exists
@@ -84,11 +89,15 @@ export const peerInitMutationProcedure = servicePlanePassthroughProcedure
                         );
                     }
                 } else {
-                    ctx.services.localState.sessionMeta[input.sessionID].meta = commonMeta;
+                    runInAction(() => {
+                        ctx.services.localState.sessionMeta[input.sessionID].meta = commonMeta;
+                    });
                 }
             }
         } else {
-            ctx.services.localState.sessionMeta[input.sessionID].meta = commonMeta;
+            runInAction(() => {
+                ctx.services.localState.sessionMeta[input.sessionID].meta = commonMeta;
+            });
         }
     });
 

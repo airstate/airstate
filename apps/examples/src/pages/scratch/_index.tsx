@@ -4,7 +4,8 @@ import {
     yjs,
     encodeObjectToYDoc,
     decodeYDocToObject,
-    createSharedState,
+    sharedState,
+    sharedPresence,
 } from '@airstate/client';
 import { nanoid } from 'nanoid';
 import { useEffect, useState } from 'react';
@@ -175,37 +176,72 @@ export function Scratch() {
     //     }
     // }, [run2]);
 
+    // useEffect(() => {
+    //     const ss = sharedState<any>({
+    //         key: id,
+    //         initialValue: {
+    //             ordinalNumbers: [1, 2],
+    //         },
+    //     });
+    //
+    //     ss.onUpdate((value, origin) => {
+    //         console.log('a', value, JSON.stringify(value), origin);
+    //     });
+    // }, []);
+    //
+    // useEffect(() => {
+    //     if (run2) {
+    //         const ss = sharedState({
+    //             key: id,
+    //             initialValue: {
+    //                 ordinalNumbers: [3, 4],
+    //             },
+    //         });
+    //
+    //         ss.onUpdate((value, origin) => {
+    //             console.log('b', value, JSON.stringify(value), origin);
+    //         });
+    //
+    //         ss.onSynced(() => {
+    //             ss.update((prev) => ({
+    //                 ...prev,
+    //                 tomato: `tomato ${Math.random()}`,
+    //             }));
+    //         });
+    //     }
+    // }, [run2]);
+
     useEffect(() => {
-        const ss = createSharedState<any>({
-            key: id,
-            initialValue: {
-                ordinalNumbers: [1, 2],
+        const sp = sharedPresence<any>({
+            roomKey: id,
+            peerKey: 'a',
+            initialDynamicState: {
+                name: 'Omran Jamal',
             },
         });
 
-        ss.onUpdate((value, origin) => {
-            console.log('a', value, JSON.stringify(value), origin);
+        sp.updateDynamicState((prev: any) => ({
+            ...prev,
+            age: 28,
+        }));
+
+        sp.onUpdate((state) => {
+            console.log('a: presence update', JSON.stringify(state, null, 2));
         });
     }, []);
 
     useEffect(() => {
         if (run2) {
-            const ss = createSharedState({
-                key: id,
-                initialValue: {
-                    ordinalNumbers: [3, 4],
+            const sp = sharedPresence({
+                roomKey: id,
+                peerKey: 'b',
+                initialDynamicState: {
+                    name: 'Tanvir Hossen',
                 },
             });
 
-            ss.onUpdate((value, origin) => {
-                console.log('b', value, JSON.stringify(value), origin);
-            });
-
-            ss.onSynced(() => {
-                ss.update((prev) => ({
-                    ...prev,
-                    tomato: 'tomato',
-                }));
+            sp.onUpdate((state) => {
+                console.log('b: presence update', JSON.stringify(state, null, 2));
             });
         }
     }, [run2]);

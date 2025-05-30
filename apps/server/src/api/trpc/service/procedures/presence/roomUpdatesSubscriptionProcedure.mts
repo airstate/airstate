@@ -5,7 +5,7 @@ import { createHash } from 'node:crypto';
 import { logger } from '../../../../../logger.mjs';
 import { nanoid } from 'nanoid';
 import { getInitialPresenceState, TNATSPresenceMessage, TPresenceState } from './_helpers.mjs';
-import { when } from 'mobx';
+import { runInAction, when } from 'mobx';
 import { TRPCError } from '@trpc/server';
 
 export type TPresenceMessage =
@@ -52,10 +52,12 @@ export const roomUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
         const sessionID = nanoid();
         const hashedClientSentKey: string = createHash('sha256').update(clientSentKey).digest('hex');
 
-        ctx.services.localState.sessionMeta[sessionID] = {
-            roomKey: clientSentKey,
-            roomKeyHashed: hashedClientSentKey,
-        };
+        runInAction(() => {
+            ctx.services.localState.sessionMeta[sessionID] = {
+                roomKey: clientSentKey,
+                roomKeyHashed: hashedClientSentKey,
+            };
+        });
 
         try {
             yield {
@@ -95,7 +97,7 @@ export const roomUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
 
             const key = `${ctx.accountingIdentifier}__${hashedClientSentKey}`;
 
-            const streamName = `presence.${key}`;
+            const streamName = `presence_${key}`;
 
             // ensure the stream exists
             await ctx.services.jetStreamManager.streams.add({
@@ -141,15 +143,15 @@ export const roomUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
                 const messageData = ctx.services.natsStringCodec.decode(streamMessage.data);
                 const message = JSON.parse(messageData) as TNATSPresenceMessage;
 
-                if (message.session_id !== sessionID) {
-                    if (message.type === 'static') {
-                        yield {
-                            type: 'static-update',
-                            peer_key: message.peer_key,
-                            state: message.staticState,
-                            timestamp: message.timestamp,
-                        } satisfies TPresenceMessage;
-                    } else if (message.type === 'dynamic') {
+                if (message.type === 'static') {
+                    yield {
+                        type: 'static-update',
+                        peer_key: message.peer_key,
+                        state: message.staticState,
+                        timestamp: message.timestamp,
+                    } satisfies TPresenceMessage;
+                } else if (message.session_id !== sessionID) {
+                    if (message.type === 'dynamic') {
                         yield {
                             type: 'dynamic-update',
                             peer_key: message.peer_key,

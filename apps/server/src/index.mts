@@ -8,3 +8,4 @@ await Promise.all([initServicePlane(services), initControlPlane(services)]);
 
 export { TServicePlaneAppRouter } from './api/trpc/service/routers/index.mjs';
 export { TControlPlaneAppRouter } from './api/trpc/control/routers/index.mjs';
+export { TPresenceState } from './api/trpc/service/procedures/presence/_helpers.mjs';

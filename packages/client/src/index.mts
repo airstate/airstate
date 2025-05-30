@@ -8,8 +8,10 @@ export { RemoteOrigin } from './nominal-types.mjs';
 
 export { TSharedYDoc, TSharedYDocOptions, sharedYDoc } from './shared-ydoc/index.mjs';
 
+export { TSharedState, TSharedStateOptions, sharedState } from './shared-state/index.mjs';
+
 export {
-    TSharedStateReturn,
-    TSharedStateOptions,
-    createSharedState,
-} from './shared-state/index.mjs';
+    TSharedPresence,
+    TSharedPresenceOptions,
+    sharedPresence,
+} from './shared-presence/index.mjs';

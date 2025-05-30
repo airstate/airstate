@@ -45,9 +45,10 @@ export function sharedYDoc(options: TSharedYDocOptions): TSharedYDoc {
         disconnectListeners.forEach((listener) => listener());
     });
 
+    let sessionID: null | string = null;
+
     let updates: [string, any][] = [];
     let scheduled = false;
-    let sessionID: null | string = null;
     let syncerTimeout = setTimeout(() => {}, 0);
     let failed = -1;
     let syncing = false;

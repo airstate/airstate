@@ -10,7 +10,7 @@ export type TSharedStateOptions<T extends TJSONAble> = {
     initialValue?: T | (() => T);
 };
 
-export type TSharedStateReturn<T extends TJSONAble> = {
+export type TSharedState<T extends TJSONAble> = {
     readonly update: (update: T | ((previousValue: T) => T)) => void;
     readonly onUpdate: (listener: (value: T, origin: any) => void) => () => boolean;
     readonly onSynced: (listener: (value: T) => void) => () => boolean;
@@ -21,9 +21,9 @@ export type TSharedStateReturn<T extends TJSONAble> = {
     readonly synced: boolean;
 };
 
-export function createSharedState<T extends TJSONAble = any>(
+export function sharedState<T extends TJSONAble = any>(
     options: TSharedStateOptions<T>,
-): TSharedStateReturn<T> {
+): TSharedState<T> {
     const updateListeners = new Set<(value: T, origin: any) => void>();
     const syncedListeners = new Set<(value: T) => void>();
     const errorListeners = new Set<(error?: Error) => void>();

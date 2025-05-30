@@ -1,11 +1,5 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
-import {
-    configure as configureVanilla,
-    createSharedState,
-    TJSONAble,
-    TClientOptions,
-    TSharedStateReturn,
-} from '@airstate/client';
+import { configure as configureVanilla, sharedState, TJSONAble, TClientOptions, TSharedState } from '@airstate/client';
 
 export type TOptions = {
     key: string;
@@ -26,14 +20,14 @@ export function useSharedState<T extends TJSONAble>(
     options: TOptions,
 ): [T, (value: T | ((prev: T) => T)) => void, boolean] {
     const [initialComputedState] = useState<T>(initialState);
-    const connectionRef = useRef<TSharedStateReturn<T> | null>(null);
+    const connectionRef = useRef<TSharedState<T> | null>(null);
     const publicStateRef = useRef<T>(initialComputedState);
     const readyRef = useRef(false);
 
     const forceUpdate = useForceUpdate();
 
     useEffect(() => {
-        const sharedState = createSharedState({
+        const sharedState = sharedState({
             key: options.key,
             token: options?.token,
             initialValue: initialState,
