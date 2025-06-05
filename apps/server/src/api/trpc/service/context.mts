@@ -35,7 +35,7 @@ export async function servicePlaneHTTPContextCreatorFactory(services: TServices)
             }
 
             try {
-                const configRequestURL = new URL(`${env.AIRSTATE_CONFIG_API_BASE_URL}/getConfigFromAppKey`);
+                const configRequestURL = new URL(`${env.AIRSTATE_CONFIG_API_BASE_URL}/config`);
                 configRequestURL.searchParams.set('appKey', appKey);
 
                 const configRequest = await fetch(`${configRequestURL}`);
@@ -46,15 +46,15 @@ export async function servicePlaneHTTPContextCreatorFactory(services: TServices)
             }
         });
 
-        const resolvedPermissions = resolvedConfig?.default_permissions
-            ? merge(resolvedConfig.default_permissions, defaultPermissions)
+        const resolvedPermissions = resolvedConfig?.base_permissions
+            ? merge(resolvedConfig.base_permissions, defaultPermissions)
             : defaultPermissions;
 
         return {
-            accountingIdentifier: resolvedConfig?.accounting_identifier ?? '__ANONYMOUS',
+            accountID: resolvedConfig?.account_id ?? '__ANONYMOUS',
             connectionID: nanoid(),
             appKey: appKey,
-            appSecret: resolvedConfig?.signing_secret ?? env.SHARED_SIGNING_KEY,
+            appSecret: resolvedConfig?.app_secret ?? env.SHARED_SIGNING_KEY,
             resolvedConfig: resolvedConfig,
             services: services,
             permissions: resolvedPermissions,

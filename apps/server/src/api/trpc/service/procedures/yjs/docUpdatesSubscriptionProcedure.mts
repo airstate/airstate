@@ -81,7 +81,7 @@ export const docUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
                 clientSentKey,
             });
 
-            const key = `${ctx.accountingIdentifier}__${hashedClientSentKey}`;
+            const key = `${ctx.accountID}__${hashedClientSentKey}`;
             const streamName = `yjs_${key}`;
             const subject = `yjs.${key}`;
             const consumerName = `consumer_${nanoid()}`;

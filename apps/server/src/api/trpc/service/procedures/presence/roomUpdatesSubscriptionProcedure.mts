@@ -95,7 +95,7 @@ export const roomUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
                 clientSentKey,
             });
 
-            const key = `${ctx.accountingIdentifier}__${hashedClientSentKey}`;
+            const key = `${ctx.accountID}__${hashedClientSentKey}`;
 
             const streamName = `presence_${key}`;
 

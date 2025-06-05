@@ -31,7 +31,7 @@ export const peerInitMutationProcedure = servicePlanePassthroughProcedure
         const hashedRoomKey = ctx.services.localState.sessionMeta[input.sessionID].roomKeyHashed;
         const hashedPeerKey = createHash('sha256').update(input.peerKey).digest('hex');
 
-        const key = `${ctx.accountingIdentifier}__${hashedRoomKey}`;
+        const key = `${ctx.accountID}__${hashedRoomKey}`;
         const commonSubjectPrefix = `presence.${key}`;
         const streamName = `presence.${key}`;
 
@@ -42,14 +42,14 @@ export const peerInitMutationProcedure = servicePlanePassthroughProcedure
         };
 
         if (input.token) {
-            if (!env.SHARED_SIGNING_KEY) {
+            if (!ctx.appSecret) {
                 logger.warn('no shared signing key, cannot verify token');
 
                 runInAction(() => {
                     ctx.services.localState.sessionMeta[input.sessionID].meta = commonMeta;
                 });
             } else {
-                const extracted = extractTokenPayload(input.token, env.SHARED_SIGNING_KEY);
+                const extracted = extractTokenPayload(input.token, ctx.appSecret);
 
                 if (extracted) {
                     if (extracted.data.presence?.peerKey && extracted.data.presence.peerKey !== input.peerKey) {

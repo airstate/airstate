@@ -48,7 +48,7 @@ export const presenceUpdateMutationProcedure = servicePlanePassthroughProcedure
         const peerKey = sessionMeta.meta.peerKey;
         const hashedPeerKey = sessionMeta.meta.hashedPeerKey;
 
-        const key = `${ctx.accountingIdentifier}__${hashedRoomKey}`;
+        const key = `${ctx.accountID}__${hashedRoomKey}`;
         const commonSubjectPrefix = `presence.${key}`;
 
         if (input.update.type === 'dynamic-update') {
