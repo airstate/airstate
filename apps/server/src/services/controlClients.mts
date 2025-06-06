@@ -13,7 +13,7 @@ export async function createControlClients() {
 
     const clients = clusterURLArray.map((url) => {
         let isOpen = false;
-        let ephemeralID: string | null = null;
+        let runID: string | null = null;
 
         const wsClient = createWSClient({
             url: `${url}/ws`,
@@ -26,7 +26,7 @@ export async function createControlClients() {
                 isOpen = true;
 
                 const info = await trpcClient.info.query();
-                ephemeralID = info.ephemeral_id;
+                runID = info.runID;
             },
             onClose() {
                 isOpen = false;
@@ -50,7 +50,7 @@ export async function createControlClients() {
                 return isOpen;
             },
             get ephemeralID() {
-                return ephemeralID;
+                return runID;
             },
         };
     });

@@ -2,7 +2,7 @@ import { nanoid } from 'nanoid';
 
 export async function createInfoService() {
     return {
-        ephemeral_id: nanoid(),
+        runID: nanoid(),
     };
 }
 
