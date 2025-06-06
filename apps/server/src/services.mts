@@ -24,7 +24,9 @@ export async function createServices(): Promise<
 
     const localState = await createLocalState();
 
-    const info = await createInfoService();
+    const info = await createInfoService({
+        mainKV: mainKV,
+    });
 
     return {
         natsStringCodec: natsStringCodec,
