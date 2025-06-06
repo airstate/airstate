@@ -22,6 +22,8 @@ export const defaultPermissions: TPermissions = {
 export async function servicePlaneHTTPContextCreatorFactory(services: TServices) {
     return async function (options: trpcExpress.CreateExpressContextOptions | trpcWS.CreateWSSContextFnOptions) {
         const appKey = options.info.connectionParams?.appKey ?? null;
+        const clientID = options.info.connectionParams?.clientID ?? null;
+        const connectionID = options.info.connectionParams?.connectionID ?? null;
 
         const resolvedConfig = await returnOf(async () => {
             if (!appKey) {
@@ -55,6 +57,8 @@ export async function servicePlaneHTTPContextCreatorFactory(services: TServices)
             connectionID: nanoid(),
             appKey: appKey,
             appSecret: resolvedConfig?.app_secret ?? env.SHARED_SIGNING_KEY,
+            clientSentConnectionID: connectionID,
+            clientSentClientID: clientID,
             resolvedConfig: resolvedConfig,
             services: services,
             permissions: resolvedPermissions,
