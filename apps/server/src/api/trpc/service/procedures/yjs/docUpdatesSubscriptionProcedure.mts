@@ -99,10 +99,10 @@ export const docUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
                 lastMergedUpdate: string;
             } | null = await returnOf(async () => {
                 try {
-                    await ctx.services.sharedStateKV.create(`${streamName}__coordinator`, JSON.stringify(null));
+                    await ctx.services.mainKV.create(`${streamName}__coordinator`, JSON.stringify(null));
                     return null;
                 } catch {
-                    const value = await ctx.services.sharedStateKV.get(`${streamName}__coordinator`);
+                    const value = await ctx.services.mainKV.get(`${streamName}__coordinator`);
 
                     if (value) {
                         return JSON.parse(value.string()) as {
@@ -118,7 +118,7 @@ export const docUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
             const merged = await getMergedUpdate(ctx.services, streamName, coordinatorValue);
 
             if (merged) {
-                await ctx.services.sharedStateKV.put(
+                await ctx.services.mainKV.put(
                     `${streamName}__coordinator`,
                     JSON.stringify({
                         lastSeq: merged.lastSeq,

@@ -65,7 +65,7 @@ export const docInitMutationProcedure = servicePlanePassthroughProcedure
 
         while (!!input.initialState) {
             try {
-                await ctx.services.sharedStateKV.create(`${streamName}__init`, JSON.stringify(null));
+                await ctx.services.mainKV.create(`${streamName}__init`, JSON.stringify(null));
 
                 await ctx.services.jetStreamClient.publish(
                     subject,
@@ -82,14 +82,14 @@ export const docInitMutationProcedure = servicePlanePassthroughProcedure
                     hasWrittenFirstUpdate = true;
                     break;
                 } else {
-                    await ctx.services.sharedStateKV.delete(`${streamName}__init`);
+                    await ctx.services.mainKV.delete(`${streamName}__init`);
                 }
             } catch {
                 const streamInfo = await ctx.services.jetStreamManager.streams.info(streamName);
                 const messageCount = streamInfo.state.messages;
 
                 if (messageCount === 0) {
-                    await ctx.services.sharedStateKV.delete(`${streamName}__init`);
+                    await ctx.services.mainKV.delete(`${streamName}__init`);
                 } else {
                     break;
                 }
