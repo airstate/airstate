@@ -53,6 +53,7 @@ export function createClient(options?: TClientOptions): TAirStateClient {
                 appKey: options?.appKey ?? defaultOptions.appKey,
                 clientID: clientID,
                 connectionID: nanoid(),
+                pageHostname: window.location.hostname,
             };
         },
         onOpen() {
