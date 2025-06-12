@@ -140,6 +140,7 @@ export const docUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
 
                 telemetryTrackerRoom.totalBytesRelayed += 1;
                 telemetryTrackerRoom.totalBytesRelayed += merged.mergedUpdate.length;
+                telemetryTrackerRoom.lastActivityTimestamp = Date.now();
             } else {
                 yield {
                     type: 'sync',
@@ -149,6 +150,7 @@ export const docUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
                 } satisfies TYJSMessage;
 
                 telemetryTrackerRoom.totalBytesRelayed += 1;
+                telemetryTrackerRoom.lastActivityTimestamp = Date.now();
             }
 
             if (merged) {
@@ -189,6 +191,7 @@ export const docUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
 
                     telemetryTrackerRoom.totalMessagesRelayed += 1;
                     telemetryTrackerRoom.totalBytesRelayed += updateString.length;
+                    telemetryTrackerRoom.lastActivityTimestamp = Date.now();
                 }
 
                 streamMessage.ack();

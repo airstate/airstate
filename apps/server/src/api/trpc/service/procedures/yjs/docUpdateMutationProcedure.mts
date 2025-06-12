@@ -43,6 +43,7 @@ export const docUpdateMutationProcedure = servicePlanePassthroughProcedure
 
                 telemetryTrackerRoom.totalMessagesReceived += 1;
                 telemetryTrackerRoom.totalBytesReceived += encodedUpdate.length;
+                telemetryTrackerRoom.lastActivityTimestamp = Date.now();
             }
         } catch (err) {
             throw new TRPCError({

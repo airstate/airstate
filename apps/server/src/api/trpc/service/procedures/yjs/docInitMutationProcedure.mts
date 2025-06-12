@@ -80,6 +80,7 @@ export const docInitMutationProcedure = servicePlanePassthroughProcedure
 
                 telemetryTrackerRoom.totalMessagesReceived += 1;
                 telemetryTrackerRoom.totalBytesReceived += input.initialState.length;
+                telemetryTrackerRoom.lastActivityTimestamp = Date.now();
 
                 const streamInfo = await ctx.services.jetStreamManager.streams.info(streamName);
                 const messageCount = streamInfo.state.messages;
