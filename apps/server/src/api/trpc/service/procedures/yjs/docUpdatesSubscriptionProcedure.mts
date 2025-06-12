@@ -8,6 +8,7 @@ import { servicePlanePassthroughProcedure } from '../../middleware/passthrough.m
 import { nanoid } from 'nanoid';
 import { runInAction, when } from 'mobx';
 import { TRPCError } from '@trpc/server';
+import { initTelemetryTrackerRoom } from '../../../../../utils/telemetry/rooms.mjs';
 
 export type TYJSMessage =
     | {
@@ -86,6 +87,8 @@ export const docUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
             const subject = `yjs.${key}`;
             const consumerName = `consumer_${nanoid()}`;
 
+            const telemetryTrackerRoom = initTelemetryTrackerRoom(ctx.services.ephemeralState.telemetryTracker, key);
+
             // ensure the stream exists
             await ctx.services.jetStreamManager.streams.add({
                 name: streamName,
@@ -134,6 +137,9 @@ export const docUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
                     updates: [merged.mergedUpdate],
                     final: true,
                 } satisfies TYJSMessage;
+
+                telemetryTrackerRoom.totalBytesRelayed += 1;
+                telemetryTrackerRoom.totalBytesRelayed += merged.mergedUpdate.length;
             } else {
                 yield {
                     type: 'sync',
@@ -141,6 +147,8 @@ export const docUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
                     updates: [],
                     final: true,
                 } satisfies TYJSMessage;
+
+                telemetryTrackerRoom.totalBytesRelayed += 1;
             }
 
             if (merged) {
@@ -168,13 +176,19 @@ export const docUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
 
             for await (const streamMessage of streamMessages) {
                 const updateSessionID = streamMessage.headers?.get('sessionID');
+
                 if (updateSessionID !== sessionID) {
+                    const updateString = ctx.services.natsStringCodec.decode(streamMessage.data);
+
                     yield {
                         type: 'update',
-                        updates: [ctx.services.natsStringCodec.decode(streamMessage.data)],
+                        updates: [updateString],
                         lastSeq: streamMessage.seq,
                         client: updateSessionID ?? '',
                     } satisfies TYJSMessage;
+
+                    telemetryTrackerRoom.totalMessagesRelayed += 1;
+                    telemetryTrackerRoom.totalBytesRelayed += updateString.length;
                 }
 
                 streamMessage.ack();

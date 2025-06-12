@@ -4,6 +4,7 @@ import { headers } from 'nats';
 import { TRPCError } from '@trpc/server';
 import { servicePlanePassthroughProcedure } from '../../middleware/passthrough.mjs';
 import { resolvePermissions } from '../../../../../auth/permissions/index.mjs';
+import { initTelemetryTrackerRoom } from '../../../../../utils/telemetry/rooms.mjs';
 
 export const docUpdateMutationProcedure = servicePlanePassthroughProcedure
     .meta({ writePermissionRequired: true })
@@ -25,6 +26,8 @@ export const docUpdateMutationProcedure = servicePlanePassthroughProcedure
         const key = `${ctx.accountID}__${hashedClientSentKey}`;
         const subject = `yjs.${key}`;
 
+        const telemetryTrackerRoom = initTelemetryTrackerRoom(ctx.services.ephemeralState.telemetryTracker, key);
+
         const publishHeaders = headers();
         publishHeaders.set('sessionID', input.sessionID);
 
@@ -37,6 +40,9 @@ export const docUpdateMutationProcedure = servicePlanePassthroughProcedure
                         headers: publishHeaders,
                     },
                 );
+
+                telemetryTrackerRoom.totalMessagesReceived += 1;
+                telemetryTrackerRoom.totalBytesReceived += encodedUpdate.length;
             }
         } catch (err) {
             throw new TRPCError({

@@ -6,6 +6,7 @@ import { logger } from '../../../../../logger.mjs';
 import { extractTokenPayload } from '../../../../../auth/permissions/index.mjs';
 import { merge } from 'es-toolkit/object';
 import { headers, StorageType } from 'nats';
+import { initTelemetryTrackerRoom } from '../../../../../utils/telemetry/rooms.mjs';
 
 export const docInitMutationProcedure = servicePlanePassthroughProcedure
     .meta({ writePermissionRequired: true })
@@ -57,6 +58,8 @@ export const docInitMutationProcedure = servicePlanePassthroughProcedure
             max_msgs_per_subject: -1,
         });
 
+        const telemetryTrackerRoom = initTelemetryTrackerRoom(ctx.services.ephemeralState.telemetryTracker, key);
+
         sessionMeta.meta = meta;
         let hasWrittenFirstUpdate: boolean = false;
 
@@ -74,6 +77,9 @@ export const docInitMutationProcedure = servicePlanePassthroughProcedure
                         headers: publishHeaders,
                     },
                 );
+
+                telemetryTrackerRoom.totalMessagesReceived += 1;
+                telemetryTrackerRoom.totalBytesReceived += input.initialState.length;
 
                 const streamInfo = await ctx.services.jetStreamManager.streams.info(streamName);
                 const messageCount = streamInfo.state.messages;
