@@ -7,7 +7,7 @@ export function initTelemetryTrackerRoom(
     roomKey: string,
 ) {
     const telemetryTrackerRooms = telemetryTracker.rooms;
-    const telemetryTrackerRoomID = `yjs_${roomKey}`;
+    const telemetryTrackerRoomID = `${type}_${roomKey}`;
 
     if (!(telemetryTrackerRoomID in telemetryTrackerRooms)) {
         const hashedTelemetryTrackerRoomID = createHash('sha256').update(telemetryTrackerRoomID).digest('hex');

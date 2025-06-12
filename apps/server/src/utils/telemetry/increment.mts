@@ -9,11 +9,17 @@ export function incrementTelemetryTrackers(
         totalBytesRelayed: number;
     }[],
     bytes: number,
+    direction: 'received' | 'relayed',
 ) {
     applyTo.forEach((item) => {
         item.lastActivityTimestamp = Date.now();
 
-        item.totalMessagesReceived += 1;
-        item.totalBytesReceived += bytes;
+        if (direction === 'received') {
+            item.totalMessagesReceived += 1;
+            item.totalBytesReceived += bytes;
+        } else {
+            item.totalMessagesRelayed += 1;
+            item.totalBytesRelayed += bytes;
+        }
     });
 }

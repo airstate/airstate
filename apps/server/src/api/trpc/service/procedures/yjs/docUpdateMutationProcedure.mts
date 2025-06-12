@@ -60,6 +60,7 @@ export const docUpdateMutationProcedure = servicePlanePassthroughProcedure
                 incrementTelemetryTrackers(
                     [telemetryTrackerRoom, telemetryTrackerClient, telemetryTrackerRoomClient],
                     encodedUpdate.length,
+                    'received',
                 );
             }
         } catch (err) {

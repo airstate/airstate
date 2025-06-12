@@ -98,6 +98,7 @@ export const docInitMutationProcedure = servicePlanePassthroughProcedure
                 incrementTelemetryTrackers(
                     [telemetryTrackerRoom, telemetryTrackerClient, telemetryTrackerRoomClient],
                     input.initialState.length,
+                    'received',
                 );
 
                 const streamInfo = await ctx.services.jetStreamManager.streams.info(streamName);

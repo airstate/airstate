@@ -7,6 +7,9 @@ import { nanoid } from 'nanoid';
 import { getInitialPresenceState, TNATSPresenceMessage, TPresenceState } from './_helpers.mjs';
 import { runInAction, when } from 'mobx';
 import { TRPCError } from '@trpc/server';
+import { initTelemetryTrackerRoom } from '../../../../../utils/telemetry/rooms.mjs';
+import { initTelemetryTrackerClient, initTelemetryTrackerRoomClient } from '../../../../../utils/telemetry/clients.mjs';
+import { incrementTelemetryTrackers } from '../../../../../utils/telemetry/increment.mjs';
 
 export type TPresenceMessage =
     | {
@@ -99,6 +102,28 @@ export const roomUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
 
             const streamName = `presence_${key}`;
 
+            const telemetryTrackerRoom = initTelemetryTrackerRoom(
+                ctx.services.ephemeralState.telemetryTracker,
+                'presence',
+                key,
+            );
+
+            const telemetryTrackerClient = await initTelemetryTrackerClient(
+                ctx.services.ephemeralState.telemetryTracker,
+                {
+                    id: ctx.clientSentClientID ?? '',
+                    ipAddress: ctx.clientIPAddress ?? '0.0.0.0',
+                    userAgentString: ctx.clientUserAgentString ?? 'unknown',
+                    serverHostname: ctx.serverHostname ?? 'unknown',
+                    clientPageHostname: ctx.clientPageHostname ?? 'unknown',
+                },
+            );
+
+            const telemetryTrackerRoomClient = initTelemetryTrackerRoomClient(
+                telemetryTrackerRoom,
+                telemetryTrackerClient,
+            );
+
             // ensure the stream exists
             await ctx.services.jetStreamManager.streams.add({
                 name: streamName,
@@ -150,6 +175,12 @@ export const roomUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
                         state: message.staticState,
                         timestamp: message.timestamp,
                     } satisfies TPresenceMessage;
+
+                    incrementTelemetryTrackers(
+                        [telemetryTrackerRoom, telemetryTrackerClient, telemetryTrackerRoomClient],
+                        JSON.stringify(message.staticState).length,
+                        'relayed',
+                    );
                 } else if (message.session_id !== sessionID) {
                     if (message.type === 'dynamic') {
                         yield {
@@ -158,6 +189,12 @@ export const roomUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
                             state: message.dynamicState,
                             timestamp: message.timestamp,
                         } satisfies TPresenceMessage;
+
+                        incrementTelemetryTrackers(
+                            [telemetryTrackerRoom, telemetryTrackerClient, telemetryTrackerRoomClient],
+                            JSON.stringify(message.dynamicState).length,
+                            'relayed',
+                        );
                     } else if (message.type === 'focus') {
                         yield {
                             type: 'focus-update',
@@ -165,6 +202,12 @@ export const roomUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
                             isFocused: message.isFocused,
                             timestamp: message.timestamp,
                         } satisfies TPresenceMessage;
+
+                        incrementTelemetryTrackers(
+                            [telemetryTrackerRoom, telemetryTrackerClient, telemetryTrackerRoomClient],
+                            0,
+                            'relayed',
+                        );
                     }
                 }
 

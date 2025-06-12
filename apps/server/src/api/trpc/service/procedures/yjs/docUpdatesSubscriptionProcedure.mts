@@ -163,6 +163,7 @@ export const docUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
                 incrementTelemetryTrackers(
                     [telemetryTrackerRoom, telemetryTrackerClient, telemetryTrackerRoomClient],
                     merged.mergedUpdate.length,
+                    'relayed',
                 );
             } else {
                 yield {
@@ -175,6 +176,7 @@ export const docUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
                 incrementTelemetryTrackers(
                     [telemetryTrackerRoom, telemetryTrackerClient, telemetryTrackerRoomClient],
                     0,
+                    'relayed',
                 );
             }
 
@@ -217,6 +219,7 @@ export const docUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
                     incrementTelemetryTrackers(
                         [telemetryTrackerRoom, telemetryTrackerClient, telemetryTrackerRoomClient],
                         updateString.length,
+                        'received',
                     );
                 }
 
