@@ -25,7 +25,7 @@ export async function servicePlaneHTTPContextCreatorFactory(services: TServices)
         const appKey = options.info.connectionParams?.appKey ?? null;
         const clientID = options.info.connectionParams?.clientID ?? null;
         const connectionID = options.info.connectionParams?.connectionID ?? null;
-
+        const serverHostname = options.req.headers['host'] ?? null;
         const userAgentString = options.req.headers['user-agent'] ?? null;
 
         const ipAddress =
@@ -69,6 +69,7 @@ export async function servicePlaneHTTPContextCreatorFactory(services: TServices)
             clientSentClientID: clientID,
             clientIPAddress: ipAddress,
             clientUserAgentString: userAgentString,
+            serverHostname: serverHostname,
             resolvedConfig: resolvedConfig,
             services: services,
             permissions: resolvedPermissions,
