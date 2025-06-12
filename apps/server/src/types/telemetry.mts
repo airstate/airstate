@@ -73,4 +73,6 @@ export type TTelemetryTracker = {
             };
         };
     };
+
+    domains: Set<string>;
 };
