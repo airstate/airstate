@@ -1,7 +1,11 @@
 import { createHash } from 'node:crypto';
 import { TTelemetryTracker } from '../../types/telemetry.mjs';
 
-export function initTelemetryTrackerRoom(telemetryTracker: TTelemetryTracker, roomKey: string) {
+export function initTelemetryTrackerRoom(
+    telemetryTracker: TTelemetryTracker,
+    type: 'ydoc' | 'presence',
+    roomKey: string,
+) {
     const telemetryTrackerRooms = telemetryTracker.rooms;
     const telemetryTrackerRoomID = `yjs_${roomKey}`;
 
@@ -11,7 +15,7 @@ export function initTelemetryTrackerRoom(telemetryTracker: TTelemetryTracker, ro
         telemetryTrackerRooms[telemetryTrackerRoomID] = {
             roomID: telemetryTrackerRoomID,
             hashedRoomID: hashedTelemetryTrackerRoomID,
-            roomType: 'ydoc',
+            roomType: type,
 
             firstActivityTimestamp: Date.now(),
             lastActivityTimestamp: Date.now(),

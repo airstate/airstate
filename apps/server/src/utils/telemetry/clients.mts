@@ -47,3 +47,26 @@ export async function initTelemetryTrackerClient(
 
     return telemetryTrackerClients[telemetryTrackerClientID];
 }
+
+export function initTelemetryTrackerRoomClient(
+    room: TTelemetryTracker['rooms'][string],
+    client: TTelemetryTracker['clients'][string],
+) {
+    if (!(client.clientID in room.clients)) {
+        room.clients[client.clientID] = {
+            clientID: client.clientID,
+            hashedClientID: client.hashedClientID,
+
+            firstActivityTimestamp: Date.now(),
+            lastActivityTimestamp: Date.now(),
+
+            totalMessagesReceived: 0,
+            totalMessagesRelayed: 0,
+
+            totalBytesReceived: 0,
+            totalBytesRelayed: 0,
+        };
+    }
+
+    return room.clients[client.clientID];
+}

@@ -77,6 +77,10 @@ export type TTelemetryTracker = {
             clients: {
                 [clientID: string]: {
                     clientID: string;
+                    hashedClientID: string;
+
+                    firstActivityTimestamp: number;
+                    lastActivityTimestamp: number;
 
                     totalMessagesReceived: number;
                     totalMessagesRelayed: number;

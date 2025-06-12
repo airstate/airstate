@@ -9,7 +9,8 @@ import { nanoid } from 'nanoid';
 import { runInAction, when } from 'mobx';
 import { TRPCError } from '@trpc/server';
 import { initTelemetryTrackerRoom } from '../../../../../utils/telemetry/rooms.mjs';
-import { initTelemetryTrackerClient } from '../../../../../utils/telemetry/clients.mjs';
+import { initTelemetryTrackerClient, initTelemetryTrackerRoomClient } from '../../../../../utils/telemetry/clients.mjs';
+import { incrementTelemetryTrackers } from '../../../../../utils/telemetry/increment.mjs';
 
 export type TYJSMessage =
     | {
@@ -88,7 +89,12 @@ export const docUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
             const subject = `yjs.${key}`;
             const consumerName = `consumer_${nanoid()}`;
 
-            const telemetryTrackerRoom = initTelemetryTrackerRoom(ctx.services.ephemeralState.telemetryTracker, key);
+            const telemetryTrackerRoom = initTelemetryTrackerRoom(
+                ctx.services.ephemeralState.telemetryTracker,
+                'ydoc',
+                key,
+            );
+
             const telemetryTrackerClient = await initTelemetryTrackerClient(
                 ctx.services.ephemeralState.telemetryTracker,
                 {
@@ -98,6 +104,11 @@ export const docUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
                     serverHostname: ctx.serverHostname ?? 'unknown',
                     clientPageHostname: ctx.clientPageHostname ?? 'unknown',
                 },
+            );
+
+            const telemetryTrackerRoomClient = initTelemetryTrackerRoomClient(
+                telemetryTrackerRoom,
+                telemetryTrackerClient,
             );
 
             // ensure the stream exists
@@ -149,13 +160,10 @@ export const docUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
                     final: true,
                 } satisfies TYJSMessage;
 
-                telemetryTrackerRoom.totalBytesRelayed += 1;
-                telemetryTrackerRoom.totalBytesRelayed += merged.mergedUpdate.length;
-                telemetryTrackerRoom.lastActivityTimestamp = Date.now();
-
-                telemetryTrackerClient.totalMessagesRelayed += 1;
-                telemetryTrackerClient.totalBytesRelayed += merged.mergedUpdate.length;
-                telemetryTrackerClient.lastActivityTimestamp = Date.now();
+                incrementTelemetryTrackers(
+                    [telemetryTrackerRoom, telemetryTrackerClient, telemetryTrackerRoomClient],
+                    merged.mergedUpdate.length,
+                );
             } else {
                 yield {
                     type: 'sync',
@@ -164,11 +172,10 @@ export const docUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
                     final: true,
                 } satisfies TYJSMessage;
 
-                telemetryTrackerRoom.totalBytesRelayed += 1;
-                telemetryTrackerRoom.lastActivityTimestamp = Date.now();
-
-                telemetryTrackerClient.totalMessagesRelayed += 1;
-                telemetryTrackerClient.lastActivityTimestamp = Date.now();
+                incrementTelemetryTrackers(
+                    [telemetryTrackerRoom, telemetryTrackerClient, telemetryTrackerRoomClient],
+                    0,
+                );
             }
 
             if (merged) {
@@ -207,13 +214,10 @@ export const docUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
                         client: updateSessionID ?? '',
                     } satisfies TYJSMessage;
 
-                    telemetryTrackerRoom.totalMessagesRelayed += 1;
-                    telemetryTrackerRoom.totalBytesRelayed += updateString.length;
-                    telemetryTrackerRoom.lastActivityTimestamp = Date.now();
-
-                    telemetryTrackerClient.totalMessagesReceived += 1;
-                    telemetryTrackerClient.totalBytesReceived += updateString.length;
-                    telemetryTrackerClient.lastActivityTimestamp = Date.now();
+                    incrementTelemetryTrackers(
+                        [telemetryTrackerRoom, telemetryTrackerClient, telemetryTrackerRoomClient],
+                        updateString.length,
+                    );
                 }
 
                 streamMessage.ack();
