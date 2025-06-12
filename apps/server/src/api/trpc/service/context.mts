@@ -7,6 +7,7 @@ import { env } from '../../../env.mjs';
 import { configSchema, TPermissions } from '../../../schema/config.mjs';
 import { logger } from '../../../logger.mjs';
 import { merge } from 'es-toolkit/object';
+import { getFirstForwardedIPAddress } from '../../../utils/ip/request.mjs';
 
 export const defaultPermissions: TPermissions = {
     presence: {
@@ -24,6 +25,13 @@ export async function servicePlaneHTTPContextCreatorFactory(services: TServices)
         const appKey = options.info.connectionParams?.appKey ?? null;
         const clientID = options.info.connectionParams?.clientID ?? null;
         const connectionID = options.info.connectionParams?.connectionID ?? null;
+
+        const userAgentString = options.req.headers['user-agent'] ?? null;
+
+        const ipAddress =
+            getFirstForwardedIPAddress(`${options.req.headers['x-forwarded-for']}`) ??
+            options.req.socket.remoteAddress ??
+            null;
 
         const resolvedConfig = await returnOf(async () => {
             if (!appKey) {
@@ -59,6 +67,8 @@ export async function servicePlaneHTTPContextCreatorFactory(services: TServices)
             appSecret: resolvedConfig?.app_secret ?? env.SHARED_SIGNING_KEY,
             clientSentConnectionID: connectionID,
             clientSentClientID: clientID,
+            clientIPAddress: ipAddress,
+            clientUserAgentString: userAgentString,
             resolvedConfig: resolvedConfig,
             services: services,
             permissions: resolvedPermissions,
