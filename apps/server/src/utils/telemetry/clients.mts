@@ -36,6 +36,12 @@ export async function initTelemetryTrackerClient(
 
             firstActivityTimestamp: Date.now(),
             lastActivityTimestamp: Date.now(),
+
+            totalMessagesReceived: 0,
+            totalMessagesRelayed: 0,
+
+            totalBytesReceived: 0,
+            totalBytesRelayed: 0,
         };
     }
 

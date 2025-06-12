@@ -9,6 +9,7 @@ import { nanoid } from 'nanoid';
 import { runInAction, when } from 'mobx';
 import { TRPCError } from '@trpc/server';
 import { initTelemetryTrackerRoom } from '../../../../../utils/telemetry/rooms.mjs';
+import { initTelemetryTrackerClient } from '../../../../../utils/telemetry/clients.mjs';
 
 export type TYJSMessage =
     | {
@@ -88,6 +89,16 @@ export const docUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
             const consumerName = `consumer_${nanoid()}`;
 
             const telemetryTrackerRoom = initTelemetryTrackerRoom(ctx.services.ephemeralState.telemetryTracker, key);
+            const telemetryTrackerClient = await initTelemetryTrackerClient(
+                ctx.services.ephemeralState.telemetryTracker,
+                {
+                    id: ctx.clientSentClientID ?? '',
+                    ipAddress: ctx.clientIPAddress ?? '0.0.0.0',
+                    userAgentString: ctx.clientUserAgentString ?? 'unknown',
+                    serverHostname: ctx.serverHostname ?? 'unknown',
+                    clientPageHostname: ctx.clientPageHostname ?? 'unknown',
+                },
+            );
 
             // ensure the stream exists
             await ctx.services.jetStreamManager.streams.add({
@@ -141,6 +152,10 @@ export const docUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
                 telemetryTrackerRoom.totalBytesRelayed += 1;
                 telemetryTrackerRoom.totalBytesRelayed += merged.mergedUpdate.length;
                 telemetryTrackerRoom.lastActivityTimestamp = Date.now();
+
+                telemetryTrackerClient.totalMessagesRelayed += 1;
+                telemetryTrackerClient.totalBytesRelayed += merged.mergedUpdate.length;
+                telemetryTrackerClient.lastActivityTimestamp = Date.now();
             } else {
                 yield {
                     type: 'sync',
@@ -151,6 +166,9 @@ export const docUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
 
                 telemetryTrackerRoom.totalBytesRelayed += 1;
                 telemetryTrackerRoom.lastActivityTimestamp = Date.now();
+
+                telemetryTrackerClient.totalMessagesRelayed += 1;
+                telemetryTrackerClient.lastActivityTimestamp = Date.now();
             }
 
             if (merged) {
@@ -192,6 +210,10 @@ export const docUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
                     telemetryTrackerRoom.totalMessagesRelayed += 1;
                     telemetryTrackerRoom.totalBytesRelayed += updateString.length;
                     telemetryTrackerRoom.lastActivityTimestamp = Date.now();
+
+                    telemetryTrackerClient.totalMessagesReceived += 1;
+                    telemetryTrackerClient.totalBytesReceived += updateString.length;
+                    telemetryTrackerClient.lastActivityTimestamp = Date.now();
                 }
 
                 streamMessage.ack();

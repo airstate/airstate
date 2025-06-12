@@ -49,6 +49,12 @@ export type TTelemetryTracker = {
 
             firstActivityTimestamp: number;
             lastActivityTimestamp: number;
+
+            totalMessagesReceived: number;
+            totalMessagesRelayed: number;
+
+            totalBytesReceived: number;
+            totalBytesRelayed: number;
         };
     };
 

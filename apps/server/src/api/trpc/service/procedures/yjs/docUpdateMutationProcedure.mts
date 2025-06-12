@@ -5,6 +5,7 @@ import { TRPCError } from '@trpc/server';
 import { servicePlanePassthroughProcedure } from '../../middleware/passthrough.mjs';
 import { resolvePermissions } from '../../../../../auth/permissions/index.mjs';
 import { initTelemetryTrackerRoom } from '../../../../../utils/telemetry/rooms.mjs';
+import { initTelemetryTrackerClient } from '../../../../../utils/telemetry/clients.mjs';
 
 export const docUpdateMutationProcedure = servicePlanePassthroughProcedure
     .meta({ writePermissionRequired: true })
@@ -27,6 +28,13 @@ export const docUpdateMutationProcedure = servicePlanePassthroughProcedure
         const subject = `yjs.${key}`;
 
         const telemetryTrackerRoom = initTelemetryTrackerRoom(ctx.services.ephemeralState.telemetryTracker, key);
+        const telemetryTrackerClient = await initTelemetryTrackerClient(ctx.services.ephemeralState.telemetryTracker, {
+            id: ctx.clientSentClientID ?? '',
+            ipAddress: ctx.clientIPAddress ?? '0.0.0.0',
+            userAgentString: ctx.clientUserAgentString ?? 'unknown',
+            serverHostname: ctx.serverHostname ?? 'unknown',
+            clientPageHostname: ctx.clientPageHostname ?? 'unknown',
+        });
 
         const publishHeaders = headers();
         publishHeaders.set('sessionID', input.sessionID);
@@ -44,6 +52,10 @@ export const docUpdateMutationProcedure = servicePlanePassthroughProcedure
                 telemetryTrackerRoom.totalMessagesReceived += 1;
                 telemetryTrackerRoom.totalBytesReceived += encodedUpdate.length;
                 telemetryTrackerRoom.lastActivityTimestamp = Date.now();
+
+                telemetryTrackerClient.totalMessagesReceived += 1;
+                telemetryTrackerClient.totalBytesReceived += encodedUpdate.length;
+                telemetryTrackerClient.lastActivityTimestamp = Date.now();
             }
         } catch (err) {
             throw new TRPCError({

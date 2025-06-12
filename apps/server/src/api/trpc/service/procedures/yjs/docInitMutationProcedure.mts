@@ -7,6 +7,7 @@ import { extractTokenPayload } from '../../../../../auth/permissions/index.mjs';
 import { merge } from 'es-toolkit/object';
 import { headers, StorageType } from 'nats';
 import { initTelemetryTrackerRoom } from '../../../../../utils/telemetry/rooms.mjs';
+import { initTelemetryTrackerClient } from '../../../../../utils/telemetry/clients.mjs';
 
 export const docInitMutationProcedure = servicePlanePassthroughProcedure
     .meta({ writePermissionRequired: true })
@@ -59,6 +60,13 @@ export const docInitMutationProcedure = servicePlanePassthroughProcedure
         });
 
         const telemetryTrackerRoom = initTelemetryTrackerRoom(ctx.services.ephemeralState.telemetryTracker, key);
+        const telemetryTrackerClient = await initTelemetryTrackerClient(ctx.services.ephemeralState.telemetryTracker, {
+            id: ctx.clientSentClientID ?? '',
+            ipAddress: ctx.clientIPAddress ?? '0.0.0.0',
+            userAgentString: ctx.clientUserAgentString ?? 'unknown',
+            serverHostname: ctx.serverHostname ?? 'unknown',
+            clientPageHostname: ctx.clientPageHostname ?? 'unknown',
+        });
 
         sessionMeta.meta = meta;
         let hasWrittenFirstUpdate: boolean = false;
@@ -81,6 +89,10 @@ export const docInitMutationProcedure = servicePlanePassthroughProcedure
                 telemetryTrackerRoom.totalMessagesReceived += 1;
                 telemetryTrackerRoom.totalBytesReceived += input.initialState.length;
                 telemetryTrackerRoom.lastActivityTimestamp = Date.now();
+
+                telemetryTrackerClient.totalMessagesReceived += 1;
+                telemetryTrackerClient.totalBytesReceived += input.initialState.length;
+                telemetryTrackerClient.lastActivityTimestamp = Date.now();
 
                 const streamInfo = await ctx.services.jetStreamManager.streams.info(streamName);
                 const messageCount = streamInfo.state.messages;
