@@ -5,6 +5,9 @@ export type TTelemetryPayload = {
             os: string;
             country: string;
             connection_time_s: number;
+
+            clientPageHostname: string;
+            serverHostname: string;
         };
     };
 
@@ -27,7 +30,8 @@ export type TTelemetryPayload = {
         };
     };
 
-    domains: string[];
+    clientHostnames: string[];
+    serverHostnames: string[];
 };
 
 export type TTelemetryTracker = {
@@ -39,6 +43,10 @@ export type TTelemetryTracker = {
             browser: string;
             os: string;
             country: string;
+
+            serverHostname: string;
+            clientPageHostname: string;
+
             firstActivityTimestamp: number;
             lastActivityTimestamp: number;
         };
@@ -73,6 +81,4 @@ export type TTelemetryTracker = {
             };
         };
     };
-
-    domains: Set<string>;
 };
