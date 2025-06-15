@@ -10,6 +10,9 @@ import { TNATSPresenceMessage } from './_helpers.mjs';
 import { createHash } from 'node:crypto';
 import { StorageType } from 'nats';
 import { runInAction } from 'mobx';
+import { initTelemetryTrackerRoom } from '../../../../../utils/telemetry/rooms.mjs';
+import { initTelemetryTrackerClient, initTelemetryTrackerRoomClient } from '../../../../../utils/telemetry/clients.mjs';
+import { incrementTelemetryTrackers } from '../../../../../utils/telemetry/increment.mjs';
 
 export const peerInitMutationProcedure = servicePlanePassthroughProcedure
     .meta({ writePermissionRequired: true })
@@ -34,6 +37,22 @@ export const peerInitMutationProcedure = servicePlanePassthroughProcedure
         const key = `${ctx.accountID}__${hashedRoomKey}`;
         const commonSubjectPrefix = `presence.${key}`;
         const streamName = `presence.${key}`;
+
+        const telemetryTrackerRoom = initTelemetryTrackerRoom(
+            ctx.services.ephemeralState.telemetryTracker,
+            'presence',
+            key,
+        );
+
+        const telemetryTrackerClient = await initTelemetryTrackerClient(ctx.services.ephemeralState.telemetryTracker, {
+            id: ctx.clientSentClientID ?? '',
+            ipAddress: ctx.clientIPAddress ?? '0.0.0.0',
+            userAgentString: ctx.clientUserAgentString ?? 'unknown',
+            serverHostname: ctx.serverHostname ?? 'unknown',
+            clientPageHostname: ctx.clientPageHostname ?? 'unknown',
+        });
+
+        const telemetryTrackerRoomClient = initTelemetryTrackerRoomClient(telemetryTrackerRoom, telemetryTrackerClient);
 
         const commonMeta = {
             peerKey: input.peerKey,
@@ -86,6 +105,12 @@ export const peerInitMutationProcedure = servicePlanePassthroughProcedure
                                     timestamp: Date.now(),
                                 } satisfies TNATSPresenceMessage),
                             ),
+                        );
+
+                        incrementTelemetryTrackers(
+                            [telemetryTrackerRoom, telemetryTrackerClient, telemetryTrackerRoomClient],
+                            JSON.stringify(extracted.data.presence.staticState).length,
+                            'received',
                         );
                     }
                 } else {

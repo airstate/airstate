@@ -9,6 +9,7 @@ import { logger } from '../../../logger.mjs';
 import { merge } from 'es-toolkit/object';
 import { AsyncIterableQueue } from 'async-iterable-queue';
 import { ConsoleMessage } from '../../../schema/consoleMessage.mjs';
+import { getFirstForwardedIPAddress } from '../../../utils/ip/request.mjs';
 
 export const defaultPermissions: TPermissions = {
     presence: {
@@ -34,6 +35,16 @@ export async function servicePlaneHTTPContextCreatorFactory(services: TServices)
                 'padding: 0.5rem 0 0.5rem 0;',
             ],
         });
+        const clientID = options.info.connectionParams?.clientID ?? null;
+        const connectionID = options.info.connectionParams?.connectionID ?? null;
+        const serverHostname = options.req.headers['host'] ?? null;
+        const clientPageHostname = options.info.connectionParams?.pageHostname ?? null;
+        const userAgentString = options.req.headers['user-agent'] ?? null;
+
+        const ipAddress =
+            getFirstForwardedIPAddress(`${options.req.headers['x-forwarded-for']}`) ??
+            options.req.socket.remoteAddress ??
+            null;
 
         const resolvedConfig = await returnOf(async () => {
             if (!appKey) {
@@ -67,6 +78,12 @@ export async function servicePlaneHTTPContextCreatorFactory(services: TServices)
             connectionID: nanoid(),
             appKey: appKey,
             appSecret: resolvedConfig?.app_secret ?? env.SHARED_SIGNING_KEY,
+            clientSentConnectionID: connectionID,
+            clientSentClientID: clientID,
+            clientIPAddress: ipAddress,
+            clientUserAgentString: userAgentString,
+            clientPageHostname: clientPageHostname,
+            serverHostname: serverHostname,
             resolvedConfig: resolvedConfig,
             services: services,
             permissions: resolvedPermissions,

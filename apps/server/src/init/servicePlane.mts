@@ -34,7 +34,7 @@ export async function initServicePlane(services: TServices) {
             servicePlaneWebSocketServer.once('headers', (headers, request) => {
                 if (!('airstate_client_identifier' in cookies) || !cookies.airstate_client_identifier) {
                     headers.push(
-                        `Set-Cookie: airstate_client_identifier=${clientIdentifier}; Path=/; Domain=; HttpOnly; SameSite=None; Secure`,
+                        `Set-Cookie: airstate_client_identifier=${clientIdentifier}; Path=/; Domain=; HttpOnly; SameSite=None; Secure; Partitioned;`,
                     );
                 }
             });

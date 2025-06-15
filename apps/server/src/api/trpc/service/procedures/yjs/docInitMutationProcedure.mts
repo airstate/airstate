@@ -7,6 +7,9 @@ import { extractTokenPayload } from '../../../../../auth/permissions/index.mjs';
 import { merge } from 'es-toolkit/object';
 import { headers, StorageType } from 'nats';
 import { runInAction } from 'mobx';
+import { initTelemetryTrackerRoom } from '../../../../../utils/telemetry/rooms.mjs';
+import { initTelemetryTrackerClient, initTelemetryTrackerRoomClient } from '../../../../../utils/telemetry/clients.mjs';
+import { incrementTelemetryTrackers } from '../../../../../utils/telemetry/increment.mjs';
 
 export const docInitMutationProcedure = servicePlanePassthroughProcedure
     .meta({ writePermissionRequired: true })
@@ -58,6 +61,22 @@ export const docInitMutationProcedure = servicePlanePassthroughProcedure
             max_msgs_per_subject: -1,
         });
 
+        const telemetryTrackerRoom = initTelemetryTrackerRoom(
+            ctx.services.ephemeralState.telemetryTracker,
+            'ydoc',
+            key,
+        );
+
+        const telemetryTrackerClient = await initTelemetryTrackerClient(ctx.services.ephemeralState.telemetryTracker, {
+            id: ctx.clientSentClientID ?? '',
+            ipAddress: ctx.clientIPAddress ?? '0.0.0.0',
+            userAgentString: ctx.clientUserAgentString ?? 'unknown',
+            serverHostname: ctx.serverHostname ?? 'unknown',
+            clientPageHostname: ctx.clientPageHostname ?? 'unknown',
+        });
+
+        const telemetryTrackerRoomClient = initTelemetryTrackerRoomClient(telemetryTrackerRoom, telemetryTrackerClient);
+
         runInAction(() => {
             sessionMeta.meta = meta;
         });
@@ -69,7 +88,7 @@ export const docInitMutationProcedure = servicePlanePassthroughProcedure
 
         while (!!input.initialState) {
             try {
-                await ctx.services.sharedStateKV.create(`${streamName}__init`, JSON.stringify(null));
+                await ctx.services.mainKV.create(`${streamName}__init`, JSON.stringify(null));
 
                 await ctx.services.jetStreamClient.publish(
                     subject,
@@ -79,6 +98,12 @@ export const docInitMutationProcedure = servicePlanePassthroughProcedure
                     },
                 );
 
+                incrementTelemetryTrackers(
+                    [telemetryTrackerRoom, telemetryTrackerClient, telemetryTrackerRoomClient],
+                    input.initialState.length,
+                    'received',
+                );
+
                 const streamInfo = await ctx.services.jetStreamManager.streams.info(streamName);
                 const messageCount = streamInfo.state.messages;
 
@@ -86,14 +111,14 @@ export const docInitMutationProcedure = servicePlanePassthroughProcedure
                     hasWrittenFirstUpdate = true;
                     break;
                 } else {
-                    await ctx.services.sharedStateKV.delete(`${streamName}__init`);
+                    await ctx.services.mainKV.delete(`${streamName}__init`);
                 }
             } catch {
                 const streamInfo = await ctx.services.jetStreamManager.streams.info(streamName);
                 const messageCount = streamInfo.state.messages;
 
                 if (messageCount === 0) {
-                    await ctx.services.sharedStateKV.delete(`${streamName}__init`);
+                    await ctx.services.mainKV.delete(`${streamName}__init`);
                 } else {
                     break;
                 }

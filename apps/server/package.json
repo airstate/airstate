@@ -10,7 +10,8 @@
         "build": "tsc",
         "build:no-check": "tsc || exit 0",
         "build:watch": "tsc --watch --preserveWatchOutput",
-        "dev": "concurrently pnpm:build:watch pnpm:start:watch"
+        "dev": "concurrently pnpm:build:watch pnpm:start:watch",
+        "postinstall": "./postinstall.sh"
     },
     "dependencies": {
         "@t3-oss/env-core": "0.12.0",
@@ -23,11 +24,14 @@
         "es-toolkit": "^1.37.2",
         "express": "4.21.2",
         "iovalkey": "^0.3.1",
+        "ip-location-api": "3.0.3",
         "jsonwebtoken": "9.0.2",
         "mobx": "^6.13.7",
         "nanoid": "5.1.5",
         "nats": "2.29.0",
+        "private-ip": "^3.0.2",
         "scope-utilities": "^2.2.1",
+        "ua-parser-js": "^2.0.3",
         "winston": "3.17.0",
         "ws": "8.18.0",
         "yjs": "13.6.24",
