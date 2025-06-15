@@ -6,6 +6,7 @@ import { logger } from '../../../../../logger.mjs';
 import { extractTokenPayload } from '../../../../../auth/permissions/index.mjs';
 import { merge } from 'es-toolkit/object';
 import { headers, StorageType } from 'nats';
+import { runInAction } from 'mobx';
 
 export const docInitMutationProcedure = servicePlanePassthroughProcedure
     .meta({ writePermissionRequired: true })
@@ -57,7 +58,10 @@ export const docInitMutationProcedure = servicePlanePassthroughProcedure
             max_msgs_per_subject: -1,
         });
 
-        sessionMeta.meta = meta;
+        runInAction(() => {
+            sessionMeta.meta = meta;
+        });
+
         let hasWrittenFirstUpdate: boolean = false;
 
         const publishHeaders = headers();

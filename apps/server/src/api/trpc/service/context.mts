@@ -7,6 +7,8 @@ import { env } from '../../../env.mjs';
 import { configSchema, TPermissions } from '../../../schema/config.mjs';
 import { logger } from '../../../logger.mjs';
 import { merge } from 'es-toolkit/object';
+import { AsyncIterableQueue } from 'async-iterable-queue';
+import { ConsoleMessage } from '../../../schema/consoleMessage.mjs';
 
 export const defaultPermissions: TPermissions = {
     presence: {
@@ -21,7 +23,17 @@ export const defaultPermissions: TPermissions = {
 
 export async function servicePlaneHTTPContextCreatorFactory(services: TServices) {
     return async function (options: trpcExpress.CreateExpressContextOptions | trpcWS.CreateWSSContextFnOptions) {
+        const logQueue = new AsyncIterableQueue<ConsoleMessage>();
+
         const appKey = options.info.connectionParams?.appKey ?? null;
+
+        await logQueue.push({
+            level: 'warn',
+            logs: [
+                '%cNote: You are using a very early preview version of useSharedState by AirState.',
+                'padding: 0.5rem 0 0.5rem 0;',
+            ],
+        });
 
         const resolvedConfig = await returnOf(async () => {
             if (!appKey) {
@@ -58,6 +70,7 @@ export async function servicePlaneHTTPContextCreatorFactory(services: TServices)
             resolvedConfig: resolvedConfig,
             services: services,
             permissions: resolvedPermissions,
+            logQueue: logQueue,
         };
     };
 }

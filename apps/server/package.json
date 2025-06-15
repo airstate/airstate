@@ -16,6 +16,7 @@
         "@t3-oss/env-core": "0.12.0",
         "@trpc/client": "11.1.2",
         "@trpc/server": "11.1.2",
+        "async-iterable-queue": "^1.0.16",
         "bufferutil": "4.0.9",
         "cookie": "^1.0.2",
         "dbly-linked-list": "^0.3.5",

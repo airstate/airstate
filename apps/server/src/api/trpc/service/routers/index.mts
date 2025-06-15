@@ -1,7 +1,10 @@
 import { servicePlanePublicProcedure, servicePlaneRouter } from '../index.mjs';
 import { TYJSRouter, yjsRouter } from './yjs.mjs';
 import { presenceRouter, TPresenceRouter } from './presence.mjs';
-
+import {
+    clientLogsSubscriptionProcedure,
+    TclientLogsSubscriptionProcedure,
+} from '../procedures/logBridge/clientLogsSubscriptionProcedure.mjs';
 // note: all delegated routers are cast to their own type with
 //       `as` to work around TypeScript's maximum type inference
 //       depth limits.
@@ -14,6 +17,7 @@ export const servicePlaneAppRouter = servicePlaneRouter({
     }),
     yjs: yjsRouter as TYJSRouter,
     presence: presenceRouter as TPresenceRouter,
+    clientLogsSubscriptionProcedure: clientLogsSubscriptionProcedure as TclientLogsSubscriptionProcedure,
 });
 
 export type TServicePlaneAppRouter = typeof servicePlaneAppRouter;
