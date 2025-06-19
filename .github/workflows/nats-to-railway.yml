@@ -6,6 +6,7 @@ on:
             - production-server
         paths:
             - 'infra/nats/**'
+            - '.github/workflows/nats-to-railway.yml'
 
 jobs:
     deploy:
@@ -21,7 +22,7 @@ jobs:
 
             - name: Deploy Nats to Railway
               run: |
-                  cd infra/Nats
+                  cd infra/nats
                   railway up --service nats --verbose
               env:
                   RAILWAY_TOKEN: ${{ secrets.RAILWAY_DEPLOY_TOKEN }}
