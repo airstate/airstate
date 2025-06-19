@@ -8,6 +8,9 @@ import { merge } from 'es-toolkit/object';
 import { defaultPermissions } from '../../context.mjs';
 import { TNATSPresenceMessage } from './_helpers.mjs';
 import { createHash } from 'node:crypto';
+import { initTelemetryTrackerRoom } from '../../../../../utils/telemetry/rooms.mjs';
+import { initTelemetryTrackerClient, initTelemetryTrackerRoomClient } from '../../../../../utils/telemetry/clients.mjs';
+import { incrementTelemetryTrackers } from '../../../../../utils/telemetry/increment.mjs';
 
 export const presenceUpdateMutationProcedure = servicePlanePassthroughProcedure
     .meta({ writePermissionRequired: true })
@@ -48,8 +51,24 @@ export const presenceUpdateMutationProcedure = servicePlanePassthroughProcedure
         const peerKey = sessionMeta.meta.peerKey;
         const hashedPeerKey = sessionMeta.meta.hashedPeerKey;
 
-        const key = `${ctx.accountingIdentifier}__${hashedRoomKey}`;
+        const key = `${ctx.accountID}__${hashedRoomKey}`;
         const commonSubjectPrefix = `presence.${key}`;
+
+        const telemetryTrackerRoom = initTelemetryTrackerRoom(
+            ctx.services.ephemeralState.telemetryTracker,
+            'presence',
+            key,
+        );
+
+        const telemetryTrackerClient = await initTelemetryTrackerClient(ctx.services.ephemeralState.telemetryTracker, {
+            id: ctx.clientSentClientID ?? '',
+            ipAddress: ctx.clientIPAddress ?? '0.0.0.0',
+            userAgentString: ctx.clientUserAgentString ?? 'unknown',
+            serverHostname: ctx.serverHostname ?? 'unknown',
+            clientPageHostname: ctx.clientPageHostname ?? 'unknown',
+        });
+
+        const telemetryTrackerRoomClient = initTelemetryTrackerRoomClient(telemetryTrackerRoom, telemetryTrackerClient);
 
         if (input.update.type === 'dynamic-update') {
             await ctx.services.jetStreamClient.publish(
@@ -64,6 +83,12 @@ export const presenceUpdateMutationProcedure = servicePlanePassthroughProcedure
                     } satisfies TNATSPresenceMessage),
                 ),
             );
+
+            incrementTelemetryTrackers(
+                [telemetryTrackerRoom, telemetryTrackerClient, telemetryTrackerRoomClient],
+                JSON.stringify(input.update.state).length,
+                'received',
+            );
         } else {
             await ctx.services.jetStreamClient.publish(
                 `${commonSubjectPrefix}.focus.${hashedPeerKey}`,
@@ -76,6 +101,12 @@ export const presenceUpdateMutationProcedure = servicePlanePassthroughProcedure
                         timestamp: Date.now(),
                     } satisfies TNATSPresenceMessage),
                 ),
+            );
+
+            incrementTelemetryTrackers(
+                [telemetryTrackerRoom, telemetryTrackerClient, telemetryTrackerRoomClient],
+                0,
+                'received',
             );
         }
     });

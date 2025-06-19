@@ -2,11 +2,14 @@ import { z } from 'zod';
 import { servicePlanePassthroughProcedure } from '../../middleware/passthrough.mjs';
 import { TRPCError } from '@trpc/server';
 import { defaultPermissions } from '../../context.mjs';
-import { env } from '../../../../../env.mjs';
 import { logger } from '../../../../../logger.mjs';
 import { extractTokenPayload } from '../../../../../auth/permissions/index.mjs';
 import { merge } from 'es-toolkit/object';
 import { headers, StorageType } from 'nats';
+import { runInAction } from 'mobx';
+import { initTelemetryTrackerRoom } from '../../../../../utils/telemetry/rooms.mjs';
+import { initTelemetryTrackerClient, initTelemetryTrackerRoomClient } from '../../../../../utils/telemetry/clients.mjs';
+import { incrementTelemetryTrackers } from '../../../../../utils/telemetry/increment.mjs';
 
 export const docInitMutationProcedure = servicePlanePassthroughProcedure
     .meta({ writePermissionRequired: true })
@@ -28,7 +31,7 @@ export const docInitMutationProcedure = servicePlanePassthroughProcedure
         const sessionMeta = ctx.services.localState.sessionMeta[input.sessionID];
         const hashedRoomKey = sessionMeta.roomKeyHashed;
 
-        const key = `${ctx.accountingIdentifier}__${hashedRoomKey}`;
+        const key = `${ctx.accountID}__${hashedRoomKey}`;
         const subject = `yjs.${key}`;
         const streamName = `yjs_${key}`;
 
@@ -39,10 +42,10 @@ export const docInitMutationProcedure = servicePlanePassthroughProcedure
         };
 
         if (input.token) {
-            if (!env.SHARED_SIGNING_KEY) {
+            if (!ctx.appSecret) {
                 logger.warn('no shared signing key, cannot verify token');
             } else {
-                const extracted = extractTokenPayload(input.token, env.SHARED_SIGNING_KEY);
+                const extracted = extractTokenPayload(input.token, ctx.appSecret);
 
                 if (extracted) {
                     meta.permissions = merge(defaultPermissions, extracted.data.permissions ?? {});
@@ -58,7 +61,26 @@ export const docInitMutationProcedure = servicePlanePassthroughProcedure
             max_msgs_per_subject: -1,
         });
 
-        sessionMeta.meta = meta;
+        const telemetryTrackerRoom = initTelemetryTrackerRoom(
+            ctx.services.ephemeralState.telemetryTracker,
+            'ydoc',
+            key,
+        );
+
+        const telemetryTrackerClient = await initTelemetryTrackerClient(ctx.services.ephemeralState.telemetryTracker, {
+            id: ctx.clientSentClientID ?? '',
+            ipAddress: ctx.clientIPAddress ?? '0.0.0.0',
+            userAgentString: ctx.clientUserAgentString ?? 'unknown',
+            serverHostname: ctx.serverHostname ?? 'unknown',
+            clientPageHostname: ctx.clientPageHostname ?? 'unknown',
+        });
+
+        const telemetryTrackerRoomClient = initTelemetryTrackerRoomClient(telemetryTrackerRoom, telemetryTrackerClient);
+
+        runInAction(() => {
+            sessionMeta.meta = meta;
+        });
+
         let hasWrittenFirstUpdate: boolean = false;
 
         const publishHeaders = headers();
@@ -66,7 +88,7 @@ export const docInitMutationProcedure = servicePlanePassthroughProcedure
 
         while (!!input.initialState) {
             try {
-                await ctx.services.sharedStateKV.create(`${streamName}__init`, JSON.stringify(null));
+                await ctx.services.mainKV.create(`${streamName}__init`, JSON.stringify(null));
 
                 await ctx.services.jetStreamClient.publish(
                     subject,
@@ -76,6 +98,12 @@ export const docInitMutationProcedure = servicePlanePassthroughProcedure
                     },
                 );
 
+                incrementTelemetryTrackers(
+                    [telemetryTrackerRoom, telemetryTrackerClient, telemetryTrackerRoomClient],
+                    input.initialState.length,
+                    'received',
+                );
+
                 const streamInfo = await ctx.services.jetStreamManager.streams.info(streamName);
                 const messageCount = streamInfo.state.messages;
 
@@ -83,14 +111,14 @@ export const docInitMutationProcedure = servicePlanePassthroughProcedure
                     hasWrittenFirstUpdate = true;
                     break;
                 } else {
-                    await ctx.services.sharedStateKV.delete(`${streamName}__init`);
+                    await ctx.services.mainKV.delete(`${streamName}__init`);
                 }
             } catch {
                 const streamInfo = await ctx.services.jetStreamManager.streams.info(streamName);
                 const messageCount = streamInfo.state.messages;
 
                 if (messageCount === 0) {
-                    await ctx.services.sharedStateKV.delete(`${streamName}__init`);
+                    await ctx.services.mainKV.delete(`${streamName}__init`);
                 } else {
                     break;
                 }

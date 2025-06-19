@@ -9,11 +9,11 @@ export type JetStreamServices = {
     jetStreamManager: JetStreamManager;
 };
 
-export type SharedStateKVServices = {
-    sharedStateKV: KV;
+export type MainKVServices = {
+    mainKV: KV;
 };
 
-export type KVServices = SharedStateKVServices & {};
+export type KVServices = MainKVServices & {};
 
 export type NATSServices = {
     natsConnection: NatsConnection;

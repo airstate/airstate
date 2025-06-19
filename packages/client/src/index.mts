@@ -13,5 +13,6 @@ export { TSharedState, TSharedStateOptions, sharedState } from './shared-state/i
 export {
     TSharedPresence,
     TSharedPresenceOptions,
+    TPresenceState,
     sharedPresence,
 } from './shared-presence/index.mjs';

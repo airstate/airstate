@@ -292,3 +292,4 @@ export function sharedPresence<T extends Record<string, any> | undefined>(
         },
     };
 }
+export { TPresenceState };

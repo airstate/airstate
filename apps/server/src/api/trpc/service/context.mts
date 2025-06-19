@@ -7,6 +7,9 @@ import { env } from '../../../env.mjs';
 import { configSchema, TPermissions } from '../../../schema/config.mjs';
 import { logger } from '../../../logger.mjs';
 import { merge } from 'es-toolkit/object';
+import { AsyncIterableQueue } from 'async-iterable-queue';
+import { ConsoleMessage } from '../../../schema/consoleMessage.mjs';
+import { getFirstForwardedIPAddress } from '../../../utils/ip/request.mjs';
 
 export const defaultPermissions: TPermissions = {
     presence: {
@@ -21,7 +24,27 @@ export const defaultPermissions: TPermissions = {
 
 export async function servicePlaneHTTPContextCreatorFactory(services: TServices) {
     return async function (options: trpcExpress.CreateExpressContextOptions | trpcWS.CreateWSSContextFnOptions) {
+        const logQueue = new AsyncIterableQueue<ConsoleMessage>();
+
         const appKey = options.info.connectionParams?.appKey ?? null;
+
+        await logQueue.push({
+            level: 'warn',
+            logs: [
+                '%cNote: You are using a very early preview version of useSharedState by AirState.',
+                'padding: 0.5rem 0 0.5rem 0;',
+            ],
+        });
+        const clientID = options.info.connectionParams?.clientID ?? null;
+        const connectionID = options.info.connectionParams?.connectionID ?? null;
+        const serverHostname = options.req.headers['host'] ?? null;
+        const clientPageHostname = options.info.connectionParams?.pageHostname ?? null;
+        const userAgentString = options.req.headers['user-agent'] ?? null;
+
+        const ipAddress =
+            getFirstForwardedIPAddress(`${options.req.headers['x-forwarded-for']}`) ??
+            options.req.socket.remoteAddress ??
+            null;
 
         const resolvedConfig = await returnOf(async () => {
             if (!appKey) {
@@ -35,7 +58,7 @@ export async function servicePlaneHTTPContextCreatorFactory(services: TServices)
             }
 
             try {
-                const configRequestURL = new URL(`${env.AIRSTATE_CONFIG_API_BASE_URL}/getConfigFromAppKey`);
+                const configRequestURL = new URL(`${env.AIRSTATE_CONFIG_API_BASE_URL}/config`);
                 configRequestURL.searchParams.set('appKey', appKey);
 
                 const configRequest = await fetch(`${configRequestURL}`);
@@ -46,18 +69,25 @@ export async function servicePlaneHTTPContextCreatorFactory(services: TServices)
             }
         });
 
-        const resolvedPermissions = resolvedConfig?.default_permissions
-            ? merge(resolvedConfig.default_permissions, defaultPermissions)
+        const resolvedPermissions = resolvedConfig?.base_permissions
+            ? merge(resolvedConfig.base_permissions, defaultPermissions)
             : defaultPermissions;
 
         return {
-            accountingIdentifier: resolvedConfig?.accounting_identifier ?? '__ANONYMOUS',
+            accountID: resolvedConfig?.account_id ?? '__ANONYMOUS',
             connectionID: nanoid(),
             appKey: appKey,
-            appSecret: resolvedConfig?.signing_secret ?? env.SHARED_SIGNING_KEY,
+            appSecret: resolvedConfig?.app_secret ?? env.SHARED_SIGNING_KEY,
+            clientSentConnectionID: connectionID,
+            clientSentClientID: clientID,
+            clientIPAddress: ipAddress,
+            clientUserAgentString: userAgentString,
+            clientPageHostname: clientPageHostname,
+            serverHostname: serverHostname,
             resolvedConfig: resolvedConfig,
             services: services,
             permissions: resolvedPermissions,
+            logQueue: logQueue,
         };
     };
 }

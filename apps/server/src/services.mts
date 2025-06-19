@@ -1,15 +1,16 @@
 import { createNATSConnection, createStringCodec } from './services/nats/nats.mjs';
 import { env } from './env.mjs';
 import { createJetStreamClient, createJetStreamManager } from './services/nats/jetstream.mjs';
-import { createSharedStateKV } from './services/nats/kv.mjs';
+import { createMainKV } from './services/nats/kv.mjs';
 import { NATSServices } from './types/nats.mjs';
 import { createValkeyConnection, TValkeyService } from './db/valkey/index.mjs';
 import { createInfoService, TInfoService } from './services/info.mjs';
 import { createControlClients, TControlClientsService } from './services/controlClients.mjs';
 import { createLocalState, TLocalStateService } from './services/localState.mjs';
+import { createEphemeralState, TEphemeralStateService } from './services/ephemeralState.mjs';
 
 export async function createServices(): Promise<
-    NATSServices & TValkeyService & TInfoService & TControlClientsService & TLocalStateService
+    NATSServices & TValkeyService & TInfoService & TControlClientsService & TLocalStateService & TEphemeralStateService
 > {
     const natsStringCodec = createStringCodec();
     const natsConnection = await createNATSConnection(env.AIRSTATE_NATS_URLS.split(',').map((url) => url.trim()));
@@ -17,24 +18,29 @@ export async function createServices(): Promise<
     const jetStreamClient = createJetStreamClient(natsConnection);
     const jetStreamManager = await createJetStreamManager(natsConnection);
 
-    const sharedStateKV = await createSharedStateKV(natsConnection);
+    const mainKV = await createMainKV(natsConnection);
 
     const valkey = await createValkeyConnection({ connect: true });
-    const info = await createInfoService();
     const controlClients = await createControlClients();
 
     const localState = await createLocalState();
+    const ephemeralState = await createEphemeralState();
+
+    const info = await createInfoService({
+        mainKV: mainKV,
+    });
 
     return {
-        natsStringCodec,
-        natsConnection,
-        jetStreamClient,
-        jetStreamManager,
-        sharedStateKV,
-        valkey,
-        info,
-        controlClients,
-        localState,
+        natsStringCodec: natsStringCodec,
+        natsConnection: natsConnection,
+        jetStreamClient: jetStreamClient,
+        jetStreamManager: jetStreamManager,
+        mainKV: mainKV,
+        valkey: valkey,
+        info: info,
+        controlClients: controlClients,
+        localState: localState,
+        ephemeralState: ephemeralState,
     };
 }
 

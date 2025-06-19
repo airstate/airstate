@@ -107,6 +107,23 @@ export function sharedYDoc(options: TSharedYDocOptions): TSharedYDoc {
         }
     });
 
+    const logSubscription = airState.trpc.clientLogsSubscriptionProcedure.subscribe(
+        undefined,
+        {
+            onData(message) {
+                if (message.level === 'debug') {
+                    console.debug(...message.logs);
+                } else if (message.level === 'info') {
+                    console.info(...message.logs);
+                } else if (message.level === 'warn') {
+                    console.warn(...message.logs);
+                } else if (message.level === 'error') {
+                    console.error(...message.logs);
+                }
+            },
+        },
+    );
+
     const subscription = airState.trpc.yjs.docUpdates.subscribe(
         {
             key: options.key,
@@ -199,6 +216,7 @@ export function sharedYDoc(options: TSharedYDocOptions): TSharedYDoc {
         cleanupOnOpen();
         cleanupOnClose();
         subscription.unsubscribe();
+        logSubscription.unsubscribe();
         errorListeners.clear();
         connectListeners.clear();
         disconnectListeners.clear();

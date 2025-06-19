@@ -1,5 +1,6 @@
 import type { TServicePlaneAppRouter } from '@airstate/server';
 import { createTRPCClient, createWSClient, TRPCClient, wsLink } from '@trpc/client';
+import { nanoid } from 'nanoid';
 
 export type TClientOptions = {
     appKey?: string;
@@ -19,6 +20,18 @@ export type TAirStateClient = {
 };
 
 export function createClient(options?: TClientOptions): TAirStateClient {
+    const clientID = (() => {
+        const storedClientID = window.localStorage.getItem('clientID');
+
+        if (!storedClientID) {
+            const nextClientID = nanoid();
+            window.localStorage.setItem('clientID', nextClientID);
+            return nextClientID;
+        }
+
+        return storedClientID;
+    })();
+
     const openListeners = new Set<() => void>();
     const errorListeners = new Set<(errorEvent?: Event) => void>();
     const closeListeners = new Set<(cause?: { code?: number }) => void>();
@@ -35,8 +48,13 @@ export function createClient(options?: TClientOptions): TAirStateClient {
         retryDelayMs: (index) => {
             return index ** 2 * 100;
         },
-        connectionParams: {
-            appKey: options?.appKey ?? defaultOptions.appKey,
+        connectionParams: () => {
+            return {
+                appKey: options?.appKey ?? defaultOptions.appKey,
+                clientID: clientID,
+                connectionID: nanoid(),
+                pageHostname: window.location.hostname,
+            };
         },
         onOpen() {
             openListeners.forEach((listener) => listener());
