@@ -18,9 +18,12 @@ export const docUpdateMutationProcedure = servicePlanePassthroughProcedure
         }),
     )
     .mutation(async function ({ ctx, input, signal }) {
-        // TODO: check permissions based on the sessionID
-
-        console.log('server received update for session', input.sessionID);
+        if (ctx.services.localState.sessionMeta[input.sessionID].meta?.permissions.yjs.write !== true) {
+            throw new TRPCError({
+                code: 'FORBIDDEN',
+                message: 'permission to send doc updates is not set',
+            });
+        }
 
         const clientSentKey = input.key;
         const hashedClientSentKey: string = createHash('sha256').update(clientSentKey).digest('hex');
@@ -64,10 +67,13 @@ export const docUpdateMutationProcedure = servicePlanePassthroughProcedure
                 );
             }
         } catch (err) {
-            throw new TRPCError({
-                code: 'INTERNAL_SERVER_ERROR',
-                message: 'failed to publish update',
-            });
+            if (!(err instanceof TRPCError)) {
+                throw new TRPCError({
+                    code: 'INTERNAL_SERVER_ERROR',
+                    message: 'failed to publish update',
+                });
+            }
+            throw err;
         }
     });
 

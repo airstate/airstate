@@ -9,7 +9,6 @@ export async function createEphemeralState(): Promise<TEphemeralState> {
         telemetryTracker: {
             clients: {},
             rooms: {},
-            domains: new Set(),
         },
     };
 }

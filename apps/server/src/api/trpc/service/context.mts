@@ -10,6 +10,7 @@ import { merge } from 'es-toolkit/object';
 import { AsyncIterableQueue } from 'async-iterable-queue';
 import { ConsoleMessage } from '../../../schema/consoleMessage.mjs';
 import { getFirstForwardedIPAddress } from '../../../utils/ip/request.mjs';
+import { TRPCError } from '@trpc/server';
 
 export const defaultPermissions: TPermissions = {
     presence: {
@@ -30,10 +31,7 @@ export async function servicePlaneHTTPContextCreatorFactory(services: TServices)
 
         await logQueue.push({
             level: 'warn',
-            logs: [
-                '%cNote: You are using a very early preview version of useSharedState by AirState.',
-                'padding: 0.5rem 0 0.5rem 0;',
-            ],
+            logs: ['%cNote: You are using a very early preview version of AirState.', 'padding: 0.5rem 0 0.5rem 0;'],
         });
         const clientID = options.info.connectionParams?.clientID ?? null;
         const connectionID = options.info.connectionParams?.connectionID ?? null;
@@ -72,6 +70,14 @@ export async function servicePlaneHTTPContextCreatorFactory(services: TServices)
         const resolvedPermissions = resolvedConfig?.base_permissions
             ? merge(resolvedConfig.base_permissions, defaultPermissions)
             : defaultPermissions;
+
+        if (env.NODE_ENV === 'production' && !resolvedConfig?.account_id) {
+            logger.error(`could not get accountID for ${appKey}`);
+            throw new TRPCError({
+                code: 'UNAUTHORIZED',
+                message: 'invalid or missing appKey. cannot resolve account in production.',
+            });
+        }
 
         return {
             accountID: resolvedConfig?.account_id ?? '__ANONYMOUS',
