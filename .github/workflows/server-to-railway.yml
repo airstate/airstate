@@ -33,12 +33,6 @@ jobs:
             - name: Rename to use `railway_server.json`
               run: cp railway_server.json railway.json
 
-            - name: Set Railway Environment Variable
-              run: |
-                  railway variables --service server --set VALKEY_URL=${{ secrets.VALKEY_URL }}
-              env:
-                  RAILWAY_TOKEN: ${{ secrets.RAILWAY_DEPLOY_TOKEN }}
-
             - name: Deploy
               run: |
                   railway up --service server --verbose
