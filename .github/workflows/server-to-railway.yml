@@ -35,7 +35,7 @@ jobs:
 
             - name: Set Railway Environment Variable
               run: |
-                  railway variables --service server set VALKEY_URL=${{ secrets.VALKEY_URL }}
+                  railway variables --service server --set VALKEY_URL=${{ secrets.VALKEY_URL }}
               env:
                   RAILWAY_TOKEN: ${{ secrets.RAILWAY_DEPLOY_TOKEN }}
 
