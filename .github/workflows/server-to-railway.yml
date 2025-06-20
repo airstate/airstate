@@ -8,6 +8,7 @@ on:
         paths:
             - apps/server/**/*
             - .github/workflows/server-to-railway.yml
+            - Dockerfile_server
 
 jobs:
     deploy:

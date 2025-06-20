@@ -19,4 +19,6 @@ WORKDIR /app
 
 COPY --from=build /airstate-server .
 
+EXPOSE 11001
+
 CMD ["node", "."]
