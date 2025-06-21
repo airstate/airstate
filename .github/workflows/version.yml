@@ -1,0 +1,27 @@
+name: Create Version PR
+
+on:
+  push:
+    branches:
+      - main
+      - 0.x
+jobs:
+  version:
+    name: Versioning PR
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: package.json
+      - name: Setup PNPM
+        uses: pnpm/action-setup@v4
+      - name: Install Deps
+        run: pnpm install --frozen-lockfile
+      - uses: changesets/action@v1
+        with:
+          version: pnpm changeset version
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
