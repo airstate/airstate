@@ -1,5 +1,13 @@
 # @airstate/react
 
+## 0.1.5
+
+### Patch Changes
+
+- 35f35b4: .
+- Updated dependencies [35f35b4]
+    - @airstate/client@0.1.5
+
 ## 0.1.4
 
 ### Patch Changes
