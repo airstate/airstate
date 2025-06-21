@@ -1,0 +1,30 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+      - 0.x
+
+jobs:
+  release:
+    name: Publish Packages
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: package.json
+      - name: Setup PNPM
+        uses: pnpm/action-setup@v4
+      - name: Install Deps
+        run: pnpm install --frozen-lockfile --filter=@airstate/mono
+      - run: pnpx changeset publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
