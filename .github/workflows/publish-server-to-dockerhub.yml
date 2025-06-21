@@ -6,7 +6,7 @@ on:
     paths:
       - 'apps/server/**'
       - '.github/workflows/publish-server-to-dockerhub.yml'
-      - 'Dockerfile-server'
+      - 'apps/server/Dockerfile'
 
   release:
     types: [published]
@@ -26,15 +26,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: package.json
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Set up Docker Buildx
+      - name: Set up Docker BuildX
         uses: docker/setup-buildx-action@v3
 
       - name: Log in to Docker Hub
@@ -59,8 +51,8 @@ jobs:
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
-          context: .
-          file: ./Dockerfile-server
+          context: apps/server
+          file: Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

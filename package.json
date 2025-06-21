@@ -2,9 +2,8 @@
     "name": "@airstate/mono",
     "version": "0.0.1",
     "description": "",
-    "packageManager": "pnpm@10.6.4",
-    "keywords": [
-    ],
+    "packageManager": "pnpm@10.12.1",
+    "keywords": [],
     "scripts": {
         "dev": "turbo run dev --concurrency=8",
         "build": "turbo run build",
@@ -12,8 +11,6 @@
         "shell:run": "docker compose run --rm --service-ports mono bash -l",
         "shell": "docker compose exec mono bash -l",
         "format": "prettier --write ."
-    },
-    "dependencies": {
     },
     "volta": {
         "node": "22.12.0"
