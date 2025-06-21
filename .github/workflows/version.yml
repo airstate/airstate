@@ -1,6 +1,8 @@
 name: Create Version PR
 
-permissions: write-all
+permissions:
+  contents: write
+  pull-requests: write
 
 on:
   push:
@@ -22,7 +24,8 @@ jobs:
         uses: pnpm/action-setup@v4
       - name: Install Deps
         run: pnpm install --frozen-lockfile --filter=@airstate/mono
-      - name: Create Release Pull Request
-        uses: changesets/action@v1
+      - uses: changesets/action@v1
+        with:
+          version: pnpm changeset version
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
