@@ -1,6 +1,8 @@
 name: Release
 
-permissions: write-all
+permissions:
+  contents: write
+  pull-requests: write
 
 on:
   push:
