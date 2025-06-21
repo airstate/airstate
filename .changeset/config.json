@@ -4,7 +4,7 @@
     "commit": true,
     "fixed": [["@airstate/server", "@airstate/client", "@airstate/react"]],
     "linked": [],
-    "access": "restricted",
+    "access": "public",
     "baseBranch": "main",
     "updateInternalDependencies": "patch",
     "ignore": ["@airstate/examples"]
