@@ -31,14 +31,14 @@ jobs:
         run: |
           pnpm install --frozen-lockfile \
             --filter=@airstate/mono \
-            --filter=@airstate/server... \
             --filter=@airstate/client... \
             --filter=@airstate/react...
+        env:
+          SKIP_IP_DB_UPDATE: true
 
       - name: Build
         run: |
           pnpm turbo run build \
-            --filter=@airstate/server... \
             --filter=@airstate/client... \
             --filter=@airstate/react...
 

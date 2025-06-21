@@ -44,5 +44,8 @@
     "license": "MIT",
     "include": [
         "dist/**/*"
-    ]
+    ],
+    "publishConfig": {
+        "access": "public"
+    }
 }
