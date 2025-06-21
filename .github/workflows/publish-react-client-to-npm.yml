@@ -1,12 +1,9 @@
 name: Publish `@airstate/react` to NPM
 
 on:
-    push:
-        branches:
-            - main
-        paths:
-            - 'packages/react/**'
-            - '.github/workflows/publish-react-client-to-npm.yml'
+  push:
+    branches:
+      - some-branch-that-will-never-happen
 
 jobs:
     publish:

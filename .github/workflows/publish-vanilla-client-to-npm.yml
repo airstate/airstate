@@ -3,10 +3,7 @@ name: Publish `@airstate/client` to NPM
 on:
     push:
         branches:
-            - main
-        paths:
-            - 'packages/client/**'
-            - '.github/workflows/publish-vanilla-client-to-npm.yml'
+            - some-branch-that-will-never-happen
 
 jobs:
     publish:
