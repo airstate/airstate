@@ -1,5 +1,11 @@
 # @airstate/client
 
+## 0.1.3
+
+### Patch Changes
+
+- f279a87: re: testing changesets #5
+
 ## 0.1.2
 
 ### Patch Changes
