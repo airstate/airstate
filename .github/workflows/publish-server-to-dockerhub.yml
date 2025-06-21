@@ -43,6 +43,7 @@ jobs:
             -f Dockerfile .
           
           docker push airstate/server:${{ github.sha }}
+          docker push airstate/server:${{ github.ref_name }}
           docker push airstate/server:latest
 
       - name: Docker Hub Description
