@@ -1,9 +1,5 @@
 name: Create Version PR
 
-permissions:
-  contents: write
-  pull-requests: write
-
 on:
   push:
     branches:
@@ -12,9 +8,6 @@ on:
 jobs:
   version:
     name: Versioning PR
-    permissions:
-      contents: write
-      pull-requests: write
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
