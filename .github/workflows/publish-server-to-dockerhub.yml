@@ -52,7 +52,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: apps/server
-          file: Dockerfile
+          file: apps/server/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -64,7 +64,7 @@ jobs:
         uses: peter-evans/dockerhub-description@v4
         with:
           username: ${{ vars.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
           repository: ${{ env.IMAGE_NAME }}
           short-description: The office AirState Server image
           readme-filepath: ./apps/server/README.md
