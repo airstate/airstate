@@ -1,5 +1,13 @@
 # @airstate/react
 
+## 0.1.1
+
+### Patch Changes
+
+- d8c7d68: re: testing changeset #2
+- Updated dependencies [d8c7d68]
+    - @airstate/client@0.1.1
+
 ## 0.0.1
 
 ### Patch Changes
