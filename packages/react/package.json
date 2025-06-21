@@ -1,6 +1,6 @@
 {
     "name": "@airstate/react",
-    "version": "0.0.0",
+    "version": "0.0.1",
     "description": "The AirState React Context API wrappers",
     "main": "dist/index.mjs",
     "types": "dist/index.d.mts",
