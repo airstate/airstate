@@ -4,6 +4,7 @@
     "description": "The main server for AirState",
     "main": "./dist/index.mjs",
     "type": "module",
+    "private": true,
     "scripts": {
         "start": "node .",
         "start:watch": "linkemon --inspect=0.0.0.0:${AIRSTATE_DEBUG_PORT:-15001} .",
