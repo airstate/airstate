@@ -1,56 +1,67 @@
 name: Build and Publish Server to Docker Hub
 
 on:
-  push:
-    tags:
-      - '[0-9]+.[0-9]+.[0-9]+'
+    push:
+        tags:
+            - '[0-9]+.[0-9]+.[0-9]+'
 
-  release:
-    types: [published]
+    release:
+        types: [published]
 
 env:
-  REGISTRY: docker.io
-  IMAGE_NAME: airstate/server
+    REGISTRY: docker.io
+    IMAGE_NAME: airstate/server
 
 jobs:
-  build-and-push:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
+    build-and-push:
+        runs-on: ubuntu-latest
+        permissions:
+            contents: read
+            packages: write
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v4
 
-      - name: Set up Docker
-        uses: docker/setup-docker-action@v4
+            - name: Set up Docker
+              uses: docker/setup-docker-action@v4
 
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ vars.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+            - name: Set up Docker BuildX
+              uses: docker/setup-buildx-action@v3
 
-      - name: Build and push Docker image
-        working-directory: apps/server
-        run: |
-          docker build \
-            -t airstate/server:${{ github.sha }} \
-            -t airstate/server:${{ github.ref_name }} \
-            -t airstate/server:latest \
-            -f Dockerfile .
-          
-          docker push airstate/server:${{ github.sha }}
-          docker push airstate/server:${{ github.ref_name }}
-          docker push airstate/server:latest
+            - name: Log in to Docker Hub
+              uses: docker/login-action@v3
+              with:
+                  registry: ${{ env.REGISTRY }}
+                  username: ${{ vars.DOCKERHUB_USERNAME }}
+                  password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Docker Hub Description
-        uses: peter-evans/dockerhub-description@v4
-        with:
-          username: ${{ vars.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_PASSWORD }}
-          repository: ${{ env.IMAGE_NAME }}
-          short-description: The office AirState Server image
-          readme-filepath: ./apps/server/README.md
+            - name: Build and push Docker image
+              working-directory: apps/server
+              run: |
+                  docker buildx build \
+                    --platform linux/amd64,linux/arm64 \
+                    -t airstate/server:${{ github.ref_name }} \
+                    -t airstate/server:${{ github.ref_name }}-alpine \
+                    -t airstate/server:$(echo ${{ github.ref_name }} | cut -d. -f1,2) \
+                    -t airstate/server:$(echo ${{ github.ref_name }} | cut -d. -f1,2)-alpine \
+                    -t airstate/server:$(echo ${{ github.ref_name }} | cut -d. -f1,1) \
+                    -t airstate/server:$(echo ${{ github.ref_name }} | cut -d. -f1,1)-alpine \
+                    -t airstate/server:latest \
+                    --push
+                    -f Dockerfile .
+
+    update-hub-description:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v4
+
+            - name: Docker Hub Description
+              uses: peter-evans/dockerhub-description@v4
+              with:
+                  username: ${{ vars.DOCKERHUB_USERNAME }}
+                  password: ${{ secrets.DOCKERHUB_PASSWORD }}
+                  repository: ${{ env.IMAGE_NAME }}
+                  short-description: The office AirState Server image
+                  readme-filepath: ./apps/server/README.md
