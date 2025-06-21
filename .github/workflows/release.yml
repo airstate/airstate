@@ -5,6 +5,9 @@ on:
     branches:
       - main
       - 0.x
+    paths:
+      - packages/client/package.json
+      - packages/react/package.json
 
 jobs:
   release:
@@ -53,4 +56,4 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Push Tags
-        run: git push origin --follow-tags
+        run: git push origin --tags

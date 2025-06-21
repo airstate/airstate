@@ -9,6 +9,8 @@ on:
     branches:
       - main
       - 0.x
+    paths:
+      - .changeset/**/*.md
 jobs:
   version:
     name: Versioning PR
