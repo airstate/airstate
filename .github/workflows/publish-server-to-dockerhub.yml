@@ -36,29 +36,16 @@ jobs:
           username: ${{ vars.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=raw,value=latest,enable={{is_default_branch}}
-
       - name: Build and push Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: apps/server
-          file: apps/server/Dockerfile
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          platforms: linux/amd64,linux/arm64
+        working-directory: apps/server
+        run: |
+          docker build \
+            -t airstate/server:${{ github.sha }} \
+            -t airsatte/server:dev-latest \
+            -f Dockerfile .
+          
+          docker push airstate/server:${{ github.sha }}
+          docker push airstate/server:dev-latest
 
       - name: Docker Hub Description
         uses: peter-evans/dockerhub-description@v4
