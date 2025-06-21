@@ -1,9 +1,5 @@
 name: Release
 
-permissions:
-  contents: write
-  pull-requests: write
-
 on:
   push:
     branches:
@@ -46,10 +42,15 @@ jobs:
             --filter=@airstate/client... \
             --filter=@airstate/react...
 
-      - uses: changesets/action@v1
-        with:
-          publish: pnpm changeset publish
+      - run: pnpm changeset publish
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure Git Identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Push Tags
+        run: git push origin --follow-tags
