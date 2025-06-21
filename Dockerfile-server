@@ -3,9 +3,7 @@ WORKDIR /app
 
 FROM common AS build
 
-RUN apt-get update && apt-get install -y \
-  build-essential \
-  python3
+RUN apk add --no-cache build-base linux-headers python3
 
 COPY ./ /app
 
