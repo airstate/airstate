@@ -2,11 +2,8 @@ name: Build and Publish Server to Docker Hub
 
 on:
   push:
-    branches: [main]
-    paths:
-      - 'apps/server/**'
-      - '.github/workflows/publish-server-to-dockerhub.yml'
-      - 'apps/server/Dockerfile'
+    tags:
+      - '[0-9]+.[0-9]+.[0-9]+'
 
   release:
     types: [published]
@@ -41,11 +38,12 @@ jobs:
         run: |
           docker build \
             -t airstate/server:${{ github.sha }} \
-            -t airsatte/server:dev-latest \
+            -t airstate/server:${{ github.ref_name }} \
+            -t airstate/server:latest \
             -f Dockerfile .
           
           docker push airstate/server:${{ github.sha }}
-          docker push airstate/server:dev-latest
+          docker push airstate/server:latest
 
       - name: Docker Hub Description
         uses: peter-evans/dockerhub-description@v4
