@@ -1,13 +1,11 @@
 {
-  "$schema": "https://unpkg.com/@changesets/config@3.1.1/schema.json",
-  "changelog": "@changesets/cli/changelog",
-  "commit": false,
-  "fixed": [["@airstate/server", "@airstate/client", "@airstate/react"]],
-  "linked": [],
-  "access": "restricted",
-  "baseBranch": "main",
-  "updateInternalDependencies": "patch",
-  "ignore": [
-    "@airstate/examples"
-  ]
+    "$schema": "https://unpkg.com/@changesets/config@3.1.1/schema.json",
+    "changelog": "@changesets/cli/changelog",
+    "commit": true,
+    "fixed": [["@airstate/server", "@airstate/client", "@airstate/react"]],
+    "linked": [],
+    "access": "restricted",
+    "baseBranch": "main",
+    "updateInternalDependencies": "patch",
+    "ignore": ["@airstate/examples"]
 }

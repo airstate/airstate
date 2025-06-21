@@ -59,4 +59,4 @@ jobs:
                   git config user.email "github-actions[bot]@users.noreply.github.com"
 
             - name: Push Tags
-              run: git push origin --tags
+              run: git push --follow-tags
