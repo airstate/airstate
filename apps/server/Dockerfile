@@ -8,6 +8,8 @@ RUN apk add --no-cache build-base linux-headers python3
 
 COPY . .
 
+ENV ILA_FIELDS=country
+
 RUN corepack enable
 RUN corepack install
 RUN pnpm install
