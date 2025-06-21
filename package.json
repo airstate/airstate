@@ -18,6 +18,9 @@
     "volta": {
         "node": "22.12.0"
     },
+    "engines": {
+        "node": "22.12.0"
+    },
     "devDependencies": {
         "prettier": "3.5.3",
         "turbo": "2.5.2"
