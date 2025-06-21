@@ -37,19 +37,13 @@ jobs:
                   password: ${{ secrets.DOCKERHUB_TOKEN }}
 
             - name: Build and push Docker image
-              working-directory: apps/server
-              run: |
-                  docker buildx build \
-                    --platform linux/amd64,linux/arm64 \
-                    -t airstate/server:${{ github.ref_name }} \
-                    -t airstate/server:${{ github.ref_name }}-alpine \
-                    -t airstate/server:$(echo ${{ github.ref_name }} | cut -d. -f1,2) \
-                    -t airstate/server:$(echo ${{ github.ref_name }} | cut -d. -f1,2)-alpine \
-                    -t airstate/server:$(echo ${{ github.ref_name }} | cut -d. -f1,1) \
-                    -t airstate/server:$(echo ${{ github.ref_name }} | cut -d. -f1,1)-alpine \
-                    -t airstate/server:latest \
-                    --push
-                    -f Dockerfile .
+              uses: docker/build-push-action@v6
+              with:
+                  context: apps/server
+                  file: apps/server/Dockerfile
+                  push: true
+                  tags: latest,${{ github.ref_name }}
+                  platforms: linux/amd64,linux/arm64
 
     update-hub-description:
         runs-on: ubuntu-latest
