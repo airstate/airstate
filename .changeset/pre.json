@@ -1,0 +1,11 @@
+{
+  "mode": "pre",
+  "tag": "alpha",
+  "initialVersions": {
+    "@airstate/examples": "0.0.0",
+    "@airstate/server": "0.1.7",
+    "@airstate/client": "0.1.7",
+    "@airstate/react": "0.1.7"
+  },
+  "changesets": []
+}
