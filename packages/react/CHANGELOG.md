@@ -1,5 +1,13 @@
 # @airstate/react
 
+## 0.1.8-alpha.1
+
+### Patch Changes
+
+- e69f960: ;;
+- Updated dependencies [e69f960]
+    - @airstate/client@0.1.8-alpha.1
+
 ## 0.1.8-alpha.0
 
 ### Patch Changes

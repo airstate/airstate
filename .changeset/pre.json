@@ -8,6 +8,7 @@
     "@airstate/react": "0.1.7"
   },
   "changesets": [
+    "lovely-cooks-cross",
     "tall-kings-rush"
   ]
 }
