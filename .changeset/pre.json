@@ -7,5 +7,7 @@
     "@airstate/client": "0.1.7",
     "@airstate/react": "0.1.7"
   },
-  "changesets": []
+  "changesets": [
+    "tall-kings-rush"
+  ]
 }
