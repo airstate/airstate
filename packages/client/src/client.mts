@@ -39,7 +39,7 @@ export function createClient(options?: TClientOptions): TAirStateClient {
     let isOpen = false;
 
     const wsClient = createWSClient({
-        url: options?.server ?? `wss://socket.airstate.dev`,
+        url: options?.server ?? `wss://server.airstate.dev/ws`,
         keepAlive: {
             enabled: true,
             intervalMs: 1_000,
