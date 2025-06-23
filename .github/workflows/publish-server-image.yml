@@ -59,19 +59,13 @@ jobs:
                   username: ${{ vars.DOCKERHUB_USERNAME }}
                   password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-            - name: Extract version from tag
-              id: version
-              run: |
-                  VERSION=${GITHUB_REF_NAME#v}
-                  echo "version=$VERSION" >> $GITHUB_OUTPUT
-
             - name: Build and push Docker image
               uses: docker/build-push-action@v6
               with:
                   context: apps/server
                   file: apps/server/Dockerfile
                   push: true
-                  tags: ${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}-amd64
+                  tags: ${{ env.IMAGE_NAME }}:${{ needs.tag-git-based-on-server-version.outputs.current-version }}-amd64
                   platforms: linux/amd64
 
     publish-arm64-server-image:
@@ -96,25 +90,20 @@ jobs:
                   username: ${{ vars.DOCKERHUB_USERNAME }}
                   password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-            - name: Extract version from tag
-              id: version
-              run: |
-                  VERSION=${GITHUB_REF_NAME#v}
-                  echo "version=$VERSION" >> $GITHUB_OUTPUT
-
             - name: Build and push Docker image
               uses: docker/build-push-action@v6
               with:
                   context: apps/server
                   file: apps/server/Dockerfile
                   push: true
-                  tags: ${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}-arm64
+                  tags: ${{ env.IMAGE_NAME }}:${{ needs.tag-git-based-on-server-version.outputs.current-version }}-arm64
                   platforms: linux/arm64
 
     merge-server-image-manifests:
         needs:
             - publish-amd64-server-image
             - publish-arm64-server-image
+            - tag-git-based-on-server-version
 
         runs-on: ubuntu-22.04
 
@@ -132,18 +121,12 @@ jobs:
                   username: ${{ vars.DOCKERHUB_USERNAME }}
                   password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-            - name: Extract version from tag
-              id: version
-              run: |
-                  VERSION=${GITHUB_REF_NAME#v}
-                  echo "version=$VERSION" >> $GITHUB_OUTPUT
-
             - name: Merge Docker images
               run: |
                   docker buildx imagetools create \
-                    -t ${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }} \
-                      ${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}-amd64 \
-                      ${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}-arm64
+                    -t ${{ env.IMAGE_NAME }}:${{ needs.tag-git-based-on-server-version.outputs.current-version }} \
+                      ${{ env.IMAGE_NAME }}:${{ needs.tag-git-based-on-server-version.outputs.current-version }}-amd64 \
+                      ${{ env.IMAGE_NAME }}:${{ needs.tag-git-based-on-server-version.outputs.current-version }}-arm64
 
     update-dockerhub-description:
         runs-on: ubuntu-22.04
