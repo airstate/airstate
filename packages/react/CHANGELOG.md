@@ -1,5 +1,13 @@
 # @airstate/react
 
+## 0.1.9
+
+### Patch Changes
+
+- 4d2e913: fixed: re-render issue in @airstate/react
+- Updated dependencies [4d2e913]
+    - @airstate/client@0.1.9
+
 ## 1.0.0-alpha.2
 
 ### Minor Changes
