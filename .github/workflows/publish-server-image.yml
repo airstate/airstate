@@ -157,13 +157,13 @@ jobs:
 
                   docker buildx imagetools create \
                     -t ${{ env.IMAGE_NAME }}:${{ steps.versions.outputs.full }}-alpine \
-                      ${{ env.IMAGE_NAME }}:${{ needs.tag-git-based-on-server-version.outputs.current-version }}-amd64-alpine \
-                      ${{ env.IMAGE_NAME }}:${{ needs.tag-git-based-on-server-version.outputs.current-version }}-arm64-alpine
+                      ${{ env.IMAGE_NAME }}:${{ needs.tag-git-based-on-server-version.outputs.current-version }}-amd64 \
+                      ${{ env.IMAGE_NAME }}:${{ needs.tag-git-based-on-server-version.outputs.current-version }}-arm64
 
                   docker buildx imagetools create \
                     -t ${{ env.IMAGE_NAME }}:${{ steps.versions.outputs.full }}-alpine3.22 \
-                      ${{ env.IMAGE_NAME }}:${{ needs.tag-git-based-on-server-version.outputs.current-version }}-amd64-alpine3.22 \
-                      ${{ env.IMAGE_NAME }}:${{ needs.tag-git-based-on-server-version.outputs.current-version }}-arm64-alpine3.22
+                      ${{ env.IMAGE_NAME }}:${{ needs.tag-git-based-on-server-version.outputs.current-version }}-amd64 \
+                      ${{ env.IMAGE_NAME }}:${{ needs.tag-git-based-on-server-version.outputs.current-version }}-arm64
 
                   # :minor
                   docker buildx imagetools create \
@@ -178,8 +178,8 @@ jobs:
 
                   docker buildx imagetools create \
                     -t ${{ env.IMAGE_NAME }}:${{ steps.versions.outputs.minor }}-alpine3.22 \
-                      ${{ env.IMAGE_NAME }}:${{ needs.tag-git-based-on-server-version.outputs.current-version }}-amd64-alpine3.22 \
-                      ${{ env.IMAGE_NAME }}:${{ needs.tag-git-based-on-server-version.outputs.current-version }}-arm64-alpine3.22
+                      ${{ env.IMAGE_NAME }}:${{ needs.tag-git-based-on-server-version.outputs.current-version }}-amd64 \
+                      ${{ env.IMAGE_NAME }}:${{ needs.tag-git-based-on-server-version.outputs.current-version }}-arm64
 
                   # :major
                   docker buildx imagetools create \
@@ -194,8 +194,8 @@ jobs:
 
                   docker buildx imagetools create \
                     -t ${{ env.IMAGE_NAME }}:${{ steps.versions.outputs.major }}-alpine3.22 \
-                      ${{ env.IMAGE_NAME }}:${{ needs.tag-git-based-on-server-version.outputs.current-version }}-amd64-alpine3.22 \
-                      ${{ env.IMAGE_NAME }}:${{ needs.tag-git-based-on-server-version.outputs.current-version }}-arm64-alpine3.22
+                      ${{ env.IMAGE_NAME }}:${{ needs.tag-git-based-on-server-version.outputs.current-version }}-amd64 \
+                      ${{ env.IMAGE_NAME }}:${{ needs.tag-git-based-on-server-version.outputs.current-version }}-arm64
 
     update-dockerhub-description:
         runs-on: ubuntu-22.04
