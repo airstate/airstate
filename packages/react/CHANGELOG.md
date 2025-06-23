@@ -1,5 +1,13 @@
 # @airstate/react
 
+## 0.1.10
+
+### Patch Changes
+
+- 3cc7bcb: fixed: making sure examples project is not published with rest of codebase
+- Updated dependencies [3cc7bcb]
+    - @airstate/client@0.1.10
+
 ## 0.1.9
 
 ### Patch Changes
