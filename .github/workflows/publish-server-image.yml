@@ -2,16 +2,48 @@ name: Build and push server image to dockerhub
 
 on:
     push:
-        tags:
-            - 'v[0-9]+.[0-9]+.[0-9]+'
+        branches:
+            - main
+        paths:
+            - apps/server/package.json
 
 env:
     REGISTRY: docker.io
     IMAGE_NAME: airstate/server
 
 jobs:
+    tag-git-based-on-server-version:
+        runs-on: ubuntu-latest
+
+        outputs:
+            previous-version: ${{ steps.detect-new-version.outputs.previous-version }}
+            current-version: ${{ steps.detect-new-version.outputs.current-version }}
+
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v4
+              with:
+                  token: ${{ secrets.GITHUB_TOKEN }}
+                  fetch-depth: '2'
+
+            - name: Check for new version
+              uses: salsify/action-detect-and-tag-new-version@v2
+              id: detect-new-version
+              with:
+                  create-tag: true
+                  version-command: |
+                      jq -r '.version' apps/server/package.json
+
+            - run: git push origin ${{ steps.detect-new-version.outputs.tag }}
+              if: steps.detect-new-version.outputs.previous-version != steps.detect-new-version.outputs.current-version
+
     publish-amd64-server-image:
         runs-on: ubuntu-22.04
+
+        needs:
+            - tag-git-based-on-server-version
+
+        if: needs.tag-git-based-on-server-version.outputs.current-version != needs.tag-git-based-on-server-version.outputs.previous-version
 
         steps:
             - name: Checkout repository
@@ -45,6 +77,11 @@ jobs:
     publish-arm64-server-image:
         runs-on: ubuntu-22.04-arm64
 
+        needs:
+            - tag-git-based-on-server-version
+
+        if: needs.tag-git-based-on-server-version.outputs.current-version != needs.tag-git-based-on-server-version.outputs.previous-version
+
         steps:
             - name: Checkout repository
               uses: actions/checkout@v4
@@ -75,7 +112,10 @@ jobs:
                   platforms: linux/arm64
 
     merge-server-image-manifests:
-        needs: [publish-amd64-server-image, publish-arm64-server-image]
+        needs:
+            - publish-amd64-server-image
+            - publish-arm64-server-image
+
         runs-on: ubuntu-22.04
 
         steps:
@@ -104,3 +144,25 @@ jobs:
                     -t ${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }} \
                       ${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}-amd64 \
                       ${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}-arm64
+
+    update-dockerhub-description:
+        runs-on: ubuntu-22.04
+
+        needs:
+            - merge-server-image-manifests
+            - tag-git-based-on-server-version
+
+        if: needs.tag-git-based-on-server-version.outputs.current-version != needs.tag-git-based-on-server-version.outputs.previous-version
+
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v4
+
+            - name: Update Docker Hub description
+              uses: peter-evans/dockerhub-description@v4
+              with:
+                  username: ${{ vars.DOCKERHUB_USERNAME }}
+                  password: ${{ secrets.DOCKERHUB_PASSWORD }}
+                  repository: ${{ env.IMAGE_NAME }}
+                  short-description: The official AirState Server image
+                  readme-filepath: ./apps/server/README.md
