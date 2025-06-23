@@ -1,28 +1,27 @@
 name: Update the dockerhub description for airstate/server
 
 on:
-  push:
-    tags:
-      - 'v*.*.*'
+    push:
+        tags:
+            - 'v[0-9]+.[0-9]+.[0-9]+'
 
 env:
-  REGISTRY: docker.io
-  IMAGE_NAME: airstate/server
+    REGISTRY: docker.io
+    IMAGE_NAME: airstate/server
 
 jobs:
-  build-and-push:
-    runs-on: ubuntu-22.04
+    build-and-push:
+        runs-on: ubuntu-22.04
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v4
 
-      - name: Update Docker Hub description
-        uses: peter-evans/dockerhub-description@v4
-        with:
-          username: ${{ vars.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_PASSWORD }}
-          repository: ${{ env.IMAGE_NAME }}
-          short-description: The official AirState Server image
-          readme-filepath: ./apps/server/README.md
-
+            - name: Update Docker Hub description
+              uses: peter-evans/dockerhub-description@v4
+              with:
+                  username: ${{ vars.DOCKERHUB_USERNAME }}
+                  password: ${{ secrets.DOCKERHUB_PASSWORD }}
+                  repository: ${{ env.IMAGE_NAME }}
+                  short-description: The official AirState Server image
+                  readme-filepath: ./apps/server/README.md

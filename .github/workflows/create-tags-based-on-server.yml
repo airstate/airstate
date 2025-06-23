@@ -1,14 +1,14 @@
-name: Build and Publish Server to Docker Hub
+name: Create version tag based on server image version
 
 permissions:
-  contents: write
+    contents: write
 
 on:
     push:
         branches:
-          - main
+            - main
         paths:
-          - apps/server/package.json
+            - apps/server/package.json
 
 env:
     REGISTRY: docker.io
@@ -22,16 +22,16 @@ jobs:
             - name: Checkout repository
               uses: actions/checkout@v4
               with:
-                token: ${{ secrets.GITHUB_TOKEN }}
-                fetch-depth: '2'
+                  token: ${{ secrets.GITHUB_TOKEN }}
+                  fetch-depth: '2'
 
             - name: Check for new version
               uses: salsify/action-detect-and-tag-new-version@v2
               id: detect-new-version
               with:
-                create-tag: true
-                version-command: |
-                  jq -r '.version' apps/server/package.json
+                  create-tag: true
+                  version-command: |
+                      jq -r '.version' apps/server/package.json
 
             - run: git push origin ${{ steps.detect-new-version.outputs.tag }}
               if: steps.detect-new-version.outputs.previous-version != steps.detect-new-version.outputs.current-version
