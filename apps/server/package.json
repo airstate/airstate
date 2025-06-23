@@ -1,6 +1,6 @@
 {
     "name": "@airstate/server",
-    "version": "0.1.8",
+    "version": "0.1.9",
     "description": "The main server for AirState",
     "main": "./dist/index.mjs",
     "type": "module",
