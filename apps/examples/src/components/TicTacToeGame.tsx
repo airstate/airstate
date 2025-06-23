@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useReducer, useRef, useState } from 'react';
 import { Copy, Users, RotateCcw, Trophy, Circle, X } from 'lucide-react';
 import { useSharedState, configure } from '@airstate/react';
 import { nanoid } from 'nanoid';
@@ -40,7 +40,7 @@ const TicTacToeGame = () => {
 
     const params = new URLSearchParams(window.location.search);
     const joiningKey = params.get('joiningKey');
-    const roomKey = joiningKey || nanoid();
+    const [roomKey] = useState(() => joiningKey || nanoid());
 
     const joinLink = `${window.location.origin}${window.location.pathname}?joiningKey=${roomKey}`;
 
@@ -48,7 +48,7 @@ const TicTacToeGame = () => {
         key: roomKey,
     });
 
-    console.log('gamestate', JSON.stringify(gameState, null, 2), myset.has(gameState), myset.size, isSynced);
+    console.log('gamestate', JSON.stringify(gameState, null, 2), myset.has(gameState), myset.size, isSynced, roomKey);
 
     myset.add(gameState);
 
