@@ -121,12 +121,81 @@ jobs:
                   username: ${{ vars.DOCKERHUB_USERNAME }}
                   password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+            - name: Generate version outputs
+              id: versions
+              run: |
+                  VERSION="${{ needs.tag-git-based-on-server-version.outputs.current-version }}"
+                  MAJOR_VERSION=$(echo $VERSION | cut -d. -f1)
+                  MINOR_VERSION=$(echo $VERSION | cut -d. -f1,2)
+                  echo "major=$MAJOR_VERSION" >> $GITHUB_OUTPUT
+                  echo "minor=$MINOR_VERSION" >> $GITHUB_OUTPUT
+                  echo "full=$VERSION" >> $GITHUB_OUTPUT
+
             - name: Merge Docker images
               run: |
+                  # :latest
                   docker buildx imagetools create \
-                    -t ${{ env.IMAGE_NAME }}:${{ needs.tag-git-based-on-server-version.outputs.current-version }} \
+                    -t ${{ env.IMAGE_NAME }}:latest \
                       ${{ env.IMAGE_NAME }}:${{ needs.tag-git-based-on-server-version.outputs.current-version }}-amd64 \
                       ${{ env.IMAGE_NAME }}:${{ needs.tag-git-based-on-server-version.outputs.current-version }}-arm64
+
+                  docker buildx imagetools create \
+                    -t ${{ env.IMAGE_NAME }}:latest-alpine \
+                      ${{ env.IMAGE_NAME }}:${{ needs.tag-git-based-on-server-version.outputs.current-version }}-amd64 \
+                      ${{ env.IMAGE_NAME }}:${{ needs.tag-git-based-on-server-version.outputs.current-version }}-arm64
+
+                  docker buildx imagetools create \
+                    -t ${{ env.IMAGE_NAME }}:latest-alpine3.22 \
+                      ${{ env.IMAGE_NAME }}:${{ needs.tag-git-based-on-server-version.outputs.current-version }}-amd64 \
+                      ${{ env.IMAGE_NAME }}:${{ needs.tag-git-based-on-server-version.outputs.current-version }}-arm64
+
+                  # :full
+                  docker buildx imagetools create \
+                    -t ${{ env.IMAGE_NAME }}:${{ steps.versions.outputs.full }} \
+                      ${{ env.IMAGE_NAME }}:${{ needs.tag-git-based-on-server-version.outputs.current-version }}-amd64 \
+                      ${{ env.IMAGE_NAME }}:${{ needs.tag-git-based-on-server-version.outputs.current-version }}-arm64
+
+                  docker buildx imagetools create \
+                    -t ${{ env.IMAGE_NAME }}:${{ steps.versions.outputs.full }}-alpine \
+                      ${{ env.IMAGE_NAME }}:${{ needs.tag-git-based-on-server-version.outputs.current-version }}-amd64-alpine \
+                      ${{ env.IMAGE_NAME }}:${{ needs.tag-git-based-on-server-version.outputs.current-version }}-arm64-alpine
+
+                  docker buildx imagetools create \
+                    -t ${{ env.IMAGE_NAME }}:${{ steps.versions.outputs.full }}-alpine3.22 \
+                      ${{ env.IMAGE_NAME }}:${{ needs.tag-git-based-on-server-version.outputs.current-version }}-amd64-alpine3.22 \
+                      ${{ env.IMAGE_NAME }}:${{ needs.tag-git-based-on-server-version.outputs.current-version }}-arm64-alpine3.22
+
+                  # :minor
+                  docker buildx imagetools create \
+                    -t ${{ env.IMAGE_NAME }}:${{ steps.versions.outputs.minor }} \
+                      ${{ env.IMAGE_NAME }}:${{ needs.tag-git-based-on-server-version.outputs.current-version }}-amd64 \
+                      ${{ env.IMAGE_NAME }}:${{ needs.tag-git-based-on-server-version.outputs.current-version }}-arm64
+
+                  docker buildx imagetools create \
+                    -t ${{ env.IMAGE_NAME }}:${{ steps.versions.outputs.minor }}-alpine \
+                      ${{ env.IMAGE_NAME }}:${{ needs.tag-git-based-on-server-version.outputs.current-version }}-amd64 \
+                      ${{ env.IMAGE_NAME }}:${{ needs.tag-git-based-on-server-version.outputs.current-version }}-arm64
+
+                  docker buildx imagetools create \
+                    -t ${{ env.IMAGE_NAME }}:${{ steps.versions.outputs.minor }}-alpine3.22 \
+                      ${{ env.IMAGE_NAME }}:${{ needs.tag-git-based-on-server-version.outputs.current-version }}-amd64-alpine3.22 \
+                      ${{ env.IMAGE_NAME }}:${{ needs.tag-git-based-on-server-version.outputs.current-version }}-arm64-alpine3.22
+
+                  # :major
+                  docker buildx imagetools create \
+                    -t ${{ env.IMAGE_NAME }}:${{ steps.versions.outputs.major }} \
+                      ${{ env.IMAGE_NAME }}:${{ needs.tag-git-based-on-server-version.outputs.current-version }}-amd64 \
+                      ${{ env.IMAGE_NAME }}:${{ needs.tag-git-based-on-server-version.outputs.current-version }}-arm64
+
+                  docker buildx imagetools create \
+                    -t ${{ env.IMAGE_NAME }}:${{ steps.versions.outputs.major }}-alpine \
+                      ${{ env.IMAGE_NAME }}:${{ needs.tag-git-based-on-server-version.outputs.current-version }}-amd64 \
+                      ${{ env.IMAGE_NAME }}:${{ needs.tag-git-based-on-server-version.outputs.current-version }}-arm64
+
+                  docker buildx imagetools create \
+                    -t ${{ env.IMAGE_NAME }}:${{ steps.versions.outputs.major }}-alpine3.22 \
+                      ${{ env.IMAGE_NAME }}:${{ needs.tag-git-based-on-server-version.outputs.current-version }}-amd64-alpine3.22 \
+                      ${{ env.IMAGE_NAME }}:${{ needs.tag-git-based-on-server-version.outputs.current-version }}-arm64-alpine3.22
 
     update-dockerhub-description:
         runs-on: ubuntu-22.04
