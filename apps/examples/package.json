@@ -1,25 +1,26 @@
 {
-  "name": "@airstate/examples",
-  "type": "module",
-  "version": "0.0.1",
-  "scripts": {
-    "dev": "astro dev",
-    "build": "astro build",
-    "preview": "astro preview",
-    "astro": "astro"
-  },
-  "dependencies": {
-    "@airstate/client": "workspace:*",
-    "@airstate/react": "workspace:*",
-    "@astrojs/react": "^4.2.5",
-    "@tailwindcss/vite": "^4.1.4",
-    "@types/react": "^19.1.2",
-    "@types/react-dom": "^19.1.2",
-    "astro": "^5.7.7",
-    "nanoid": "^5.1.5",
-    "react": "^19.1.0",
-    "react-dom": "^19.1.0",
-    "tailwindcss": "^4.1.4",
-    "y-indexeddb": "^9.0.12"
-  }
+    "name": "@airstate/examples",
+    "type": "module",
+    "version": "0.0.1",
+    "scripts": {
+        "dev": "astro dev",
+        "build": "astro build",
+        "preview": "astro preview",
+        "astro": "astro"
+    },
+    "dependencies": {
+        "@airstate/client": "workspace:*",
+        "@airstate/react": "workspace:*",
+        "@astrojs/react": "^4.2.5",
+        "@tailwindcss/vite": "^4.1.4",
+        "@types/react": "^19.1.2",
+        "@types/react-dom": "^19.1.2",
+        "astro": "^5.7.7",
+        "nanoid": "^5.1.5",
+        "lucide-react": "0.522.0",
+        "react": "^19.1.0",
+        "react-dom": "^19.1.0",
+        "tailwindcss": "^4.1.4",
+        "y-indexeddb": "^9.0.12"
+    }
 }
