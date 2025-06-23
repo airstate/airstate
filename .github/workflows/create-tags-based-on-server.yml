@@ -1,0 +1,36 @@
+name: Build and Publish Server to Docker Hub
+
+permissions:
+  contents: write
+
+on:
+    push:
+        branches:
+          - main
+        paths:
+          - apps/server/package.json
+
+env:
+    REGISTRY: docker.io
+    IMAGE_NAME: airstate/server
+
+jobs:
+    build-and-push:
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v4
+              with:
+                token: ${{ secrets.GITHUB_TOKEN }}
+
+            - name: Check for new version
+              uses: salsify/action-detect-and-tag-new-version@v2
+              id: detect-new-version
+              with:
+                create-tag: true
+                version-command: |
+                  jq -r '.version' apps/server/package.json
+
+            - run: git push origin ${{ steps.detect-new-version.outputs.tag }}
+              if: steps.detect-new-version.outputs.previous-version != steps.detect-new-version.outputs.current-version
