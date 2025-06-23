@@ -75,7 +75,7 @@ jobs:
                   platforms: linux/amd64
 
     publish-arm64-server-image:
-        runs-on: ubuntu-22.04-arm64
+        runs-on: ubuntu-22.04-arm
 
         needs:
             - tag-git-based-on-server-version
