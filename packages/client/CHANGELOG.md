@@ -1,5 +1,11 @@
 # @airstate/client
 
+## 0.1.10
+
+### Patch Changes
+
+- 3cc7bcb: fixed: making sure examples project is not published with rest of codebase
+
 ## 0.1.9
 
 ### Patch Changes
