@@ -71,8 +71,7 @@ export function App() {
 }
 ```
 
-[Read The Docs](https://airstate.dev/docs/latest/client/react/shared-state/usage) for more details on `useSharedState`'s optional
-options as well as the 3rd return value.
+[Read The Docs](https://airstate.dev/docs/latest/client/react/shared-state/usage) for more details on `useSharedState`
 
 ### SharedPresence — `useSharedPresence`
 
@@ -126,8 +125,9 @@ export function App() {
         </div>
     );
 }
-
 ```
+
+[Read The Docs](https://airstate.dev/docs/latest/client/react/shared-presence/usage) for more details on `useSharedPresence`
 
 ## License
 
