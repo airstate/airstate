@@ -2,24 +2,30 @@
     "name": "@airstate/mono",
     "version": "0.0.1",
     "description": "",
-    "packageManager": "pnpm@10.6.4",
-    "keywords": [
-    ],
+    "packageManager": "pnpm@10.12.1",
+    "keywords": [],
+    "type": "module",
     "scripts": {
         "dev": "turbo run dev --concurrency=8",
         "build": "turbo run build",
         "build:no-check": "turbo run build:no-check",
         "shell:run": "docker compose run --rm --service-ports mono bash -l",
         "shell": "docker compose exec mono bash -l",
-        "format": "prettier --write ."
-    },
-    "dependencies": {
+        "format": "prettier --write .",
+        "minor-release": "zx ./scripts/release/minor-release"
     },
     "volta": {
         "node": "22.12.0"
     },
+    "engines": {
+        "node": "22.12.0"
+    },
     "devDependencies": {
+        "@changesets/cli": "^2.29.5",
+        "@types/semver-sort": "0.0.5",
         "prettier": "3.5.3",
-        "turbo": "2.5.2"
+        "semver-sort": "1.0.0",
+        "turbo": "2.5.2",
+        "zx": "^8.5.5"
     }
 }

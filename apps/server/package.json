@@ -1,9 +1,10 @@
 {
     "name": "@airstate/server",
-    "version": "0.0.0-dev",
+    "version": "0.1.10",
     "description": "The main server for AirState",
     "main": "./dist/index.mjs",
     "type": "module",
+    "private": true,
     "scripts": {
         "start": "node .",
         "start:watch": "linkemon --inspect=0.0.0.0:${AIRSTATE_DEBUG_PORT:-15001} .",
@@ -47,9 +48,10 @@
         "nodemon": "3.1.9",
         "typescript": "5.8.3"
     },
-    "volta": {
+    "engines": {
         "node": "22.12.0"
     },
+    "packageManager": "pnpm@10.12.1",
     "files": [
         "dist"
     ]

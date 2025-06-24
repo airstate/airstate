@@ -1,10 +1,6 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import { TSharedPresenceOptions, TSharedPresence, TPresenceState, sharedPresence } from '@airstate/client';
-
-export function useForceUpdate() {
-    const [, forceUpdate] = useReducer((x) => !x, false);
-    return forceUpdate;
-}
+import { useForceUpdate } from '../utils/useForceUpdate.mjs';
 
 export function useSharedPresence<T extends Record<string, any> | undefined>(
     options: TSharedPresenceOptions<T>,

@@ -1,0 +1,220 @@
+name: Build and push server image to dockerhub
+
+on:
+    push:
+        branches:
+            - main
+        paths:
+            - apps/server/package.json
+
+env:
+    REGISTRY: docker.io
+    IMAGE_NAME: airstate/server
+
+jobs:
+    tag-git-based-on-server-version:
+        runs-on: ubuntu-latest
+
+        outputs:
+            previous-version: ${{ steps.detect-new-version.outputs.previous-version }}
+            current-version: ${{ steps.detect-new-version.outputs.current-version }}
+
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v4
+              with:
+                  token: ${{ secrets.GITHUB_TOKEN }}
+                  fetch-depth: '2'
+
+            - name: Check for new version
+              uses: salsify/action-detect-and-tag-new-version@v2
+              id: detect-new-version
+              with:
+                  create-tag: true
+                  version-command: |
+                      jq -r '.version' apps/server/package.json
+
+            - run: git push origin ${{ steps.detect-new-version.outputs.tag }}
+              if: steps.detect-new-version.outputs.previous-version != steps.detect-new-version.outputs.current-version
+
+    publish-amd64-server-image:
+        runs-on: ubuntu-22.04
+
+        needs:
+            - tag-git-based-on-server-version
+
+        if: needs.tag-git-based-on-server-version.outputs.current-version != needs.tag-git-based-on-server-version.outputs.previous-version
+
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v4
+
+            - name: Set up Docker BuildX
+              uses: docker/setup-buildx-action@v3
+
+            - name: Log in to Docker Hub
+              uses: docker/login-action@v3
+              with:
+                  registry: ${{ env.REGISTRY }}
+                  username: ${{ vars.DOCKERHUB_USERNAME }}
+                  password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+            - name: Build and push Docker image
+              uses: docker/build-push-action@v6
+              with:
+                  context: apps/server
+                  file: apps/server/Dockerfile
+                  push: true
+                  tags: ${{ env.IMAGE_NAME }}:${{ needs.tag-git-based-on-server-version.outputs.current-version }}-amd64
+                  platforms: linux/amd64
+
+    publish-arm64-server-image:
+        runs-on: ubuntu-22.04-arm
+
+        needs:
+            - tag-git-based-on-server-version
+
+        if: needs.tag-git-based-on-server-version.outputs.current-version != needs.tag-git-based-on-server-version.outputs.previous-version
+
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v4
+
+            - name: Set up Docker BuildX
+              uses: docker/setup-buildx-action@v3
+
+            - name: Log in to Docker Hub
+              uses: docker/login-action@v3
+              with:
+                  registry: ${{ env.REGISTRY }}
+                  username: ${{ vars.DOCKERHUB_USERNAME }}
+                  password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+            - name: Build and push Docker image
+              uses: docker/build-push-action@v6
+              with:
+                  context: apps/server
+                  file: apps/server/Dockerfile
+                  push: true
+                  tags: ${{ env.IMAGE_NAME }}:${{ needs.tag-git-based-on-server-version.outputs.current-version }}-arm64
+                  platforms: linux/arm64
+
+    merge-server-image-manifests:
+        needs:
+            - publish-amd64-server-image
+            - publish-arm64-server-image
+            - tag-git-based-on-server-version
+
+        runs-on: ubuntu-22.04
+
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v4
+
+            - name: Set up Docker BuildX
+              uses: docker/setup-buildx-action@v3
+
+            - name: Log in to Docker Hub
+              uses: docker/login-action@v3
+              with:
+                  registry: ${{ env.REGISTRY }}
+                  username: ${{ vars.DOCKERHUB_USERNAME }}
+                  password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+            - name: Generate version outputs
+              id: versions
+              run: |
+                  VERSION="${{ needs.tag-git-based-on-server-version.outputs.current-version }}"
+                  MAJOR_VERSION=$(echo $VERSION | cut -d. -f1)
+                  MINOR_VERSION=$(echo $VERSION | cut -d. -f1,2)
+                  echo "major=$MAJOR_VERSION" >> $GITHUB_OUTPUT
+                  echo "minor=$MINOR_VERSION" >> $GITHUB_OUTPUT
+                  echo "full=$VERSION" >> $GITHUB_OUTPUT
+
+            - name: Merge Docker images
+              run: |
+                  # :latest
+                  docker buildx imagetools create \
+                    -t ${{ env.IMAGE_NAME }}:latest \
+                      ${{ env.IMAGE_NAME }}:${{ needs.tag-git-based-on-server-version.outputs.current-version }}-amd64 \
+                      ${{ env.IMAGE_NAME }}:${{ needs.tag-git-based-on-server-version.outputs.current-version }}-arm64
+
+                  docker buildx imagetools create \
+                    -t ${{ env.IMAGE_NAME }}:latest-alpine \
+                      ${{ env.IMAGE_NAME }}:${{ needs.tag-git-based-on-server-version.outputs.current-version }}-amd64 \
+                      ${{ env.IMAGE_NAME }}:${{ needs.tag-git-based-on-server-version.outputs.current-version }}-arm64
+
+                  docker buildx imagetools create \
+                    -t ${{ env.IMAGE_NAME }}:latest-alpine3.22 \
+                      ${{ env.IMAGE_NAME }}:${{ needs.tag-git-based-on-server-version.outputs.current-version }}-amd64 \
+                      ${{ env.IMAGE_NAME }}:${{ needs.tag-git-based-on-server-version.outputs.current-version }}-arm64
+
+                  # :full
+                  docker buildx imagetools create \
+                    -t ${{ env.IMAGE_NAME }}:${{ steps.versions.outputs.full }} \
+                      ${{ env.IMAGE_NAME }}:${{ needs.tag-git-based-on-server-version.outputs.current-version }}-amd64 \
+                      ${{ env.IMAGE_NAME }}:${{ needs.tag-git-based-on-server-version.outputs.current-version }}-arm64
+
+                  docker buildx imagetools create \
+                    -t ${{ env.IMAGE_NAME }}:${{ steps.versions.outputs.full }}-alpine \
+                      ${{ env.IMAGE_NAME }}:${{ needs.tag-git-based-on-server-version.outputs.current-version }}-amd64 \
+                      ${{ env.IMAGE_NAME }}:${{ needs.tag-git-based-on-server-version.outputs.current-version }}-arm64
+
+                  docker buildx imagetools create \
+                    -t ${{ env.IMAGE_NAME }}:${{ steps.versions.outputs.full }}-alpine3.22 \
+                      ${{ env.IMAGE_NAME }}:${{ needs.tag-git-based-on-server-version.outputs.current-version }}-amd64 \
+                      ${{ env.IMAGE_NAME }}:${{ needs.tag-git-based-on-server-version.outputs.current-version }}-arm64
+
+                  # :minor
+                  docker buildx imagetools create \
+                    -t ${{ env.IMAGE_NAME }}:${{ steps.versions.outputs.minor }} \
+                      ${{ env.IMAGE_NAME }}:${{ needs.tag-git-based-on-server-version.outputs.current-version }}-amd64 \
+                      ${{ env.IMAGE_NAME }}:${{ needs.tag-git-based-on-server-version.outputs.current-version }}-arm64
+
+                  docker buildx imagetools create \
+                    -t ${{ env.IMAGE_NAME }}:${{ steps.versions.outputs.minor }}-alpine \
+                      ${{ env.IMAGE_NAME }}:${{ needs.tag-git-based-on-server-version.outputs.current-version }}-amd64 \
+                      ${{ env.IMAGE_NAME }}:${{ needs.tag-git-based-on-server-version.outputs.current-version }}-arm64
+
+                  docker buildx imagetools create \
+                    -t ${{ env.IMAGE_NAME }}:${{ steps.versions.outputs.minor }}-alpine3.22 \
+                      ${{ env.IMAGE_NAME }}:${{ needs.tag-git-based-on-server-version.outputs.current-version }}-amd64 \
+                      ${{ env.IMAGE_NAME }}:${{ needs.tag-git-based-on-server-version.outputs.current-version }}-arm64
+
+                  # :major
+                  docker buildx imagetools create \
+                    -t ${{ env.IMAGE_NAME }}:${{ steps.versions.outputs.major }} \
+                      ${{ env.IMAGE_NAME }}:${{ needs.tag-git-based-on-server-version.outputs.current-version }}-amd64 \
+                      ${{ env.IMAGE_NAME }}:${{ needs.tag-git-based-on-server-version.outputs.current-version }}-arm64
+
+                  docker buildx imagetools create \
+                    -t ${{ env.IMAGE_NAME }}:${{ steps.versions.outputs.major }}-alpine \
+                      ${{ env.IMAGE_NAME }}:${{ needs.tag-git-based-on-server-version.outputs.current-version }}-amd64 \
+                      ${{ env.IMAGE_NAME }}:${{ needs.tag-git-based-on-server-version.outputs.current-version }}-arm64
+
+                  docker buildx imagetools create \
+                    -t ${{ env.IMAGE_NAME }}:${{ steps.versions.outputs.major }}-alpine3.22 \
+                      ${{ env.IMAGE_NAME }}:${{ needs.tag-git-based-on-server-version.outputs.current-version }}-amd64 \
+                      ${{ env.IMAGE_NAME }}:${{ needs.tag-git-based-on-server-version.outputs.current-version }}-arm64
+
+    update-dockerhub-description:
+        runs-on: ubuntu-22.04
+
+        needs:
+            - merge-server-image-manifests
+            - tag-git-based-on-server-version
+
+        if: needs.tag-git-based-on-server-version.outputs.current-version != needs.tag-git-based-on-server-version.outputs.previous-version
+
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v4
+
+            - name: Update Docker Hub description
+              uses: peter-evans/dockerhub-description@v4
+              with:
+                  username: ${{ vars.DOCKERHUB_USERNAME }}
+                  password: ${{ secrets.DOCKERHUB_PASSWORD }}
+                  repository: ${{ env.IMAGE_NAME }}
+                  short-description: The official AirState Server image
+                  readme-filepath: ./apps/server/README.md

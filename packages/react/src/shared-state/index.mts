@@ -1,16 +1,12 @@
-import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
-import { sharedState, TJSONAble, TSharedState, TAirStateClient } from '@airstate/client';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { sharedState, TAirStateClient, TJSONAble, TSharedState } from '@airstate/client';
+import { useForceUpdate } from '../utils/useForceUpdate.mjs';
 
 export type TOptions = {
     client?: TAirStateClient;
     key: string;
     token?: string | (() => string | Promise<string>);
 };
-
-export function useForceUpdate() {
-    const [, forceUpdate] = useReducer((x) => !x, false);
-    return forceUpdate;
-}
 
 export function useSharedState<T extends TJSONAble>(
     initialState: T | (() => T),
@@ -35,6 +31,7 @@ export function useSharedState<T extends TJSONAble>(
             token: options?.token,
             initialValue: initialState,
         });
+
         sharedStateRef.current = sharedStateInstance;
 
         const cleanupOnSynced = sharedStateInstance.onSynced((value) => {
@@ -79,9 +76,12 @@ export function useSharedState<T extends TJSONAble>(
         if (!sharedStateRef.current) {
             throw new Error(`You can not update before shared state is initialized`);
         }
+
         const nextValue = value instanceof Function ? value(publicStateRef.current) : value;
+
         sharedStateRef.current.update(nextValue);
         publicStateRef.current = nextValue;
+
         forceUpdate();
     }, []);
 

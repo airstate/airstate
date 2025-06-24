@@ -1,0 +1,62 @@
+name: Release
+
+on:
+    push:
+        branches:
+            - main
+            - 0.x
+        paths:
+            - packages/client/package.json
+            - packages/react/package.json
+
+jobs:
+    release:
+        name: Publish Packages
+        runs-on: ubuntu-latest
+
+        permissions:
+            contents: write
+            packages: write
+
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Setup Node
+              uses: actions/setup-node@v4
+              with:
+                  node-version-file: package.json
+                  registry-url: 'https://registry.npmjs.org'
+
+            - name: Setup PNPM
+              uses: pnpm/action-setup@v4
+
+            - name: Install Deps
+              run: |
+                  pnpm install --frozen-lockfile \
+                    --filter=@airstate/mono \
+                    --filter=@airstate/client... \
+                    --filter=@airstate/react...
+              env:
+                  SKIP_IP_DB_UPDATE: true
+
+            - name: Build
+              run: |
+                  pnpm turbo run build \
+                    --filter=@airstate/client... \
+                    --filter=@airstate/react...
+
+            - run: pnpm changeset publish
+              env:
+                  NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+                  NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+            - run: git tag
+            - run: git branch
+
+            - name: Configure Git Identity
+              run: |
+                  git config user.name "github-actions[bot]"
+                  git config user.email "github-actions[bot]@users.noreply.github.com"
+
+            - name: Push Tags
+              run: git push --follow-tags
