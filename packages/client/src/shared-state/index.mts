@@ -5,7 +5,7 @@ import { TAirStateClient } from '../client.mjs';
 
 export type TSharedStateOptions<T extends TJSONAble> = {
     client?: TAirStateClient;
-    key: string;
+    key?: string;
     token?: string | (() => string | Promise<string>);
     initialValue?: T | (() => T);
 };
@@ -22,7 +22,7 @@ export type TSharedState<T extends TJSONAble> = {
 };
 
 export function sharedState<T extends TJSONAble = any>(
-    options: TSharedStateOptions<T>,
+    options?: TSharedStateOptions<T>,
 ): TSharedState<T> {
     const updateListeners = new Set<(value: T, origin: any) => void>();
     const syncedListeners = new Set<(value: T) => void>();
@@ -34,9 +34,9 @@ export function sharedState<T extends TJSONAble = any>(
     let isSynced = false;
 
     const resolvedInitialValue =
-        typeof options.initialValue === 'function'
+        typeof options?.initialValue === 'function'
             ? options.initialValue()
-            : options.initialValue;
+            : options?.initialValue;
 
     function register(doc: y.Doc, sharedDoc: TSharedYDoc) {
         const updateHandler = (update: Uint8Array, origin: any) => {
@@ -98,9 +98,9 @@ export function sharedState<T extends TJSONAble = any>(
 
     const sharedDoc = sharedYDoc({
         doc: usingDoc,
-        key: options.key,
-        client: options.client,
-        token: options.token,
+        key: options?.key,
+        client: options?.client,
+        token: options?.token,
     });
 
     const unsubscribeOriginal = register(usingDoc, sharedDoc);
@@ -118,9 +118,9 @@ export function sharedState<T extends TJSONAble = any>(
 
             const nextSharedDoc = sharedYDoc({
                 doc: nextDoc,
-                key: options.key,
-                client: options.client,
-                token: options.token,
+                key: options?.key,
+                client: options?.client,
+                token: options?.token,
             });
 
             unsubscribeNext = register(nextDoc, nextSharedDoc);

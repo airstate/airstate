@@ -5,7 +5,7 @@ import { getDefaultClient, TAirStateClient } from '../client.mjs';
 
 export type TSharedYDocOptions = {
     client?: TAirStateClient;
-    key: string;
+    key?: string;
     doc: y.Doc;
     token?: string | (() => string | Promise<string>);
 };
@@ -26,6 +26,15 @@ export type TSharedYDoc = {
 
 export function sharedYDoc(options: TSharedYDocOptions): TSharedYDoc {
     const airState = options.client ?? getDefaultClient();
+
+    const key =
+        (options.key ?? typeof window !== 'undefined')
+            ? `${window.location.host}${window.location.pathname}`
+            : undefined;
+
+    if (typeof key === 'undefined') {
+        throw new Error('you must specify a key property as a key could not be inferred');
+    }
 
     let ready = false;
 
@@ -72,7 +81,7 @@ export function sharedYDoc(options: TSharedYDocOptions): TSharedYDoc {
                 );
 
             await airState.trpc.yjs.docUpdate.mutate({
-                key: options.key,
+                key: key!,
                 sessionID: sessionID,
                 encodedUpdates: updatesToSync.map(([update, origin]) => update),
             });
@@ -126,7 +135,7 @@ export function sharedYDoc(options: TSharedYDocOptions): TSharedYDoc {
 
     const subscription = airState.trpc.yjs.docUpdates.subscribe(
         {
-            key: options.key,
+            key: key,
         },
         {
             onError(error) {

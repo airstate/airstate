@@ -23,7 +23,10 @@ export type TNATSPresenceMessage = {
       }
 );
 
-export type TPresenceState = {
+export type TPresenceState<
+    DYNAMIC_STATE_TYPE extends Record<string, any> = Record<string, any>,
+    STATIC_STATE_TYPE extends Record<string, any> = Record<string, any>,
+> = {
     peers: Record<
         string,
         {
@@ -40,12 +43,12 @@ export type TPresenceState = {
             };
 
             staticState?: {
-                state: Record<string, any>;
+                state: STATIC_STATE_TYPE;
                 lastUpdateTimestamp: number;
             };
 
             dynamicState?: {
-                state: Record<string, any>;
+                state: DYNAMIC_STATE_TYPE;
                 lastUpdateTimestamp: number;
             };
         }
