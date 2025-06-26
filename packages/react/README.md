@@ -9,7 +9,9 @@ of real-time collaboration experiences.
 - [AirState Cloud](https://console.airstate.dev/)
 - [Self Hosting Instruction](https://airstate.dev/docs/latest/self-hosting)
 
-## Installation
+# Quickstart
+
+## Install
 
 ```bash
 pnpm add @airstate/client @airstate/react
@@ -18,7 +20,7 @@ pnpm add @airstate/client @airstate/react
 npm install --save @airstate/client @airstate/react
 ```
 
-Note: [`@airstate/client`](https://airstate.dev/docs/latest/client/javascript/intro) is a required peer dependency of the 
+Note: [`@airstate/client`](https://www.npmjs.com/package/@airstate/client) is a required peer dependency of the 
 React SDK
 
 ## Configure
@@ -26,7 +28,7 @@ React SDK
 Get your `appKey` from [console.airstate.dev](https://console.airstate.dev)
 
 ```ts
-import { configure } from '@airstate/react';
+import { configure } from '@airstate/client';
 
 // Call this before you start using the hooks
 // (it's safe to call outside react components)
@@ -77,15 +79,17 @@ displayed.
 ```tsx
 export function App() {
     const [
+        
         state,     // the data everyone sees
         setState,  // change the data everyone sees
         isReady,   // if the first-sync has occurred or not
+        
     ] = useSharedState<TOptionalTypeOfState>(
 
         { potato: 'brownish' },     // the initial state
         
         {
-            key: 'a-specific-room-key',          // if you don't want airstate ot infer from url
+            key: 'a-specific-room-key',          // if you don't want airstate to infer from url
             token: 'jwt-signed-by-your-server',  // to maintain authentication & authorization
             client: customClient                 // if you don't want to use the default client
         }
