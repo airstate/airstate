@@ -1,4 +1,8 @@
 import { useSharedPresence } from '@airstate/react';
+import { getDefaultClient } from '@airstate/client';
+
+const customClient = getDefaultClient();
+type TOptionalTypeOfDynamicState = any;
 
 export function ReactReadmeSharedPresenceQuickStart() {
     const { others, setDynamicState } = useSharedPresence({
@@ -31,4 +35,30 @@ export function ReactReadmeSharedPresenceQuickStart() {
             ))}
         </div>
     );
+}
+
+export function ReactReadmeSharedPresenceQuickStartAdvanced() {
+    const {
+
+        self,              // this client's data
+        setDynamicState,   // set this client's dynamic state
+        others,            // everyone else's data (but not this client's)
+        summary,           // the number of peers that are online and focused
+        setFocus,          // set if this client is currently on the page and active
+
+    } = useSharedPresence<TOptionalTypeOfDynamicState>({
+
+        peerKey: `${Math.random()}`,        // any string that uniquely identifies the user; could be email.
+        roomKey: 'a-specific-room-key',     // if you don't want airstate to infer from url
+        token: 'jwt-signed-by-your-server', // to maintain authentication & authorization
+        client: customClient,               // if you don't use to use the default client with default config
+
+        initialDynamicState: {
+            x: 0,
+            y: 0,
+        },
+
+    });
+
+    return <>{/* ... */}</>
 }

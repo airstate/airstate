@@ -21,9 +21,7 @@ npm install --save @airstate/client @airstate/react
 Note: [`@airstate/client`](https://airstate.dev/docs/latest/client/javascript/intro) is a required peer dependency of the 
 React SDK
 
-## Quick Start
-
-### Configure
+## Configure
 
 Get your `appKey` from [console.airstate.dev](https://console.airstate.dev)
 
@@ -41,7 +39,7 @@ configure({
 If you want to connect to a self-hosted opensource version of our AirState server,
 please consult the [docs on self-hosting](https://airstate.dev/docs/latest/self-host/connect)
 
-###  SharedState — `useSharedState`
+## SharedState — `useSharedState`
 
 This is a drop-in replacement for React's `useState`.
 
@@ -71,9 +69,36 @@ export function App() {
 }
 ```
 
-[Read The Docs](https://airstate.dev/docs/latest/client/react/shared-state/usage) for more details on `useSharedState`
+### `useSharedState` Kitchen Sink Example
 
-### SharedPresence — `useSharedPresence`
+Here's an example of using the hook with all the options and returns
+displayed.
+
+```tsx
+export function App() {
+    const [
+        state,     // the data everyone sees
+        setState,  // change the data everyone sees
+        isReady,   // if the first-sync has occurred or not
+    ] = useSharedState<TOptionalTypeOfState>(
+
+        { potato: 'brownish' },     // the initial state
+        
+        {
+            key: 'a-specific-room-key',          // if you don't want airstate ot infer from url
+            token: 'jwt-signed-by-your-server',  // to maintain authentication & authorization
+            client: customClient                 // if you don't want to use the default client
+        }
+    );
+
+    return <>{/* ... */}</>;
+}
+```
+
+[Read The Docs](https://airstate.dev/docs/latest/client/react/shared-state/usage) for more details on `useSharedState` 
+and its options.
+
+## SharedPresence — `useSharedPresence`
 
 Use this to build things like avatar stacks, live cursors,
 or location sharing. Use cases where allowing everyone to edit everyone's
@@ -127,7 +152,39 @@ export function App() {
 }
 ```
 
+### `useSharedPresence` Kitchen Sink Example
+Here's a example of using the hook with all the return keys and options
+
+```tsx
+export function MaxedOut() {
+    const {
+        
+        self,              // this client's data
+        setDynamicState,   // set this client's dynamic state
+        others,            // everyone else's data (but not this client's)
+        summary,           // the number of peers that are online and focused
+        setFocus,          // set if this client is currently on the page and active
+    
+    } = useSharedPresence<TOptionalTypeOfDynamicState>({
+        
+        peerKey: `email-or-something-idk`,  // any string that uniquely identifies the user.
+        roomKey: 'a-specific-room-key',     // if you don't want airstate to infer from url
+        token: 'jwt-signed-by-your-server', // to maintain authentication & authorization
+        client: customClient,               // if you don't use to use the default client with default config
+       
+        initialDynamicState: {
+            x: 0,
+            y: 0,
+        },
+        
+    });
+
+    return <>{/* ... */}</>
+}
+```
+
 [Read The Docs](https://airstate.dev/docs/latest/client/react/shared-presence/usage) for more details on `useSharedPresence`
+and its options.
 
 ## License
 
