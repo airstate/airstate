@@ -1,0 +1,55 @@
+---
+import Main from "../../../../layouts/main.astro";
+
+---
+
+<Main title="RUN # Live Cursors: Vanilla JS - AirState Examples">
+    <div
+        class="absolute top-0 left-0 w-72 h-72 bg-blue-200"
+        id="container"
+    >
+        <!-- will add individual cursors here -->
+    </div>
+
+    <script>
+        import { sharedPresence, configure } from '@airstate/client';
+
+        configure({
+           server: 'ws://localhost:11001/ws'
+        });
+
+        const presence = sharedPresence({
+            roomKey: window.location.search,
+            peerKey: `${Math.random()}`,
+            initialDynamicState: {
+                x: 0,
+                y: 0
+            }
+        });
+
+        const container = document.getElementById('container')!;
+
+        presence.onUpdate((tomato) => {
+            for (const [peerKey, other] of Object.entries(presence.others)) {
+                let targetDiv = document.getElementById(peerKey);
+
+                if (!targetDiv) {
+                    targetDiv = document.createElement('div');
+                    targetDiv.id = peerKey;
+                    targetDiv.className = 'w-2 h-2 absolute bg-red-500 rounded-full';
+                    container.appendChild(targetDiv);
+                }
+
+                targetDiv.style.left = `${other.dynamicState?.state.x ?? 0}px`;
+                targetDiv.style.top = `${other.dynamicState?.state.y ?? 0}px`;
+            }
+        });
+
+        container.addEventListener('mousemove', (ev) => {
+            presence.updateDynamicState({
+                x: ev.clientX,
+                y: ev.clientY,
+            });
+        });
+    </script>
+</Main>

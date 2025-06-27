@@ -122,6 +122,38 @@ Here is an example to build real-time cursors:
 ```
 
 ```ts
+const presence = sharedPresence({
+    peerKey: `${Math.random()}`,
+    initialDynamicState: {
+        x: 0,
+        y: 0
+    }
+});
+
+const container = document.getElementById('container')!;
+
+presence.onUpdate(() => {
+    for (const [peerKey, other] of Object.entries(presence.others)) {
+        let targetDiv = document.getElementById(peerKey);
+
+        if (!targetDiv) {
+            targetDiv = document.createElement('div');
+            targetDiv.id = peerKey;
+            targetDiv.className = 'w-[2] h-[2] absolute bg-red-500';
+            container.appendChild(targetDiv);
+        }
+
+        targetDiv.style.left = `${other.dynamicState?.state.x ?? 0}px`;
+        targetDiv.style.top = `${other.dynamicState?.state.y ?? 0}px`;
+    }
+});
+
+container.addEventListener('mousemove', (ev) => {
+    presence.updateDynamicState({
+        x: ev.clientX,
+        y: ev.clientY,
+    });
+});
 ```
 
 ## License

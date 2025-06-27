@@ -31,9 +31,10 @@ export function sharedPresence<T extends Record<string, any>>(
     const airState = options.client ?? getDefaultClient();
 
     const roomKey =
-        (options.roomKey ?? typeof window !== 'undefined')
+        options.roomKey ??
+        (typeof window !== 'undefined'
             ? `${window.location.host}${window.location.pathname}`
-            : undefined;
+            : undefined);
 
     if (!roomKey) {
         throw new Error(`a roomKey must be set as it could not be inferred`);
