@@ -4,32 +4,43 @@ import { TPresenceState } from '@airstate/server';
 export type TSharedPresenceOptions<T> = {
     client?: TAirStateClient;
     peerKey: string;
-    roomKey: string;
+    roomKey?: string;
     token?: string | (() => string) | (() => Promise<string>);
     initialDynamicState?: T;
 };
 
-export type TSharedPresence<T> = {
-    readonly self: TPresenceState['peers'][string];
+export type TSharedPresence<T extends Record<string, any> = Record<string, any>> = {
+    readonly self: TPresenceState<T>['peers'][string];
+    readonly others: TPresenceState<T>['peers'];
     readonly updateDynamicState: (update: T | ((prev: T) => T)) => void;
     readonly updateFocusState: (isFocused: boolean) => void;
-    readonly onUpdate: (listener: (state: TPresenceState) => void) => () => boolean;
+    readonly onUpdate: (listener: (state: TPresenceState<T>) => void) => () => boolean;
     readonly onError: (listener: (error?: Error) => void) => () => boolean;
     readonly onConnect: (listener: () => void) => () => boolean;
     readonly onDisconnect: (listener: () => void) => () => boolean;
 };
 
-export function sharedPresence<T extends Record<string, any> | undefined>(
+export function sharedPresence<T extends Record<string, any>>(
     options: TSharedPresenceOptions<T>,
 ): TSharedPresence<T> {
-    const updateListeners = new Set<(state: TPresenceState) => void>();
+    const updateListeners = new Set<(state: TPresenceState<T>) => void>();
     const errorListeners = new Set<(error?: Error) => void>();
     const connectListeners = new Set<() => void>();
     const disconnectListeners = new Set<() => void>();
 
     const airState = options.client ?? getDefaultClient();
 
-    const currentState: TPresenceState = {
+    const roomKey =
+        options.roomKey ??
+        (typeof window !== 'undefined'
+            ? `${window.location.host}${window.location.pathname}`
+            : undefined);
+
+    if (!roomKey) {
+        throw new Error(`a roomKey must be set as it could not be inferred`);
+    }
+
+    const currentState: TPresenceState<T> = {
         peers: {
             [options.peerKey]: {
                 client_key: options.peerKey,
@@ -177,7 +188,7 @@ export function sharedPresence<T extends Record<string, any> | undefined>(
 
     airState.trpc.presence.roomUpdates.subscribe(
         {
-            key: options.roomKey,
+            key: roomKey,
         },
         {
             async onData(message) {
@@ -219,7 +230,7 @@ export function sharedPresence<T extends Record<string, any> | undefined>(
                         ...currentState.peers[message.peer_key],
                         client_key: message.peer_key,
                         dynamicState: {
-                            state: message.state,
+                            state: message.state as any,
                             lastUpdateTimestamp: message.timestamp,
                         },
                     };
@@ -246,6 +257,12 @@ export function sharedPresence<T extends Record<string, any> | undefined>(
     return {
         get self() {
             return currentState.peers[options.peerKey];
+        },
+        get others() {
+            const others = { ...currentState.peers };
+            delete others[options.peerKey];
+
+            return others;
         },
         updateDynamicState: (update) => {
             const nextState =

@@ -1,11 +1,17 @@
-import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { TSharedPresenceOptions, TSharedPresence, TPresenceState, sharedPresence } from '@airstate/client';
 import { useForceUpdate } from '../utils/useForceUpdate.mjs';
 
-export function useSharedPresence<T extends Record<string, any> | undefined>(
+export function useSharedPresence<T extends Record<string, any>>(
     options: TSharedPresenceOptions<T>,
-): [TPresenceState, (value: T | ((prev: T) => T)) => void, (isFocused: boolean) => void] {
-    const resolvedInitState: TPresenceState = {
+): {
+    self: TPresenceState<T>['peers'][string];
+    others: TPresenceState<T>['peers'];
+    summary: TPresenceState['summary'];
+    setDynamicState: (value: T | ((prev: T) => T)) => void;
+    setFocus: (isFocused: boolean) => void;
+} {
+    const resolvedInitState: TPresenceState<T> = {
         peers: {
             [options.peerKey]: {
                 client_key: options.peerKey,
@@ -27,16 +33,16 @@ export function useSharedPresence<T extends Record<string, any> | undefined>(
         };
     }
 
-    const [initialComputedState] = useState<TPresenceState>(resolvedInitState);
+    const [initialComputedState] = useState<TPresenceState<T>>(resolvedInitState);
 
     const sharedPresenceRef = useRef<TSharedPresence<T> | null>(null);
 
-    const publicStateRef = useRef<TPresenceState>(initialComputedState);
+    const publicStateRef = useRef<TPresenceState<T>>(initialComputedState);
 
     const forceUpdate = useForceUpdate();
 
     useEffect(() => {
-        const sharedPresenceInstance = sharedPresence(options);
+        const sharedPresenceInstance = sharedPresence<T>(options);
 
         sharedPresenceRef.current = sharedPresenceInstance;
 
@@ -69,6 +75,7 @@ export function useSharedPresence<T extends Record<string, any> | undefined>(
         if (!sharedPresenceRef.current) {
             throw new Error(`You can not update before sharedPresence is initialized`);
         }
+
         sharedPresenceRef.current.updateDynamicState(value);
     }, []);
 
@@ -79,5 +86,16 @@ export function useSharedPresence<T extends Record<string, any> | undefined>(
         sharedPresenceRef.current.updateFocusState(isFocused);
     }, []);
 
-    return [publicStateRef.current, setDynamicState, setFocusState];
+    return {
+        self: publicStateRef.current.peers[options.peerKey],
+        get others() {
+            const others = { ...publicStateRef.current.peers };
+            delete others[options.peerKey];
+
+            return others;
+        },
+        summary: publicStateRef.current.summary,
+        setDynamicState: setDynamicState,
+        setFocus: setFocusState,
+    };
 }

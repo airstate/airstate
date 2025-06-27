@@ -1,0 +1,13 @@
+---
+import Main from '../../../../layouts/main.astro';
+import { nanoid } from 'nanoid';
+
+const roomKey = nanoid();
+---
+
+<Main title="Live Cursors: Vanilla JS - AirState Examples">
+    <div class="flex flex-row gap-5 p-5">
+        <iframe src=`/readme/javascript/shared-presence/run?r=${roomKey}` class="w-80 h-80 border border-black"></iframe>
+        <iframe src=`/readme/javascript/shared-presence/run?r=${roomKey}` class="w-80 h-80 border border-black"></iframe>
+    </div>
+</Main>

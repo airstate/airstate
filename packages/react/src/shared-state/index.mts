@@ -4,13 +4,13 @@ import { useForceUpdate } from '../utils/useForceUpdate.mjs';
 
 export type TOptions = {
     client?: TAirStateClient;
-    key: string;
+    key?: string;
     token?: string | (() => string | Promise<string>);
 };
 
-export function useSharedState<T extends TJSONAble>(
+export function useSharedState<T extends TJSONAble = TJSONAble>(
     initialState: T | (() => T),
-    options: TOptions,
+    options?: TOptions,
 ): [T, (value: T | ((prev: T) => T)) => void, boolean] {
     const resolvedInitialValue = typeof initialState === 'function' ? initialState() : initialState;
 
@@ -26,8 +26,8 @@ export function useSharedState<T extends TJSONAble>(
 
     useEffect(() => {
         const sharedStateInstance = sharedState({
-            client: options.client,
-            key: options.key,
+            client: options?.client,
+            key: options?.key,
             token: options?.token,
             initialValue: initialState,
         });
