@@ -28,9 +28,10 @@ export function sharedYDoc(options: TSharedYDocOptions): TSharedYDoc {
     const airState = options.client ?? getDefaultClient();
 
     const key =
-        (options.key ?? typeof window !== 'undefined')
+        options.key ??
+        (typeof window !== 'undefined'
             ? `${window.location.host}${window.location.pathname}`
-            : undefined;
+            : undefined);
 
     if (typeof key === 'undefined') {
         throw new Error('you must specify a key property as a key could not be inferred');

@@ -47,7 +47,7 @@ export function useSharedPresence<T extends Record<string, any>>(
         sharedPresenceRef.current = sharedPresenceInstance;
 
         const cleanupOnUpdate = sharedPresenceInstance.onUpdate((value) => {
-            publicStateRef.current = value;
+            publicStateRef.current = value.state;
             forceUpdate();
         });
 

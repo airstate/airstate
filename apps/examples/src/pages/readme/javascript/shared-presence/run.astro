@@ -15,7 +15,8 @@ import Main from "../../../../layouts/main.astro";
         import { sharedPresence, configure } from '@airstate/client';
 
         configure({
-           server: 'ws://localhost:11001/ws'
+            // server: 'ws://localhost:11001/ws',
+            appKey: 'pk_airstate_9VnWDAYQkgvw9gHxZlMa4',
         });
 
         const presence = sharedPresence({
@@ -36,7 +37,7 @@ import Main from "../../../../layouts/main.astro";
                 if (!targetDiv) {
                     targetDiv = document.createElement('div');
                     targetDiv.id = peerKey;
-                    targetDiv.className = 'w-2 h-2 absolute bg-red-500 rounded-full';
+                    targetDiv.className = 'w-2 h-2 absolute bg-red-500 rounded-full transition-all duration-100';
                     container.appendChild(targetDiv);
                 }
 

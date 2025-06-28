@@ -14,7 +14,14 @@ export type TSharedPresence<T extends Record<string, any> = Record<string, any>>
     readonly others: TPresenceState<T>['peers'];
     readonly updateDynamicState: (update: T | ((prev: T) => T)) => void;
     readonly updateFocusState: (isFocused: boolean) => void;
-    readonly onUpdate: (listener: (state: TPresenceState<T>) => void) => () => boolean;
+    readonly onUpdate: (
+        listener: (presenceState: {
+            self: TPresenceState<T>['peers'][string];
+            others: TPresenceState<T>['peers'];
+            summary: TPresenceState<T>['summary'];
+            state: TPresenceState<T>;
+        }) => void,
+    ) => () => boolean;
     readonly onError: (listener: (error?: Error) => void) => () => boolean;
     readonly onConnect: (listener: () => void) => () => boolean;
     readonly onDisconnect: (listener: () => void) => () => boolean;
@@ -23,7 +30,14 @@ export type TSharedPresence<T extends Record<string, any> = Record<string, any>>
 export function sharedPresence<T extends Record<string, any>>(
     options: TSharedPresenceOptions<T>,
 ): TSharedPresence<T> {
-    const updateListeners = new Set<(state: TPresenceState<T>) => void>();
+    const updateListeners = new Set<
+        (presenceState: {
+            self: TPresenceState<T>['peers'][string];
+            others: TPresenceState<T>['peers'];
+            summary: TPresenceState<T>['summary'];
+            state: TPresenceState<T>;
+        }) => void
+    >();
     const errorListeners = new Set<(error?: Error) => void>();
     const connectListeners = new Set<() => void>();
     const disconnectListeners = new Set<() => void>();
@@ -63,7 +77,22 @@ export function sharedPresence<T extends Record<string, any>>(
     }
 
     function notifyListeners() {
-        updateListeners.forEach((listener) => listener(currentState));
+        const self = currentState.peers[options.peerKey];
+
+        const others = {
+            ...currentState.peers,
+        };
+
+        delete others[options.peerKey];
+
+        updateListeners.forEach((listener) => {
+            listener({
+                self: self,
+                summary: currentState.summary,
+                others: others,
+                state: currentState,
+            });
+        });
     }
 
     function recalculateSummary() {
