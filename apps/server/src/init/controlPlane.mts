@@ -38,7 +38,7 @@ export async function initControlPlane(services: TServices) {
     logger.debug('attaching control-plane ws handlers');
     await registerControlPlaneWebSocketHandler(controlPlaneWebSocketServer, createControlPlaneHTTPContext);
 
-    const controlPlanePort = parseInt(env.AIRSTATE_CONTROL_PORT ?? '21001');
+    const controlPlanePort = parseInt(env.AIRSTATE_CONTROL_PORT ?? env.CONTROL_PORT ?? '21001');
 
     controlPlaneServer.listen(controlPlanePort, '0.0.0.0', () => {
         logger.info(`🚂 express: control-plane: listening on http://0.0.0.0:${controlPlanePort}/`, {
