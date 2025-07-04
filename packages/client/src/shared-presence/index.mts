@@ -1,5 +1,5 @@
 import { getDefaultClient, TAirStateClient } from '../client.mjs';
-import { TPresenceState } from '@airstate/server';
+import { TPresenceState } from './types.mjs';
 
 export type TSharedPresenceOptions<T> = {
     client?: TAirStateClient;
