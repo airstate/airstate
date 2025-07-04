@@ -55,11 +55,11 @@ export async function initServicePlane(services: TServices) {
     logger.debug('attaching service-plane ws handlers');
     await registerServicePlaneWebSocketHandler(servicePlaneWebSocketServer, createServicePlaneHTTPContext);
 
-    const servicePlanePOrt = parseInt(env.AIRSTATE_PORT ?? env.PORT ?? '11001');
+    const servicePlanePort = parseInt(env.AIRSTATE_PORT ?? env.PORT ?? '11001');
 
-    servicePlaneServer.listen(servicePlanePOrt, '0.0.0.0', () => {
-        logger.info(`🚂 express: service-plane: listening on http://0.0.0.0:${servicePlanePOrt}/`, {
-            port: servicePlanePOrt,
+    servicePlaneServer.listen(servicePlanePort, '0.0.0.0', () => {
+        logger.info(`🚂 express: service-plane: listening on http://0.0.0.0:${servicePlanePort}/`, {
+            port: servicePlanePort,
         });
     });
 }

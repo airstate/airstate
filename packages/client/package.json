@@ -1,6 +1,6 @@
 {
     "name": "@airstate/client",
-    "version": "0.1.10",
+    "version": "0.1.12",
     "description": "The AirState client core WebSocket communication library",
     "main": "dist/index.mjs",
     "types": "dist/index.d.mts",

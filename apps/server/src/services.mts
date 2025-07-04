@@ -13,7 +13,9 @@ export async function createServices(): Promise<
     NATSServices & TValkeyService & TInfoService & TControlClientsService & TLocalStateService & TEphemeralStateService
 > {
     const natsStringCodec = createStringCodec();
-    const natsConnection = await createNATSConnection(env.AIRSTATE_NATS_URLS.split(',').map((url) => url.trim()));
+    const natsConnection = await createNATSConnection(
+        (env.AIRSTATE_NATS_URL ?? env.NATS_URL ?? 'nats://localhost:4222').split(',').map((url) => url.trim()),
+    );
 
     const jetStreamClient = createJetStreamClient(natsConnection);
     const jetStreamManager = await createJetStreamManager(natsConnection);

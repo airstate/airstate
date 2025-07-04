@@ -5,15 +5,28 @@ export const booleanEnvSchema = z.enum(['true', 'false', 'TRUE', 'FALSE']);
 
 export const env = createEnv({
     server: {
-        NODE_ENV: z.enum(['development', 'production']).default('development'),
+        NODE_ENV: z.enum(['development', 'production']).default('production'),
+
         PORT: z.string().optional(),
-        AIRSTATE_PORT: z.string().optional(),
-        AIRSTATE_CONTROL_PORT: z.string().default('21001'),
+        AIRSTATE_PORT: z.string().optional(), // don't document
+
+        CONTROL_PORT: z.string().optional(), // don't document
+        AIRSTATE_CONTROL_PORT: z.string().optional(), // don't document
+
         AIRSTATE_CONFIG_API_BASE_URL: z.string().trim().optional(),
-        AIRSTATE_NATS_URLS: z.string().default('nats://localhost:4222'),
-        VALKEY_CONNECTION_URL: z.string().default('redis://valkey:6379'),
-        AIRSTATE_CLUSTER: z.string().optional(),
+
+        NATS_URL: z.string().optional(),
+        AIRSTATE_NATS_URL: z.string().optional(), // don't document
+
+        REDIS_URL: z.string().optional(),
+        VALKEY_URL: z.string().optional(), // don't document
+        AIRSTATE_REDIS_URL: z.string().optional(), // don't document
+        AIRSTATE_VALKEY_URL: z.string().optional(), // don't document
+
+        AIRSTATE_CLUSTER: z.string().optional(), // don't document
+
         SHARED_SIGNING_KEY: z.string().optional(),
+
         DEFAULT_YJS_READ_PERMISSION: booleanEnvSchema.default('true'),
         DEFAULT_YJS_WRITE_PERMISSION: booleanEnvSchema.default('true'),
         DEFAULT_PRESENCE_JOIN_PERMISSION: booleanEnvSchema.default('true'),
