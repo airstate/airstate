@@ -1,5 +1,13 @@
 # @airstate/react
 
+## 0.1.12
+
+### Patch Changes
+
+- 241cba5: Improved presence type exported. Localized to @airstate/client and not re-exported from @airstate/server
+- Updated dependencies [241cba5]
+    - @airstate/client@0.1.12
+
 ## 0.1.11
 
 ### Patch Changes
