@@ -115,7 +115,7 @@ Here is an example to build real-time cursors:
 
 
 ```tsx
-// assume curent page url: example.com/tomato
+// assume current page url: example.com/tomato
 
 import { useSharedPresence } from '@airstate/react';
 
