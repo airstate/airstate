@@ -2,7 +2,7 @@ import { TInfoService } from '../services/info.mjs';
 import { TTelemetryClient, TTelemetryPayload, TTelemetryRoom, TTelemetryTracker } from '../types/telemetry.mjs';
 import { VERSION } from '../version.mjs';
 
-export const TELEMETRY_URL = process.env.TELEMETRY_URL ?? 'https://telemetry.airstate.dev/ingest';
+export const TELEMETRY_URL = process.env.TELEMETRY_URL ?? 'https://telemetry.airstate.dev/telemetryEvent';
 
 export async function runTelemetryDaemon(telemetryTracker: TTelemetryTracker, services: TInfoService) {
     const { info } = services;
@@ -143,6 +143,9 @@ export async function runTelemetryDaemon(telemetryTracker: TTelemetryTracker, se
 
             await fetch(TELEMETRY_URL, {
                 method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
                 body: JSON.stringify(telemetryPayload),
             });
 
