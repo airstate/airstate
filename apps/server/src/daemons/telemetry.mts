@@ -143,6 +143,9 @@ export async function runTelemetryDaemon(telemetryTracker: TTelemetryTracker, se
 
             await fetch(TELEMETRY_URL, {
                 method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
                 body: JSON.stringify(telemetryPayload),
             });
 
