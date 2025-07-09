@@ -1,5 +1,11 @@
 # @airstate/server
 
+## 1.0.0
+
+### Minor Changes
+
+- 228fd10: fix: telemetry api call fixed
+
 ## 0.1.12
 
 ### Patch Changes
