@@ -1,5 +1,7 @@
 # @airstate/client
 
+## 1.0.0
+
 ## 0.1.12
 
 ### Patch Changes
