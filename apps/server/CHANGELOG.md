@@ -1,5 +1,11 @@
 # @airstate/server
 
+## 1.0.1
+
+### Patch Changes
+
+- de48c05: request version bump: telemetry request format changed
+
 ## 1.0.0
 
 ### Minor Changes
