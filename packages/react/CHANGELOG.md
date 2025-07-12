@@ -1,5 +1,13 @@
 # @airstate/react
 
+## 1.0.1
+
+### Patch Changes
+
+- de48c05: request version bump: telemetry request format changed
+- Updated dependencies [de48c05]
+    - @airstate/client@1.0.1
+
 ## 1.0.0
 
 ### Patch Changes
