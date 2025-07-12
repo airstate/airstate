@@ -1,6 +1,7 @@
 import { TInfoService } from '../services/info.mjs';
 import { TTelemetryClient, TTelemetryPayload, TTelemetryRoom, TTelemetryTracker } from '../types/telemetry.mjs';
 import { VERSION } from '../version.mjs';
+import * as zlib from 'node:zlib';
 
 export const TELEMETRY_URL = process.env.TELEMETRY_URL ?? 'https://telemetry.airstate.dev/telemetryEvent';
 
@@ -141,12 +142,15 @@ export async function runTelemetryDaemon(telemetryTracker: TTelemetryTracker, se
                 serverHostnames: Array.from(serverHostnames),
             };
 
+            const compressedPayload = zlib.gzipSync(Buffer.from(JSON.stringify(telemetryPayload)));
+
             await fetch(TELEMETRY_URL, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'Content-Encoding': 'gzip',
                 },
-                body: JSON.stringify(telemetryPayload),
+                body: compressedPayload,
             });
 
             await new Promise((resolve) => setTimeout(resolve, 3600_000));
