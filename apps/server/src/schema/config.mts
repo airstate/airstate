@@ -13,12 +13,16 @@ export const permissionsSchema = z.object({
 
 export type TPermissions = z.infer<typeof permissionsSchema>;
 
+// TODO: remove this; DELETE airstateServer.com/api/v1/groups/:group
+
 export const configSchema = z.object({
     version: z.literal('1.0'),
     app_secret: z.string().optional(),
-    account_id: z
+    namespace: z.string().optional(),
+    groups: z
         .string()
         .regex(/^(_[A-Za-z0-9_]*)|([A-Za-z][A-Za-z0-9_]*)$/)
+        .array()
         .optional(),
     init: z
         .object({

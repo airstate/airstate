@@ -84,7 +84,7 @@ export const docUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
                 clientSentKey,
             });
 
-            const key = `${ctx.accountID}__${hashedClientSentKey}`;
+            const key = `${ctx.namespace}__${hashedClientSentKey}`;
             const streamName = `yjs_${key}`;
             const subject = `yjs.${key}`;
             const consumerName = `consumer_${nanoid()}`;
@@ -98,7 +98,7 @@ export const docUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
             const telemetryTrackerClient = await initTelemetryTrackerClient(
                 ctx.services.ephemeralState.telemetryTracker,
                 {
-                    id: ctx.clientSentClientID ?? '',
+                    id: ctx.clientId ?? '',
                     ipAddress: ctx.clientIPAddress ?? '0.0.0.0',
                     userAgentString: ctx.clientUserAgentString ?? 'unknown',
                     serverHostname: ctx.serverHostname ?? 'unknown',

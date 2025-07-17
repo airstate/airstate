@@ -25,7 +25,7 @@ export const docUpdateMutationProcedure = servicePlanePassthroughProcedure
         const clientSentKey = input.key;
         const hashedClientSentKey: string = createHash('sha256').update(clientSentKey).digest('hex');
 
-        const key = `${ctx.accountID}__${hashedClientSentKey}`;
+        const key = `${ctx.namespace}__${hashedClientSentKey}`;
         const subject = `yjs.${key}`;
 
         const telemetryTrackerRoom = initTelemetryTrackerRoom(
@@ -35,7 +35,7 @@ export const docUpdateMutationProcedure = servicePlanePassthroughProcedure
         );
 
         const telemetryTrackerClient = await initTelemetryTrackerClient(ctx.services.ephemeralState.telemetryTracker, {
-            id: ctx.clientSentClientID ?? '',
+            id: ctx.clientId ?? '',
             ipAddress: ctx.clientIPAddress ?? '0.0.0.0',
             userAgentString: ctx.clientUserAgentString ?? 'unknown',
             serverHostname: ctx.serverHostname ?? 'unknown',

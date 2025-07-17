@@ -51,7 +51,7 @@ export const presenceUpdateMutationProcedure = servicePlanePassthroughProcedure
         const peerKey = sessionMeta.meta.peerKey;
         const hashedPeerKey = sessionMeta.meta.hashedPeerKey;
 
-        const key = `${ctx.accountID}__${hashedRoomKey}`;
+        const key = `${ctx.namespace}__${hashedRoomKey}`;
         const commonSubjectPrefix = `presence.${key}`;
 
         const telemetryTrackerRoom = initTelemetryTrackerRoom(
@@ -61,7 +61,7 @@ export const presenceUpdateMutationProcedure = servicePlanePassthroughProcedure
         );
 
         const telemetryTrackerClient = await initTelemetryTrackerClient(ctx.services.ephemeralState.telemetryTracker, {
-            id: ctx.clientSentClientID ?? '',
+            id: ctx.clientId ?? '',
             ipAddress: ctx.clientIPAddress ?? '0.0.0.0',
             userAgentString: ctx.clientUserAgentString ?? 'unknown',
             serverHostname: ctx.serverHostname ?? 'unknown',

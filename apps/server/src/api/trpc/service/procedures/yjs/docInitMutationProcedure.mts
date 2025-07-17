@@ -31,7 +31,7 @@ export const docInitMutationProcedure = servicePlanePassthroughProcedure
         const sessionMeta = ctx.services.localState.sessionMeta[input.sessionID];
         const hashedRoomKey = sessionMeta.roomKeyHashed;
 
-        const key = `${ctx.accountID}__${hashedRoomKey}`;
+        const key = `${ctx.namespace}__${hashedRoomKey}`;
         const subject = `yjs.${key}`;
         const streamName = `yjs_${key}`;
 
@@ -68,7 +68,7 @@ export const docInitMutationProcedure = servicePlanePassthroughProcedure
         );
 
         const telemetryTrackerClient = await initTelemetryTrackerClient(ctx.services.ephemeralState.telemetryTracker, {
-            id: ctx.clientSentClientID ?? '',
+            id: ctx.clientId ?? '',
             ipAddress: ctx.clientIPAddress ?? '0.0.0.0',
             userAgentString: ctx.clientUserAgentString ?? 'unknown',
             serverHostname: ctx.serverHostname ?? 'unknown',

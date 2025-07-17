@@ -2,14 +2,17 @@ import type { TServicePlaneAppRouter } from '@airstate/server';
 import { createTRPCClient, createWSClient, TRPCClient, wsLink } from '@trpc/client';
 import { nanoid } from 'nanoid';
 
-export type TClientOptions = {
-    appKey?: string;
-    server?: string;
-};
+export type TClientOptions =
+    | {
+          appKey: string;
+      }
+    | {
+          server: string;
+          appKey?: string;
+      };
 
-export const defaultOptions: TClientOptions = {
-    appKey: undefined,
-};
+const DEFAULT_SERVER = 'wss://server.airstate.dev/ws';
+const defaultOptions: TClientOptions = { server: DEFAULT_SERVER };
 
 export type TAirStateClient = {
     readonly trpc: TRPCClient<TServicePlaneAppRouter>;
@@ -20,16 +23,21 @@ export type TAirStateClient = {
 };
 
 export function createClient(options?: TClientOptions): TAirStateClient {
-    const clientID = (() => {
-        const storedClientID = window.localStorage.getItem('clientID');
+    const clientId = (() => {
+        const server = options && 'server' in options ? options.server : DEFAULT_SERVER;
+        const appKey = options?.appKey ?? '';
 
-        if (!storedClientID) {
-            const nextClientID = nanoid();
-            window.localStorage.setItem('clientID', nextClientID);
-            return nextClientID;
+        const clientIdStorageKey = `airstate:client_id:${server}:${appKey}`;
+
+        const storedClientId = window.localStorage.getItem(clientIdStorageKey);
+
+        if (!storedClientId) {
+            const nextClientId = nanoid();
+            window.localStorage.setItem(clientIdStorageKey, nextClientId);
+            return nextClientId;
         }
 
-        return storedClientID;
+        return storedClientId;
     })();
 
     const openListeners = new Set<() => void>();
@@ -39,7 +47,7 @@ export function createClient(options?: TClientOptions): TAirStateClient {
     let isOpen = false;
 
     const wsClient = createWSClient({
-        url: options?.server ?? `wss://server.airstate.dev/ws`,
+        url: options && 'server' in options ? options.server : DEFAULT_SERVER,
         keepAlive: {
             enabled: true,
             intervalMs: 1_000,
@@ -50,8 +58,8 @@ export function createClient(options?: TClientOptions): TAirStateClient {
         },
         connectionParams: () => {
             return {
-                appKey: options?.appKey ?? defaultOptions.appKey,
-                clientID: clientID,
+                appKey: options && 'appKey' in options ? options.appKey : undefined,
+                clientID: clientId,
                 connectionID: nanoid(),
                 pageHostname: window.location.hostname,
             };
@@ -107,6 +115,7 @@ export function getDefaultClient() {
     if (!defaultClient) {
         defaultClient = createClient(defaultOptions);
     }
+
     return defaultClient;
 }
 

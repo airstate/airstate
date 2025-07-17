@@ -46,7 +46,7 @@ export type TTelemetryPayload = {
 
 export type TTelemetryTracker = {
     clients: {
-        [clientID: string]: {
+        [clientId: string]: {
             clientID: string;
             hashedClientID: string;
 
@@ -60,45 +60,127 @@ export type TTelemetryTracker = {
             firstActivityTimestamp: number;
             lastActivityTimestamp: number;
 
-            totalMessagesReceived: number;
-            totalMessagesRelayed: number;
+            services: {
+                ydoc: {
+                    totalUpdatesReceivedFromClient: number;
+                    totalBytesReceivedFromClient: number;
 
-            totalBytesReceived: number;
-            totalBytesRelayed: number;
+                    totalUpdatesSentToClient: number;
+                    totalBytesSentToClient: number;
+                };
+
+                presence: {
+                    totalUpdatesReceivedFromClient: number;
+                    totalBytesReceivedFromClient: number;
+
+                    totalUpdatesSentToClient: number;
+                    totalBytesSentToClient: number;
+                };
+            };
         };
     };
 
-    rooms: {
-        [roomID: string]: {
-            roomID: string;
-            hashedRoomID: string;
-
-            roomType: 'presence' | 'ydoc';
-
-            firstActivityTimestamp: number;
-            lastActivityTimestamp: number;
-
-            totalMessagesReceived: number;
-            totalMessagesRelayed: number;
-
-            totalBytesReceived: number;
-            totalBytesRelayed: number;
-
-            clients: {
-                [clientID: string]: {
-                    clientID: string;
-                    hashedClientID: string;
+    services: {
+        ydoc: {
+            documents: {
+                [documentId: string]: {
+                    documentId: string;
+                    hashedDocumentId: string;
 
                     firstActivityTimestamp: number;
                     lastActivityTimestamp: number;
 
-                    totalMessagesReceived: number;
-                    totalMessagesRelayed: number;
+                    totalUpdatesReceivedFromClients: number;
+                    totalBytesReceivedFromClients: number;
 
-                    totalBytesReceived: number;
-                    totalBytesRelayed: number;
+                    totalUpdatesSentToClients: number;
+                    totalBytesSentToClients: number;
+
+                    clients: {
+                        [clientId: string]: {
+                            clientId: string;
+                            hashedClientId: string;
+
+                            firstActivityTimestamp: number;
+                            lastActivityTimestamp: number;
+
+                            totalUpdatesReceivedFromClient: number;
+                            totalBytesReceivedFromClient: number;
+
+                            totalUpdatesSentToClient: number;
+                            totalBytesSentToClient: number;
+                        };
+                    };
+                };
+            };
+        };
+
+        presence: {
+            rooms: {
+                [roomId: string]: {
+                    roomId: string;
+                    hashedRoomId: string;
+
+                    firstActivityTimestamp: number;
+                    lastActivityTimestamp: number;
+
+                    totalUpdatesReceivedFromClients: number;
+                    totalBytesReceivedFromClients: number;
+
+                    totalUpdatesSentToClients: number;
+                    totalBytesSentToClients: number;
+
+                    clients: {
+                        [clientId: string]: {
+                            clientId: string;
+                            hashedClientId: string;
+
+                            firstActivityTimestamp: number;
+                            lastActivityTimestamp: number;
+
+                            totalUpdatesReceivedFromClient: number;
+                            totalBytesReceivedFromClient: number;
+
+                            totalUpdatesSentToClient: number;
+                            totalBytesSentToClient: number;
+                        };
+                    };
                 };
             };
         };
     };
 };
+
+const JSONLResponse = [
+    ['ydoc', 5],
+    [
+        'client_id',
+        'room_id',
+        'groups',
+        'app_key',
+        'total_bytes_sent_to_client',
+        'total_bytes_received_from_client',
+        'total_updates_sent_to_client',
+        'total_updates_received_from_client',
+    ],
+    ['cid', 'rid', 'aid', 'ak', 1, 2, 3, 4],
+    ['cid', 'rid', 'aid', 'ak', 1, 2, 3, 4],
+    ['cid', 'rid', 'aid', 'ak', 1, 2, 3, 4],
+    ['cid', 'rid', 'aid', 'ak', 1, 2, 3, 4],
+    ['cid', 'rid', 'aid', 'ak', 1, 2, 3, 4],
+    ['presence', 4],
+    [
+        'client_id',
+        'room_id',
+        'account_id',
+        'app_key',
+        'total_bytes_sent_to_client',
+        'total_bytes_received_from_client',
+        'total_updates_sent_to_client',
+        'total_updates_received_from_client',
+    ],
+    ['cid', 'rid', 'aid', 'ak', 1, 2, 3, 4],
+    ['cid', 'rid', 'aid', 'ak', 1, 2, 3, 4],
+    ['cid', 'rid', 'aid', 'ak', 1, 2, 3, 4],
+    ['cid', 'rid', 'aid', 'ak', 1, 2, 3, 4],
+];

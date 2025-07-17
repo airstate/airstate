@@ -35,8 +35,11 @@ export async function servicePlaneHTTPContextCreatorFactory(services: TServices)
                 'padding: 0.5rem 0 0.5rem 0;',
             ],
         });
-        const clientID = options.info.connectionParams?.clientID ?? null;
-        const connectionID = options.info.connectionParams?.connectionID ?? null;
+
+        const clientSentId = options.info.connectionParams?.clientID ?? null;
+        const clientId = `${appKey}:${clientSentId}`;
+
+        const connectionId = options.info.connectionParams?.connectionID ?? null;
         const serverHostname = options.req.headers['host'] ?? null;
         const clientPageHostname = options.info.connectionParams?.pageHostname ?? null;
         const userAgentString = options.req.headers['user-agent'] ?? null;
@@ -47,6 +50,8 @@ export async function servicePlaneHTTPContextCreatorFactory(services: TServices)
             null;
 
         const resolvedConfig = await returnOf(async () => {
+            // TODO: remove this; this is how you get the socket -> options.req.socket;
+
             if (!appKey) {
                 logger.warn(`no appKey set`);
                 return null;
@@ -74,12 +79,12 @@ export async function servicePlaneHTTPContextCreatorFactory(services: TServices)
             : defaultPermissions;
 
         return {
-            accountID: resolvedConfig?.account_id ?? '__ANONYMOUS',
+            namespace: resolvedConfig?.namespace ?? '__ANONYMOUS',
             connectionID: nanoid(),
             appKey: appKey,
             appSecret: resolvedConfig?.app_secret ?? env.SHARED_SIGNING_KEY,
-            clientSentConnectionID: connectionID,
-            clientSentClientID: clientID,
+            clientSentConnectionID: connectionId,
+            clientId: clientId,
             clientIPAddress: ipAddress,
             clientUserAgentString: userAgentString,
             clientPageHostname: clientPageHostname,
