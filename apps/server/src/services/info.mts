@@ -4,25 +4,25 @@ import { hostname } from 'node:os';
 import { createHash } from 'node:crypto';
 
 export async function createInfoService(services: MainKVServices) {
-    let clusterID = nanoid();
+    let clusterId = nanoid();
 
     try {
-        await services.mainKV.create('clusterID', nanoid());
+        await services.mainKV.create('clusterId', nanoid());
     } catch {
-        const storedClusterID = (await services.mainKV.get('clusterID'))?.string();
+        const storedClusterId = (await services.mainKV.get('clusterId'))?.string();
 
-        if (!storedClusterID) {
-            throw new Error('clusterID does not exist');
+        if (!storedClusterId) {
+            throw new Error('clusterId does not exist');
         }
 
-        clusterID = storedClusterID;
+        clusterId = storedClusterId;
     }
 
     const hashedHostname = createHash('sha256').update(hostname()).digest('hex');
 
     return {
-        runID: nanoid(),
-        clusterID: clusterID,
+        runId: nanoid(),
+        clusterId: clusterId,
         hashedHostname: hashedHostname,
     };
 }

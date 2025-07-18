@@ -86,7 +86,7 @@ export async function servicePlaneHTTPContextCreatorFactory(services: TServices)
         return {
             namespace: resolvedConfig?.namespace ?? '__default',
             connectionId: nanoid(),
-            appKey: appId,
+            appId: appId,
             appSecret: resolvedConfig?.app_secret ?? env.SHARED_SIGNING_KEY,
             clientSentConnectionID: connectionId,
             clientId: clientId,

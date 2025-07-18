@@ -1,15 +1,15 @@
 import { TTelemetryTracker } from '../types/telemetry.mjs';
 
 export type TEphemeralState = {
-    telemetryTracker: TTelemetryTracker;
+    // telemetryTracker: TTelemetryTracker;
 };
 
 export async function createEphemeralState(): Promise<TEphemeralState> {
     return {
-        telemetryTracker: {
-            clients: {},
-            rooms: {},
-        },
+        // telemetryTracker: {
+        //     clients: {},
+        //     rooms: {},
+        // },
     };
 }
 

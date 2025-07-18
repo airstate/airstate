@@ -26,7 +26,7 @@ export async function createControlClients() {
                 isOpen = true;
 
                 const info = await trpcClient.info.query();
-                runID = info.runID;
+                runID = info.runId;
             },
             onClose() {
                 isOpen = false;

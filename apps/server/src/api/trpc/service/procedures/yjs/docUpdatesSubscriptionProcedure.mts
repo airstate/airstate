@@ -8,9 +8,9 @@ import { servicePlanePassthroughProcedure } from '../../middleware/passthrough.m
 import { nanoid } from 'nanoid';
 import { runInAction, when } from 'mobx';
 import { TRPCError } from '@trpc/server';
-import { initTelemetryTrackerRoom } from '../../../../../utils/telemetry/rooms.mjs';
-import { initTelemetryTrackerClient, initTelemetryTrackerRoomClient } from '../../../../../utils/telemetry/clients.mjs';
-import { incrementTelemetryTrackers } from '../../../../../utils/telemetry/increment.mjs';
+// import { initTelemetryTrackerRoom } from '../../../../../utils/telemetry/rooms.mjs';
+// import { initTelemetryTrackerRoomrClient, initTelemetryTrackerRoomClient } from '../../../../../utils/telemetry/clients.mjs';
+// import { incrementTelemetryTrackers } from '../../../../../utils/telemetry/increment.mjs';
 
 export type TYJSMessage =
     | {
@@ -89,27 +89,27 @@ export const docUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
             const subject = `yjs.${key}`;
             const consumerName = `consumer_${nanoid()}`;
 
-            const telemetryTrackerRoom = initTelemetryTrackerRoom(
-                ctx.services.ephemeralState.telemetryTracker,
-                'ydoc',
-                key,
-            );
+            // const telemetryTrackerRoom = initTelemetryTrackerRoom(
+            //     ctx.services.ephemeralState.telemetryTracker,
+            //     'ydoc',
+            //     key,
+            // );
 
-            const telemetryTrackerClient = await initTelemetryTrackerClient(
-                ctx.services.ephemeralState.telemetryTracker,
-                {
-                    id: ctx.clientId ?? '',
-                    ipAddress: ctx.clientIPAddress ?? '0.0.0.0',
-                    userAgentString: ctx.clientUserAgentString ?? 'unknown',
-                    serverHostname: ctx.serverHostname ?? 'unknown',
-                    clientPageHostname: ctx.clientPageHostname ?? 'unknown',
-                },
-            );
+            // const telemetryTrackerClient = await initTelemetryTrackerClient(
+            //     ctx.services.ephemeralState.telemetryTracker,
+            //     {
+            //         id: ctx.clientId ?? '',
+            //         ipAddress: ctx.clientIPAddress ?? '0.0.0.0',
+            //         userAgentString: ctx.clientUserAgentString ?? 'unknown',
+            //         serverHostname: ctx.serverHostname ?? 'unknown',
+            //         clientPageHostname: ctx.clientPageHostname ?? 'unknown',
+            //     },
+            // );
 
-            const telemetryTrackerRoomClient = initTelemetryTrackerRoomClient(
-                telemetryTrackerRoom,
-                telemetryTrackerClient,
-            );
+            // const telemetryTrackerRoomClient = initTelemetryTrackerRoomClient(
+            //     telemetryTrackerRoom,
+            //     telemetryTrackerClient,
+            // );
 
             // ensure the stream exists
             await ctx.services.jetStreamManager.streams.add({
@@ -160,11 +160,11 @@ export const docUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
                     final: true,
                 } satisfies TYJSMessage;
 
-                incrementTelemetryTrackers(
-                    [telemetryTrackerRoom, telemetryTrackerClient, telemetryTrackerRoomClient],
-                    merged.mergedUpdate.length,
-                    'relayed',
-                );
+                // incrementTelemetryTrackers(
+                //     [telemetryTrackerRoom, telemetryTrackerClient, telemetryTrackerRoomClient],
+                //     merged.mergedUpdate.length,
+                //     'relayed',
+                // );
             } else {
                 yield {
                     type: 'sync',
@@ -173,11 +173,11 @@ export const docUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
                     final: true,
                 } satisfies TYJSMessage;
 
-                incrementTelemetryTrackers(
-                    [telemetryTrackerRoom, telemetryTrackerClient, telemetryTrackerRoomClient],
-                    0,
-                    'relayed',
-                );
+                // incrementTelemetryTrackers(
+                //     [telemetryTrackerRoom, telemetryTrackerClient, telemetryTrackerRoomClient],
+                //     0,
+                //     'relayed',
+                // );
             }
 
             if (merged) {
@@ -216,11 +216,11 @@ export const docUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
                         client: updateSessionID ?? '',
                     } satisfies TYJSMessage;
 
-                    incrementTelemetryTrackers(
-                        [telemetryTrackerRoom, telemetryTrackerClient, telemetryTrackerRoomClient],
-                        updateString.length,
-                        'received',
-                    );
+                    // incrementTelemetryTrackers(
+                    //     [telemetryTrackerRoom, telemetryTrackerClient, telemetryTrackerRoomClient],
+                    //     updateString.length,
+                    //     'received',
+                    // );
                 }
 
                 streamMessage.ack();

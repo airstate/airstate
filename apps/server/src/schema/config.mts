@@ -17,6 +17,7 @@ export type TPermissions = z.infer<typeof permissionsSchema>;
 
 export const configSchema = z.object({
     version: z.literal('1.0'),
+    app_id: z.string().optional(),
     app_secret: z.string().optional(),
     namespace: z.string().optional(),
     groups: z

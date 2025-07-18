@@ -8,9 +8,9 @@ import { merge } from 'es-toolkit/object';
 import { defaultPermissions } from '../../context.mjs';
 import { TNATSPresenceMessage } from './_helpers.mjs';
 import { createHash } from 'node:crypto';
-import { initTelemetryTrackerRoom } from '../../../../../utils/telemetry/rooms.mjs';
-import { initTelemetryTrackerClient, initTelemetryTrackerRoomClient } from '../../../../../utils/telemetry/clients.mjs';
-import { incrementTelemetryTrackers } from '../../../../../utils/telemetry/increment.mjs';
+// import { initTelemetryTrackerRoom } from '../../../../../utils/telemetry/rooms.mjs';
+// import { initTelemetryTrackerClient, initTelemetryTrackerRoomClient } from '../../../../../utils/telemetry/clients.mjs';
+// import { incrementTelemetryTrackers } from '../../../../../utils/telemetry/increment.mjs';
 
 export const presenceUpdateMutationProcedure = servicePlanePassthroughProcedure
     .meta({ writePermissionRequired: true })
@@ -54,21 +54,21 @@ export const presenceUpdateMutationProcedure = servicePlanePassthroughProcedure
         const key = `${ctx.namespace}__${hashedRoomKey}`;
         const commonSubjectPrefix = `presence.${key}`;
 
-        const telemetryTrackerRoom = initTelemetryTrackerRoom(
-            ctx.services.ephemeralState.telemetryTracker,
-            'presence',
-            key,
-        );
+        // const telemetryTrackerRoom = initTelemetryTrackerRoom(
+        //     ctx.services.ephemeralState.telemetryTracker,
+        //     'presence',
+        //     key,
+        // );
 
-        const telemetryTrackerClient = await initTelemetryTrackerClient(ctx.services.ephemeralState.telemetryTracker, {
-            id: ctx.clientId ?? '',
-            ipAddress: ctx.clientIPAddress ?? '0.0.0.0',
-            userAgentString: ctx.clientUserAgentString ?? 'unknown',
-            serverHostname: ctx.serverHostname ?? 'unknown',
-            clientPageHostname: ctx.clientPageHostname ?? 'unknown',
-        });
+        // const telemetryTrackerClient = await initTelemetryTrackerClient(ctx.services.ephemeralState.telemetryTracker, {
+        //     id: ctx.clientId ?? '',
+        //     ipAddress: ctx.clientIPAddress ?? '0.0.0.0',
+        //     userAgentString: ctx.clientUserAgentString ?? 'unknown',
+        //     serverHostname: ctx.serverHostname ?? 'unknown',
+        //     clientPageHostname: ctx.clientPageHostname ?? 'unknown',
+        // });
 
-        const telemetryTrackerRoomClient = initTelemetryTrackerRoomClient(telemetryTrackerRoom, telemetryTrackerClient);
+        // const telemetryTrackerRoomClient = initTelemetryTrackerRoomClient(telemetryTrackerRoom, telemetryTrackerClient);
 
         if (input.update.type === 'dynamic-update') {
             await ctx.services.jetStreamClient.publish(
@@ -84,11 +84,11 @@ export const presenceUpdateMutationProcedure = servicePlanePassthroughProcedure
                 ),
             );
 
-            incrementTelemetryTrackers(
-                [telemetryTrackerRoom, telemetryTrackerClient, telemetryTrackerRoomClient],
-                JSON.stringify(input.update.state).length,
-                'received',
-            );
+            // incrementTelemetryTrackers(
+            //     [telemetryTrackerRoom, telemetryTrackerClient, telemetryTrackerRoomClient],
+            //     JSON.stringify(input.update.state).length,
+            //     'received',
+            // );
         } else {
             await ctx.services.jetStreamClient.publish(
                 `${commonSubjectPrefix}.focus.${hashedPeerKey}`,
@@ -103,11 +103,11 @@ export const presenceUpdateMutationProcedure = servicePlanePassthroughProcedure
                 ),
             );
 
-            incrementTelemetryTrackers(
-                [telemetryTrackerRoom, telemetryTrackerClient, telemetryTrackerRoomClient],
-                0,
-                'received',
-            );
+            // incrementTelemetryTrackers(
+            //     [telemetryTrackerRoom, telemetryTrackerClient, telemetryTrackerRoomClient],
+            //     0,
+            //     'received',
+            // );
         }
     });
 
