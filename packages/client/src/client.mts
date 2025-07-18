@@ -4,11 +4,11 @@ import { nanoid } from 'nanoid';
 
 export type TClientOptions =
     | {
-          appKey: string;
+          appId: string;
       }
     | {
           server: string;
-          appKey?: string;
+          appId?: string;
       };
 
 const DEFAULT_SERVER = 'wss://server.airstate.dev/ws';
@@ -25,9 +25,9 @@ export type TAirStateClient = {
 export function createClient(options?: TClientOptions): TAirStateClient {
     const clientId = (() => {
         const server = options && 'server' in options ? options.server : DEFAULT_SERVER;
-        const appKey = options?.appKey ?? '';
+        const appId = options?.appId ?? '';
 
-        const clientIdStorageKey = `airstate:client_id:${server}:${appKey}`;
+        const clientIdStorageKey = `airstate:client_id:${server}:${appId}`;
 
         const storedClientId = window.localStorage.getItem(clientIdStorageKey);
 
@@ -58,9 +58,9 @@ export function createClient(options?: TClientOptions): TAirStateClient {
         },
         connectionParams: () => {
             return {
-                appKey: options && 'appKey' in options ? options.appKey : undefined,
-                clientID: clientId,
-                connectionID: nanoid(),
+                appId: options && 'appId' in options ? options.appId : undefined,
+                clientId: clientId,
+                connectionId: nanoid(),
                 pageHostname: window.location.hostname,
             };
         },

@@ -26,7 +26,8 @@ export async function servicePlaneHTTPContextCreatorFactory(services: TServices)
     return async function (options: trpcExpress.CreateExpressContextOptions | trpcWS.CreateWSSContextFnOptions) {
         const logQueue = new AsyncIterableQueue<ConsoleMessage>();
 
-        const appKey = options.info.connectionParams?.appKey ?? null;
+        // `appKey` is DEPRECATED. `appId` preferred.
+        const appId = options.info.connectionParams?.appId ?? options.info.connectionParams?.appKey ?? null;
 
         await logQueue.push({
             level: 'warn',
@@ -36,10 +37,14 @@ export async function servicePlaneHTTPContextCreatorFactory(services: TServices)
             ],
         });
 
-        const clientSentId = options.info.connectionParams?.clientID ?? null;
-        const clientId = `${appKey}:${clientSentId}`;
+        // `clientID` is DEPRECATED. `clientId` preferred.
+        const clientSentId = options.info.connectionParams?.clientId ?? options.info.connectionParams?.clientID ?? null;
+        const clientId = `${appId}:${clientSentId}`;
 
-        const connectionId = options.info.connectionParams?.connectionID ?? null;
+        // `connectionID` is DEPRECATED. `connectionId` preferred.
+        const connectionId =
+            options.info.connectionParams?.connectionId ?? options.info.connectionParams?.connectionID ?? null;
+
         const serverHostname = options.req.headers['host'] ?? null;
         const clientPageHostname = options.info.connectionParams?.pageHostname ?? null;
         const userAgentString = options.req.headers['user-agent'] ?? null;
@@ -52,7 +57,7 @@ export async function servicePlaneHTTPContextCreatorFactory(services: TServices)
         const resolvedConfig = await returnOf(async () => {
             // TODO: remove this; this is how you get the socket -> options.req.socket;
 
-            if (!appKey) {
+            if (!appId) {
                 logger.warn(`no appKey set`);
                 return null;
             }
@@ -64,12 +69,12 @@ export async function servicePlaneHTTPContextCreatorFactory(services: TServices)
 
             try {
                 const configRequestURL = new URL(`${env.AIRSTATE_CONFIG_API_BASE_URL}/config`);
-                configRequestURL.searchParams.set('appKey', appKey);
+                configRequestURL.searchParams.set('appId', appId);
 
                 const configRequest = await fetch(`${configRequestURL}`);
                 return configSchema.parse(await configRequest.json());
             } catch (error) {
-                logger.error(`could not get config for ${appKey}`, error);
+                logger.error(`could not get config for ${appId}`, error);
                 return null;
             }
         });
@@ -79,9 +84,9 @@ export async function servicePlaneHTTPContextCreatorFactory(services: TServices)
             : defaultPermissions;
 
         return {
-            namespace: resolvedConfig?.namespace ?? '__ANONYMOUS',
-            connectionID: nanoid(),
-            appKey: appKey,
+            namespace: resolvedConfig?.namespace ?? '__default',
+            connectionId: nanoid(),
+            appKey: appId,
             appSecret: resolvedConfig?.app_secret ?? env.SHARED_SIGNING_KEY,
             clientSentConnectionID: connectionId,
             clientId: clientId,
