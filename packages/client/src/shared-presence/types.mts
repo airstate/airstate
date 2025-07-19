@@ -12,6 +12,8 @@ export type TPresenceState<
             meta?: META_TYPE;
             state: STATE_TYPE;
 
+            error?: any;
+
             lastUpdated: number;
         }
     >;

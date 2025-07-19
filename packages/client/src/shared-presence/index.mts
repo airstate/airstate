@@ -7,8 +7,10 @@ export type TSharedPresenceOptions<T extends TJSONAble | undefined> = {
     peerId: string;
     room?: string;
     token?: string | (() => string) | (() => Promise<string>);
-    initialState?: T;
+    initialState: T;
+
     validate?: (rawState: any) => T;
+    throwOnValidationError?: boolean;
 };
 
 export type TSharedPresence<T extends TJSONAble | undefined = TJSONAble> = {
