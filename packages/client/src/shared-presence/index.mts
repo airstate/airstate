@@ -1,15 +1,17 @@
 import { getDefaultClient, TAirStateClient } from '../client.mjs';
 import { TPresenceState } from './types.mjs';
+import { TJSONAble } from '../ydocjson.mjs';
 
-export type TSharedPresenceOptions<T> = {
+export type TSharedPresenceOptions<T extends TJSONAble | undefined> = {
     client?: TAirStateClient;
     peerId: string;
     room?: string;
     token?: string | (() => string) | (() => Promise<string>);
     initialState?: T;
+    validate?: (rawState: any) => T;
 };
 
-export type TSharedPresence<T extends Record<string, any> = Record<string, any>> = {
+export type TSharedPresence<T extends TJSONAble | undefined = TJSONAble> = {
     readonly self: TPresenceState<T>['peers'][string];
     readonly others: TPresenceState<T>['peers'];
     readonly setState: (update: T | ((prev: T) => T)) => void;
@@ -25,7 +27,7 @@ export type TSharedPresence<T extends Record<string, any> = Record<string, any>>
     readonly onDisconnect: (listener: () => void) => () => boolean;
 };
 
-export function sharedPresence<T extends Record<string, any>>(
+export function sharedPresence<T extends TJSONAble | undefined>(
     options: TSharedPresenceOptions<T>,
 ): TSharedPresence<T> {
     const updateListeners = new Set<
@@ -55,12 +57,10 @@ export function sharedPresence<T extends Record<string, any>>(
     const currentState: TPresenceState<T> = {
         peers: {
             [options.peerId]: {
-                peer_id: options.peerId,
+                peerId: options.peerId,
 
-                state: {
-                    state: options.initialState as any,
-                    lastUpdateTimestamp: Date.now(),
-                },
+                state: options.initialState as any,
+                lastUpdated: Date.now(),
             },
         },
         stats: {
@@ -71,10 +71,8 @@ export function sharedPresence<T extends Record<string, any>>(
     if (options.initialState) {
         currentState.peers[options.peerId] = {
             ...currentState.peers[options.peerId],
-            state: {
-                state: options.initialState,
-                lastUpdateTimestamp: Date.now(),
-            },
+            state: options.initialState,
+            lastUpdated: Date.now(),
         };
     }
 
@@ -122,7 +120,7 @@ export function sharedPresence<T extends Record<string, any>>(
                 sessionID: sessionId,
                 update: {
                     type: 'state',
-                    state: currentState.peers[options.peerId].state?.state ?? {},
+                    state: currentState.peers[options.peerId].state,
                 },
             });
 
@@ -150,7 +148,7 @@ export function sharedPresence<T extends Record<string, any>>(
     }
 
     function triggerInitialSync() {
-        if (currentState.peers[options.peerId].state?.state) {
+        if (currentState.peers[options.peerId].state !== undefined) {
             triggerStateSync(true);
         }
     }
@@ -188,11 +186,8 @@ export function sharedPresence<T extends Record<string, any>>(
                 } else if (message.type === 'meta') {
                     currentState.peers[message.peer_id] = {
                         ...currentState.peers[message.peer_id],
-                        peer_id: message.peer_id,
-                        meta: {
-                            meta: message.meta,
-                            lastUpdateTimestamp: message.timestamp,
-                        },
+                        peerId: message.peer_id,
+                        meta: message.meta,
                     };
 
                     recalculateSummary();
@@ -200,11 +195,9 @@ export function sharedPresence<T extends Record<string, any>>(
                 } else if (message.type === 'state') {
                     currentState.peers[message.peer_id] = {
                         ...currentState.peers[message.peer_id],
-                        peer_id: message.peer_id,
-                        state: {
-                            state: message.state as any,
-                            lastUpdateTimestamp: message.timestamp,
-                        },
+                        peerId: message.peer_id,
+                        state: message.state as any,
+                        lastUpdated: message.timestamp,
                     };
 
                     recalculateSummary();
@@ -225,15 +218,12 @@ export function sharedPresence<T extends Record<string, any>>(
             return others;
         },
         setState: (update) => {
-            const nextState =
+            currentState.peers[options.peerId].state =
                 typeof update === 'function'
-                    ? update(currentState.peers[options.peerId].state?.state as any)
+                    ? update(currentState.peers[options.peerId].state as any)
                     : update;
 
-            currentState.peers[options.peerId].state = {
-                state: nextState,
-                lastUpdateTimestamp: Date.now(),
-            };
+            currentState.peers[options.peerId].lastUpdated = Date.now();
 
             triggerStateSync();
             recalculateSummary();

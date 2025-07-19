@@ -1,19 +1,22 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { TSharedPresenceOptions, TSharedPresence, TPresenceState, sharedPresence } from '@airstate/client';
+import { TSharedPresenceOptions, TSharedPresence, TPresenceState, sharedPresence, TJSONAble } from '@airstate/client';
 import { useForceUpdate } from '../utils/useForceUpdate.mjs';
 
-export function useSharedPresence<T extends Record<string, any>>(
+export function useSharedPresence<T extends TJSONAble | undefined>(
     options: TSharedPresenceOptions<T>,
 ): {
     self: TPresenceState<T>['peers'][string];
     others: TPresenceState<T>['peers'];
-    stats: TPresenceState['stats'];
+    stats: TPresenceState<T>['stats'];
     setState: (value: T | ((prev: T) => T)) => void;
 } {
     const resolvedInitState: TPresenceState<T> = {
         peers: {
             [options.peerId]: {
-                peer_id: options.peerId,
+                peerId: options.peerId,
+
+                state: options.initialState as any,
+                lastUpdated: Date.now(),
             },
         },
         stats: {
@@ -24,10 +27,8 @@ export function useSharedPresence<T extends Record<string, any>>(
     if (options.initialState) {
         resolvedInitState.peers[options.peerId] = {
             ...resolvedInitState.peers[options.peerId],
-            state: {
-                state: options.initialState,
-                lastUpdateTimestamp: Date.now(),
-            },
+            state: options.initialState,
+            lastUpdated: Date.now(),
         };
     }
 
@@ -47,7 +48,7 @@ export function useSharedPresence<T extends Record<string, any>>(
             publicStateRef.current = {
                 peers: {
                     ...value.others,
-                    [value.self.peer_id]: value.self,
+                    [value.self.peerId]: value.self,
                 },
                 stats: value.stats,
             };
@@ -75,7 +76,11 @@ export function useSharedPresence<T extends Record<string, any>>(
     }, []);
 
     return {
-        self: publicStateRef.current.peers[options.peerId],
+        self: {
+            peerId: options.peerId,
+            state: publicStateRef.current.peers[options.peerId].state,
+            lastUpdated: publicStateRef.current.peers[options.peerId].lastUpdated,
+        },
         get others() {
             const others = { ...publicStateRef.current.peers };
             delete others[options.peerId];

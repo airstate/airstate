@@ -9,8 +9,9 @@ services:
         command: pnpm run dev
         environment:
             NODE_ENV: development
-            AIRSTATE_NATS_URLS: 'nats://nats:4222'
+            AIRSTATE_NATS_URL: 'nats://nats:4222'
             AIRSTATE_PORT: 11001
+            AIRSTATE_VALKEY_URL: 'redis://valkey:6379'
 
         ports:
             - target: 11001 # `server` HTTP port

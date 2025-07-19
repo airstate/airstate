@@ -20,7 +20,7 @@ export const presenceUpdateMutationProcedure = servicePlanePassthroughProcedure
                 update: z.discriminatedUnion('type', [
                     z.object({
                         type: z.literal('state'),
-                        state: z.record(z.string(), z.any()),
+                        state: z.any(),
                     }),
                 ]),
             })

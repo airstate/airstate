@@ -77,7 +77,7 @@ export const peerInitMutationProcedure = servicePlanePassthroughProcedure
 
         const key = `${ctx.namespace}__${hashedRoomId}`;
         const commonSubjectPrefix = `presence.${key}`;
-        const streamName = `presence.${key}`;
+        const streamName = `presence_${key}`;
 
         // const telemetryTrackerRoom = initTelemetryTrackerRoom(
         //     ctx.services.ephemeralState.telemetryTracker,

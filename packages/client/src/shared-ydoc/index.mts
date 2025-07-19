@@ -2,6 +2,7 @@ import * as y from 'yjs';
 import { AirStateInitialStateUndoManager, RemoteOrigin } from '../nominal-types.mjs';
 import { base64ToUint8Array, uint8ArrayToBase64 } from '../utils.mjs';
 import { getDefaultClient, TAirStateClient } from '../client.mjs';
+import { decodeYDocToObject } from '../ydocjson.mjs';
 
 export type TSharedYDocOptions = {
     client?: TAirStateClient;

@@ -4,11 +4,17 @@ import { useForceUpdate } from '../utils/useForceUpdate.mjs';
 
 export type TOptions = {
     client?: TAirStateClient;
+
+    /**
+     * @deprecated prefer `channel` instead
+     */
     key?: string;
+
+    channel?: string;
     token?: string | (() => string | Promise<string>);
 };
 
-export function useSharedState<T extends TJSONAble = TJSONAble>(
+export function useSharedState<T extends TJSONAble>(
     initialState: T | (() => T),
     options?: TOptions,
 ): [T, (value: T | ((prev: T) => T)) => void, boolean] {
@@ -27,7 +33,7 @@ export function useSharedState<T extends TJSONAble = TJSONAble>(
     useEffect(() => {
         const sharedStateInstance = sharedState({
             client: options?.client,
-            key: options?.key,
+            channel: options?.channel ?? options?.key,
             token: options?.token,
             initialValue: initialState,
         });
@@ -50,21 +56,12 @@ export function useSharedState<T extends TJSONAble = TJSONAble>(
             forceUpdate();
         });
 
-        const cleanupOnConnect = sharedStateInstance.onConnect(() => {
-            console.info('client connected...');
-        });
-
-        const cleanupOnDisconnect = sharedStateInstance.onDisconnect(() => {
-            console.info('client disconnected.');
-        });
         const cleanupOnError = sharedStateInstance.onError((error) => {
             console.error(error);
             throw new Error(error?.message);
         });
 
         return () => {
-            cleanupOnConnect();
-            cleanupOnDisconnect();
             cleanupOnError();
             cleanupOnSynced();
             cleanupOnUpdate();

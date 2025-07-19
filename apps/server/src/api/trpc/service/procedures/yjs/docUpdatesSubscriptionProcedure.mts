@@ -52,11 +52,17 @@ export const docUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
         const hashedDocumentId: string = createHash('sha256').update(documentId).digest('hex');
 
         runInAction(() => {
-            ctx.services.localState.sessionMeta[sessionId] = {
-                type: 'yjs',
+            const initialSessionObject = {
+                type: 'yjs' as const,
                 documentId: documentId,
                 hashedDocumentId: hashedDocumentId,
             };
+
+            ctx.services.localState.sessionMeta[sessionId] = initialSessionObject;
+
+            logger.debug(`initialized session "${sessionId}"`, {
+                session: initialSessionObject,
+            });
         });
 
         try {
@@ -68,7 +74,7 @@ export const docUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
             await when(
                 () =>
                     !(sessionId in ctx.services.localState.sessionMeta) ||
-                    ctx.services.localState.sessionMeta[sessionId].type === 'yjs' ||
+                    ctx.services.localState.sessionMeta[sessionId].type !== 'yjs' ||
                     !!ctx.services.localState.sessionMeta[sessionId].meta,
                 {
                     signal: signal,
@@ -105,7 +111,7 @@ export const docUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
 
             const key = `${ctx.namespace}__${hashedDocumentId}`;
             const subject = `yjs.${key}`;
-            const streamName = `yjs.${key}`;
+            const streamName = `yjs_${key}`;
             const consumerName = `yjs_subscription_consumer_${nanoid()}`;
 
             // const telemetryTrackerRoom = initTelemetryTrackerRoom(

@@ -18,7 +18,7 @@ export type TPresenceMessage =
       }
     | {
           type: 'init';
-          state: TPresenceState;
+          state: TPresenceState<any>;
       }
     | {
           peer_id: string;
@@ -99,7 +99,7 @@ export const roomUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
             });
 
             const key = `${ctx.namespace}__${hashedClientSentRoomId}`;
-            const streamName = `presence.${key}`;
+            const streamName = `presence_${key}`;
 
             // const telemetryTrackerRoom = initTelemetryTrackerRoom(
             //     ctx.services.ephemeralState.telemetryTracker,

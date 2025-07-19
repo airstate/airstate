@@ -5,7 +5,14 @@ import { TAirStateClient } from '../client.mjs';
 
 export type TSharedStateOptions<T extends TJSONAble> = {
     client?: TAirStateClient;
+
+    /**
+     * @deprecated prefer `channel` instead
+     */
     key?: string;
+
+    channel?: string;
+
     token?: string | (() => string | Promise<string>);
     initialValue?: T | (() => T);
 };
@@ -24,6 +31,8 @@ export type TSharedState<T extends TJSONAble> = {
 export function sharedState<T extends TJSONAble = any>(
     options?: TSharedStateOptions<T>,
 ): TSharedState<T> {
+    const documentId = options?.channel ?? options?.key;
+
     const updateListeners = new Set<(value: T, origin: any) => void>();
     const syncedListeners = new Set<(value: T) => void>();
     const errorListeners = new Set<(error?: Error) => void>();
@@ -31,6 +40,8 @@ export function sharedState<T extends TJSONAble = any>(
     const disconnectListeners = new Set<() => void>();
 
     let usingDoc = new y.Doc();
+    (usingDoc as any).since = 'original';
+
     let isSynced = false;
 
     const resolvedInitialValue =
@@ -81,7 +92,7 @@ export function sharedState<T extends TJSONAble = any>(
         };
     }
 
-    if (resolvedInitialValue) {
+    if (resolvedInitialValue !== undefined) {
         y.transact(
             usingDoc,
             () => {
@@ -98,7 +109,8 @@ export function sharedState<T extends TJSONAble = any>(
 
     const sharedDoc = sharedYDoc({
         doc: usingDoc,
-        documentId: options?.key,
+
+        documentId: documentId,
         client: options?.client,
         token: options?.token,
     });
@@ -118,7 +130,7 @@ export function sharedState<T extends TJSONAble = any>(
 
             const nextSharedDoc = sharedYDoc({
                 doc: nextDoc,
-                documentId: options?.key,
+                documentId: documentId,
                 client: options?.client,
                 token: options?.token,
             });

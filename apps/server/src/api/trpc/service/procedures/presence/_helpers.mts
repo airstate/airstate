@@ -1,6 +1,7 @@
 import { JetStreamServices } from '../../../../../types/nats.mjs';
 import { nanoid } from 'nanoid';
 import { AckPolicy, DeliverPolicy, StringCodec } from 'nats';
+import { TJSONAble } from '../../../../../types/misc.mjs';
 
 const stringCodec = StringCodec();
 
@@ -20,28 +21,18 @@ export type TNATSPresenceMessage = {
 );
 
 export type TPresenceState<
-    DYNAMIC_STATE_TYPE extends Record<string, any> = Record<string, any>,
-    STATIC_STATE_TYPE extends Record<string, any> = Record<string, any>,
+    STATE_TYPE extends TJSONAble | undefined,
+    META_TYPE extends Record<string, any> = Record<string, any>,
 > = {
     peers: Record<
         string,
         {
-            client_id: string;
+            peerId: string;
 
-            connectionState?: {
-                connected: boolean;
-                lastUpdateTimestamp: number;
-            };
+            meta?: STATE_TYPE;
+            state: META_TYPE;
 
-            meta?: {
-                meta: STATIC_STATE_TYPE;
-                lastUpdateTimestamp: number;
-            };
-
-            state?: {
-                state: DYNAMIC_STATE_TYPE;
-                lastUpdateTimestamp: number;
-            };
+            lastUpdated: number;
         }
     >;
     stats: {
@@ -52,7 +43,7 @@ export type TPresenceState<
 export async function getInitialPresenceState(
     jetStream: JetStreamServices,
     streamName: string,
-): Promise<{ state: TPresenceState; lastSeq: number }> {
+): Promise<{ state: TPresenceState<any>; lastSeq: number }> {
     const ephemeralConsumerName = `coordinator_consumer_${nanoid()}`;
 
     await jetStream.jetStreamManager.consumers.add(streamName, {
@@ -71,17 +62,12 @@ export async function getInitialPresenceState(
     const peerMap: Record<
         string,
         {
-            client_id: string;
+            peerId: string;
 
-            meta?: {
-                meta: Record<string, any>;
-                lastUpdateTimestamp: number;
-            };
+            meta?: any;
+            state: any;
 
-            state?: {
-                state: Record<string, any>;
-                lastUpdateTimestamp: number;
-            };
+            lastUpdated: number;
         }
     > = {};
 
@@ -106,22 +92,18 @@ export async function getInitialPresenceState(
 
             if (!(message.peer_id in peerMap)) {
                 peerMap[message.peer_id] = {
-                    client_id: message.peer_id,
+                    peerId: message.peer_id,
+                    state: undefined,
+                    lastUpdated: Date.now(),
                 };
             }
 
             const peer = peerMap[message.peer_id];
 
             if (message.type === 'meta') {
-                peer.meta = {
-                    meta: message.meta,
-                    lastUpdateTimestamp: message.timestamp,
-                };
+                peer.meta = message.meta;
             } else if (message.type === 'state') {
-                peer.state = {
-                    state: message.state,
-                    lastUpdateTimestamp: message.timestamp,
-                };
+                peer.state = message.state;
             }
 
             messagesRead++;

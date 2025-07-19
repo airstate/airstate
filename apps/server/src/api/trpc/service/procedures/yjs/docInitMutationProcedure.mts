@@ -41,7 +41,7 @@ export const docInitMutationProcedure = servicePlanePassthroughProcedure
         if (!(sessionId in ctx.services.localState.sessionMeta)) {
             throw new TRPCError({
                 code: 'NOT_FOUND',
-                message: 'session not found',
+                message: `session "${sessionId}" not found when initializing yjs doc`,
             });
         }
 
@@ -58,7 +58,7 @@ export const docInitMutationProcedure = servicePlanePassthroughProcedure
 
         const key = `${ctx.namespace}__${hashedDocumentId}`;
         const subject = `yjs.${key}`;
-        const streamName = `yjs.${key}`;
+        const streamName = `yjs_${key}`;
 
         const meta = {
             permissions: defaultPermissions['yjs'],

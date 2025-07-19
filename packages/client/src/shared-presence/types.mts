@@ -1,26 +1,18 @@
+import { TJSONAble } from '../ydocjson.mjs';
+
 export type TPresenceState<
-    DYNAMIC_STATE_TYPE extends Record<string, any> = Record<string, any>,
-    STATIC_STATE_TYPE extends Record<string, any> = Record<string, any>,
+    STATE_TYPE extends TJSONAble | undefined,
+    META_TYPE extends Record<string, any> = Record<string, any>,
 > = {
     peers: Record<
         string,
         {
-            peer_id: string;
+            peerId: string;
 
-            connectionState?: {
-                connected: boolean;
-                lastUpdateTimestamp: number;
-            };
+            meta?: META_TYPE;
+            state: STATE_TYPE;
 
-            meta?: {
-                meta: STATIC_STATE_TYPE;
-                lastUpdateTimestamp: number;
-            };
-
-            state?: {
-                state: DYNAMIC_STATE_TYPE;
-                lastUpdateTimestamp: number;
-            };
+            lastUpdated: number;
         }
     >;
     stats: {
