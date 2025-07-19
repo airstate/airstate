@@ -10,7 +10,6 @@ export type TSharedPresenceOptions<T extends TJSONAble> = {
     initialState: T;
 
     validate?: (rawState: any) => T;
-    throwOnValidationError?: boolean;
 };
 
 export type TSharedPresence<T extends TJSONAble = TJSONAble> = {
@@ -24,7 +23,7 @@ export type TSharedPresence<T extends TJSONAble = TJSONAble> = {
             stats: TPresenceState<T>['stats'];
         }) => void,
     ) => () => boolean;
-    readonly onError: (listener: (error?: Error) => void) => () => boolean;
+    readonly onError: (listener: (error?: any) => void) => () => boolean;
     readonly onConnect: (listener: () => void) => () => boolean;
     readonly onDisconnect: (listener: () => void) => () => boolean;
 };
@@ -40,7 +39,7 @@ export function sharedPresence<T extends TJSONAble>(
             state: TPresenceState<T>;
         }) => void
     >();
-    const errorListeners = new Set<(error?: Error) => void>();
+    const errorListeners = new Set<(error?: any) => void>();
     const connectListeners = new Set<() => void>();
     const disconnectListeners = new Set<() => void>();
 
@@ -221,9 +220,9 @@ export function sharedPresence<T extends TJSONAble>(
                                 lastUpdated: message.timestamp,
                             };
 
-                            if (options.throwOnValidationError) {
-                                throw error;
-                            }
+                            errorListeners.forEach((listener) => {
+                                listener(error);
+                            });
                         }
                     } else {
                         currentState.peers[message.peer_id] = {
