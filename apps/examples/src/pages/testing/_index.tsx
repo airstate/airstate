@@ -1,6 +1,5 @@
-import React, { useId, useState } from 'react';
+import React from 'react';
 import { useSharedState, configure, useSharedPresence } from '@airstate/react';
-import { nanoid } from 'nanoid';
 import { z } from 'astro/zod';
 
 configure({
@@ -13,14 +12,12 @@ const id = usp.get('id') ?? 'default';
 const peer = usp.get('peer') ?? 'default';
 
 export default function App() {
-    const [state, setState] = useSharedState<{ tomato: boolean }>(
-        {
-            tomato: false,
+    const [state, setState, ready] = useSharedState('off', {
+        channel: id,
+        validate(data) {
+            return z.enum(['on', 'off']).parse(data);
         },
-        {
-            channel: id,
-        },
-    );
+    });
 
     const {
         self,
@@ -43,12 +40,8 @@ export default function App() {
                 <br />
                 <input
                     type={'checkbox'}
-                    checked={state.tomato}
-                    onChange={(ev) =>
-                        setState({
-                            tomato: ev.target.checked,
-                        })
-                    }
+                    checked={state === 'on'}
+                    onChange={(ev) => setState(ev.target.checked ? 'on' : 'off')}
                 />
                 <br />
                 {Object.values(others).map((other) => {
