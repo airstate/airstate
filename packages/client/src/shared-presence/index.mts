@@ -229,7 +229,7 @@ export function sharedPresence<T extends TJSONAble>(
                         currentState.peers[message.peer_id] = {
                             ...currentState.peers[message.peer_id],
                             peerId: message.peer_id,
-                            state: message.state as any,
+                            state: message.state,
                             lastUpdated: message.timestamp,
                         };
                     }
