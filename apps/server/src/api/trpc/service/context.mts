@@ -31,10 +31,7 @@ export async function servicePlaneHTTPContextCreatorFactory(services: TServices)
 
         await logQueue.push({
             level: 'warn',
-            logs: [
-                '%cNote: You are using a very early preview version of useSharedState by AirState.',
-                'padding: 0.5rem 0 0.5rem 0;',
-            ],
+            logs: ['%cNote: You are using a very early preview version of AirState.', 'padding: 0.5rem 0 0.5rem 0;'],
         });
 
         // `clientID` is DEPRECATED. `clientId` preferred.
