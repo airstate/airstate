@@ -2,7 +2,7 @@ import { getDefaultClient, TAirStateClient } from '../client.mjs';
 import { TPresenceState } from './types.mjs';
 import { TJSONAble } from '../ydocjson.mjs';
 
-export type TSharedPresenceOptions<T extends TJSONAble | undefined> = {
+export type TSharedPresenceOptions<T extends TJSONAble> = {
     client?: TAirStateClient;
     peerId: string;
     room?: string;
@@ -13,7 +13,7 @@ export type TSharedPresenceOptions<T extends TJSONAble | undefined> = {
     throwOnValidationError?: boolean;
 };
 
-export type TSharedPresence<T extends TJSONAble | undefined = TJSONAble> = {
+export type TSharedPresence<T extends TJSONAble = TJSONAble> = {
     readonly self: TPresenceState<T>['peers'][string];
     readonly others: TPresenceState<T>['peers'];
     readonly setState: (update: T | ((prev: T) => T)) => void;
@@ -29,7 +29,7 @@ export type TSharedPresence<T extends TJSONAble | undefined = TJSONAble> = {
     readonly onDisconnect: (listener: () => void) => () => boolean;
 };
 
-export function sharedPresence<T extends TJSONAble | undefined>(
+export function sharedPresence<T extends TJSONAble>(
     options: TSharedPresenceOptions<T>,
 ): TSharedPresence<T> {
     const updateListeners = new Set<
@@ -110,6 +110,8 @@ export function sharedPresence<T extends TJSONAble | undefined>(
     let stateSyncingFailed = -1;
 
     async function syncState() {
+        const peer = currentState.peers[options.peerId];
+
         if (syncingState || !sessionId) {
             return;
         }
@@ -122,7 +124,7 @@ export function sharedPresence<T extends TJSONAble | undefined>(
                 sessionID: sessionId,
                 update: {
                     type: 'state',
-                    state: currentState.peers[options.peerId].state,
+                    state: peer.state,
                 },
             });
 
@@ -150,7 +152,9 @@ export function sharedPresence<T extends TJSONAble | undefined>(
     }
 
     function triggerInitialSync() {
-        if (currentState.peers[options.peerId].state !== undefined) {
+        const peer = currentState.peers[options.peerId];
+
+        if (peer.state !== undefined) {
             triggerStateSync(true);
         }
     }
@@ -195,12 +199,39 @@ export function sharedPresence<T extends TJSONAble | undefined>(
                     recalculateSummary();
                     notifyListeners();
                 } else if (message.type === 'state') {
-                    currentState.peers[message.peer_id] = {
-                        ...currentState.peers[message.peer_id],
-                        peerId: message.peer_id,
-                        state: message.state as any,
-                        lastUpdated: message.timestamp,
-                    };
+                    if (options.validate) {
+                        try {
+                            const nextState = options.validate(message.state);
+                            const nextPeer = {
+                                ...currentState.peers[message.peer_id],
+                                peerId: message.peer_id,
+                                state: nextState as any,
+                                lastUpdated: message.timestamp,
+                            };
+
+                            delete nextPeer['error'];
+
+                            currentState.peers[message.peer_id] = nextPeer;
+                        } catch (error) {
+                            currentState.peers[message.peer_id] = {
+                                ...currentState.peers[message.peer_id],
+                                peerId: message.peer_id,
+                                error: error,
+                                lastUpdated: message.timestamp,
+                            };
+
+                            if (options.throwOnValidationError) {
+                                throw error;
+                            }
+                        }
+                    } else {
+                        currentState.peers[message.peer_id] = {
+                            ...currentState.peers[message.peer_id],
+                            peerId: message.peer_id,
+                            state: message.state as any,
+                            lastUpdated: message.timestamp,
+                        };
+                    }
 
                     recalculateSummary();
                     notifyListeners();
@@ -220,12 +251,20 @@ export function sharedPresence<T extends TJSONAble | undefined>(
             return others;
         },
         setState: (update) => {
-            currentState.peers[options.peerId].state =
-                typeof update === 'function'
-                    ? update(currentState.peers[options.peerId].state as any)
-                    : update;
+            const peer = currentState.peers[options.peerId];
 
-            currentState.peers[options.peerId].lastUpdated = Date.now();
+            const nextPeer = {
+                ...peer,
+                state:
+                    typeof update === 'function'
+                        ? update(currentState.peers[options.peerId].state as any)
+                        : update,
+                lastUpdated: Date.now(),
+            };
+
+            delete nextPeer['error'];
+
+            currentState.peers[options.peerId] = nextPeer;
 
             triggerStateSync();
             recalculateSummary();
