@@ -3,16 +3,30 @@ import { TPermissions } from '../schema/config.mjs';
 
 export type TLocalState = {
     sessionMeta: {
-        [sessionID: string]: {
-            roomKey: string;
-            roomKeyHashed: string;
+        [sessionId: string]:
+            | {
+                  type: 'yjs';
 
-            meta?: {
-                peerKey: string;
-                hashedPeerKey: string;
-                permissions: TPermissions;
-            };
-        };
+                  documentId: string;
+                  hashedDocumentId: string;
+
+                  meta?: {
+                      permissions: TPermissions['yjs'];
+                  };
+              }
+            | {
+                  type: 'presence';
+
+                  roomId: string;
+                  hashedRoomId: string;
+
+                  meta?: {
+                      peerId: string;
+                      hashedPeerId: string;
+
+                      permissions: TPermissions['presence'];
+                  };
+              };
     };
 };
 

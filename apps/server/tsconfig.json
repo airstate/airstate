@@ -60,7 +60,7 @@
         /* Create sourcemaps for d.ts files. */ // "emitDeclarationOnly": true,                      /* Only output d.ts files and not JavaScript files. */
         //     "sourceMap": true,                                /* Create source map files for emitted JavaScript files. */
         // "outFile": "./",                                  /* Specify a file that bundles all outputs into one JavaScript file. If `declaration` is true, also designates a file that bundles all .d.ts output. */
-        // "removeComments": true,                           /* Disable emitting comments. */
+         "removeComments": false,                           /* Disable emitting comments. */
         // "noEmit": true,                                   /* Disable emitting files from a compilation. */
         // "importHelpers": true,                            /* Allow importing helper functions from tslib once per project, instead of including them per-file. */
         // "importsNotUsedAsValues": "remove",               /* Specify emit/checking behavior for imports that are only used for schemas */
@@ -70,7 +70,7 @@
         /* Include sourcemap files inside the emitted JavaScript. */ "inlineSources": true,
         /* Include source code in the sourcemaps inside the emitted JavaScript. */ // "emitBOM": true,                                  /* Emit a UTF-8 Byte Order Mark (BOM) in the beginning of output files. */
         // "newLine": "crlf",                                /* Set the newline character for emitting files. */
-        // "stripInternal": true,                            /* Disable emitting declarations that have `@internal` in their JSDoc comments. */
+         "stripInternal": false,                            /* Disable emitting declarations that have `@internal` in their JSDoc comments. */
         // "noEmitHelpers": true,                            /* Disable generating custom helper functions like `__extends` in compiled output. */
         // "noEmitOnError": true,                            /* Disable emitting files if any type checking errors are reported. */
         // "preserveConstEnums": true,                       /* Disable erasing `const enum` declarations in generated code. */

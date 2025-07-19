@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z, ZodType } from 'zod';
 import { servicePlanePassthroughProcedure } from '../../middleware/passthrough.mjs';
 import { TRPCError } from '@trpc/server';
 import { defaultPermissions } from '../../context.mjs';
@@ -14,31 +14,54 @@ import { runInAction } from 'mobx';
 export const docInitMutationProcedure = servicePlanePassthroughProcedure
     .meta({ writePermissionRequired: true })
     .input(
-        z.object({
-            sessionID: z.string(),
-            token: z.string().nullable(),
-            initialState: z.string().optional(),
-        }),
+        z
+            .object({
+                token: z.string().nullable(),
+                initialState: z.string().optional(),
+            })
+            .and(
+                z.union([
+                    z.object({
+                        sessionID: z.string(),
+                    }) as ZodType<{
+                        /**
+                         * @deprecated prefer `sessionId` instead.
+                         */
+                        sessionID: string;
+                    }>,
+                    z.object({
+                        sessionId: z.string(),
+                    }),
+                ]),
+            ),
     )
     .mutation(async function ({ ctx, input }) {
-        if (!(input.sessionID in ctx.services.localState.sessionMeta)) {
+        const sessionId = 'sessionId' in input ? input.sessionId : input.sessionID;
+
+        if (!(sessionId in ctx.services.localState.sessionMeta)) {
             throw new TRPCError({
                 code: 'NOT_FOUND',
                 message: 'session not found',
             });
         }
 
-        const sessionMeta = ctx.services.localState.sessionMeta[input.sessionID];
-        const hashedRoomKey = sessionMeta.roomKeyHashed;
+        const sessionMeta = ctx.services.localState.sessionMeta[sessionId];
 
-        const key = `${ctx.namespace}__${hashedRoomKey}`;
+        if (sessionMeta.type !== 'yjs') {
+            throw new TRPCError({
+                code: 'CONFLICT',
+                message: 'the session is not a yjs session',
+            });
+        }
+
+        const hashedDocumentId = sessionMeta.hashedDocumentId;
+
+        const key = `${ctx.namespace}__${hashedDocumentId}`;
         const subject = `yjs.${key}`;
-        const streamName = `yjs_${key}`;
+        const streamName = `yjs.${key}`;
 
         const meta = {
-            peerKey: '',
-            hashedPeerKey: '',
-            permissions: defaultPermissions,
+            permissions: defaultPermissions['yjs'],
         };
 
         if (input.token) {
@@ -48,7 +71,7 @@ export const docInitMutationProcedure = servicePlanePassthroughProcedure
                 const extracted = extractTokenPayload(input.token, ctx.appSecret);
 
                 if (extracted) {
-                    meta.permissions = merge(defaultPermissions, extracted.data.permissions ?? {});
+                    meta.permissions = merge(defaultPermissions['yjs'], extracted.data.yjs?.permissions ?? {});
                 }
             }
         }
@@ -84,7 +107,7 @@ export const docInitMutationProcedure = servicePlanePassthroughProcedure
         let hasWrittenFirstUpdate: boolean = false;
 
         const publishHeaders = headers();
-        publishHeaders.set('sessionID', input.sessionID);
+        publishHeaders.set('sessionId', sessionId);
 
         while (!!input.initialState) {
             try {

@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z, ZodAny, ZodObject, ZodString, ZodType, type ZodTypeAny } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { servicePlanePassthroughProcedure } from '../../middleware/passthrough.mjs';
 import { extractTokenPayload } from '../../../../../auth/permissions/index.mjs';
@@ -17,24 +17,65 @@ import { runInAction } from 'mobx';
 export const peerInitMutationProcedure = servicePlanePassthroughProcedure
     .meta({ writePermissionRequired: true })
     .input(
-        z.object({
-            sessionID: z.string(),
-            peerKey: z.string(),
-            token: z.string().nullable(),
-        }),
+        z
+            .object({
+                token: z.string().nullable(),
+            })
+            .and(
+                z.union([
+                    z.object({
+                        sessionID: z.string(),
+                    }) as ZodType<{
+                        /**
+                         * @deprecated prefer `sessionId` instead.
+                         */
+                        sessionID: string;
+                    }>,
+                    z.object({
+                        sessionId: z.string(),
+                    }),
+                ]),
+            )
+            .and(
+                z.union([
+                    z.object({
+                        peerKey: z.string(),
+                    }) as ZodType<{
+                        /**
+                         * @deprecated prefer `peerId` instead.
+                         */
+                        peerKey: string;
+                    }>,
+                    z.object({
+                        peerId: z.string(),
+                    }),
+                ]),
+            ),
     )
     .mutation(async function ({ ctx, input, signal }) {
-        if (!(input.sessionID in ctx.services.localState.sessionMeta)) {
+        const sessionId = 'sessionId' in input ? input.sessionId : input.sessionID;
+        const peerId = 'peerId' in input ? input.peerId : input.peerKey;
+
+        if (!(sessionId in ctx.services.localState.sessionMeta)) {
             throw new TRPCError({
                 code: 'NOT_FOUND',
                 message: 'session not found',
             });
         }
 
-        const hashedRoomKey = ctx.services.localState.sessionMeta[input.sessionID].roomKeyHashed;
-        const hashedPeerKey = createHash('sha256').update(input.peerKey).digest('hex');
+        const sessionMeta = ctx.services.localState.sessionMeta[sessionId];
 
-        const key = `${ctx.namespace}__${hashedRoomKey}`;
+        if (sessionMeta.type !== 'presence') {
+            throw new TRPCError({
+                code: 'CONFLICT',
+                message: `the session is of the wrong type, expected "presence" got "${sessionMeta.type}"`,
+            });
+        }
+
+        const hashedRoomId = sessionMeta.hashedRoomId;
+        const hashedPeerId = createHash('sha256').update(peerId).digest('hex');
+
+        const key = `${ctx.namespace}__${hashedRoomId}`;
         const commonSubjectPrefix = `presence.${key}`;
         const streamName = `presence.${key}`;
 
@@ -55,9 +96,9 @@ export const peerInitMutationProcedure = servicePlanePassthroughProcedure
         // const telemetryTrackerRoomClient = initTelemetryTrackerRoomClient(telemetryTrackerRoom, telemetryTrackerClient);
 
         const commonMeta = {
-            peerKey: input.peerKey,
-            hashedPeerKey: hashedPeerKey,
-            permissions: defaultPermissions,
+            peerId: peerId,
+            hashedPeerId: hashedPeerId,
+            permissions: defaultPermissions['presence'],
         };
 
         if (input.token) {
@@ -65,27 +106,30 @@ export const peerInitMutationProcedure = servicePlanePassthroughProcedure
                 logger.warn('no shared signing key, cannot verify token');
 
                 runInAction(() => {
-                    ctx.services.localState.sessionMeta[input.sessionID].meta = commonMeta;
+                    ctx.services.localState.sessionMeta[sessionId].meta = commonMeta;
                 });
             } else {
                 const extracted = extractTokenPayload(input.token, ctx.appSecret);
 
                 if (extracted) {
-                    if (extracted.data.presence?.peerKey && extracted.data.presence.peerKey !== input.peerKey) {
+                    if (extracted.data.presence?.peerId && extracted.data.presence.peerId !== peerId) {
                         throw new TRPCError({
                             code: 'CONFLICT',
-                            message: 'peer key mismatch between token and request',
+                            message: 'peerId mismatch between token and request',
                         });
                     }
 
                     runInAction(() => {
-                        ctx.services.localState.sessionMeta[input.sessionID].meta = {
+                        ctx.services.localState.sessionMeta[sessionId].meta = {
                             ...commonMeta,
-                            permissions: merge(defaultPermissions, extracted.data.permissions ?? {}),
+                            permissions: merge(
+                                defaultPermissions['presence'],
+                                extracted.data.presence?.permissions ?? {},
+                            ),
                         };
                     });
 
-                    if (extracted.data.presence?.staticState) {
+                    if (extracted.data.presence?.meta) {
                         // ensure the stream exists
                         await ctx.services.jetStreamManager.streams.add({
                             name: streamName,
@@ -95,13 +139,13 @@ export const peerInitMutationProcedure = servicePlanePassthroughProcedure
                         });
 
                         await ctx.services.jetStreamClient.publish(
-                            `${commonSubjectPrefix}.static.${hashedPeerKey}`,
+                            `${commonSubjectPrefix}.meta.${hashedPeerId}`,
                             ctx.services.natsStringCodec.encode(
                                 JSON.stringify({
-                                    type: 'static',
-                                    session_id: input.sessionID,
-                                    peer_key: input.peerKey,
-                                    staticState: extracted.data.presence.staticState,
+                                    type: 'meta',
+                                    session_id: sessionId,
+                                    peer_id: peerId,
+                                    meta: extracted.data.presence.meta,
                                     timestamp: Date.now(),
                                 } satisfies TNATSPresenceMessage),
                             ),
@@ -115,13 +159,13 @@ export const peerInitMutationProcedure = servicePlanePassthroughProcedure
                     }
                 } else {
                     runInAction(() => {
-                        ctx.services.localState.sessionMeta[input.sessionID].meta = commonMeta;
+                        ctx.services.localState.sessionMeta[sessionId].meta = commonMeta;
                     });
                 }
             }
         } else {
             runInAction(() => {
-                ctx.services.localState.sessionMeta[input.sessionID].meta = commonMeta;
+                ctx.services.localState.sessionMeta[sessionId].meta = commonMeta;
             });
         }
     });

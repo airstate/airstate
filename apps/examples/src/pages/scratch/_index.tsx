@@ -213,7 +213,7 @@ export function Scratch() {
 
     useEffect(() => {
         const sp = sharedPresence<any>({
-            roomKey: id,
+            roomId: id,
             peerKey: 'a',
             initialDynamicState: {
                 name: 'Omran Jamal',
@@ -233,7 +233,7 @@ export function Scratch() {
     useEffect(() => {
         if (run2) {
             const sp = sharedPresence({
-                roomKey: id,
+                roomId: id,
                 peerKey: 'b',
                 initialDynamicState: {
                     name: 'Tanvir Hossen',

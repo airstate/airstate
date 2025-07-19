@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z, ZodType } from 'zod';
 import { createHash } from 'node:crypto';
 import { AckPolicy, DeliverPolicy, StorageType } from 'nats';
 import { getMergedUpdate } from './_helpers.mjs';
@@ -32,62 +32,81 @@ export type TYJSMessage =
 
 export const docUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
     .input(
-        z.object({
-            key: z.string(),
-        }),
+        z.union([
+            z.object({
+                key: z.string(),
+            }) as ZodType<{
+                /**
+                 * @deprecated prefer `documentId` instead
+                 */
+                key: string;
+            }>,
+            z.object({
+                documentId: z.string(),
+            }),
+        ]),
     )
     .subscription(async function* ({ ctx, input, signal }): AsyncIterable<TYJSMessage> {
-        const clientSentKey = input.key;
-        const sessionID = nanoid();
-        const hashedClientSentKey: string = createHash('sha256').update(clientSentKey).digest('hex');
+        const documentId = 'documentId' in input ? input.documentId : input.key;
+        const sessionId = nanoid();
+        const hashedDocumentId: string = createHash('sha256').update(documentId).digest('hex');
 
         runInAction(() => {
-            ctx.services.localState.sessionMeta[sessionID] = {
-                roomKey: clientSentKey,
-                roomKeyHashed: hashedClientSentKey,
+            ctx.services.localState.sessionMeta[sessionId] = {
+                type: 'yjs',
+                documentId: documentId,
+                hashedDocumentId: hashedDocumentId,
             };
         });
 
         try {
             yield {
                 type: 'session-info',
-                session_id: sessionID,
+                session_id: sessionId,
             } satisfies TYJSMessage;
 
             await when(
                 () =>
-                    !(sessionID in ctx.services.localState.sessionMeta) ||
-                    !!ctx.services.localState.sessionMeta[sessionID].meta,
+                    !(sessionId in ctx.services.localState.sessionMeta) ||
+                    ctx.services.localState.sessionMeta[sessionId].type === 'yjs' ||
+                    !!ctx.services.localState.sessionMeta[sessionId].meta,
                 {
                     signal: signal,
                 },
             );
 
-            if (!(sessionID in ctx.services.localState.sessionMeta)) {
+            if (!(sessionId in ctx.services.localState.sessionMeta)) {
                 return;
             }
 
-            const sessionMeta = ctx.services.localState.sessionMeta[sessionID];
+            const sessionMeta = ctx.services.localState.sessionMeta[sessionId];
 
             if (!sessionMeta.meta) {
                 return;
             }
 
-            if (sessionMeta.meta.permissions.yjs.read !== true) {
+            if (sessionMeta.type !== 'yjs') {
+                throw new TRPCError({
+                    code: 'CONFLICT',
+                    message: 'session is not a yjs session',
+                });
+            }
+
+            if (sessionMeta.meta.permissions.read !== true) {
                 throw new TRPCError({
                     code: 'FORBIDDEN',
                     message: 'permission to receive doc updates is not set',
                 });
             }
 
-            logger.debug(`new subscription for yjs doc update key: ${clientSentKey}`, {
-                clientSentKey,
+            logger.debug(`new subscription for yjs doc update key: ${documentId}`, {
+                clientSentKey: documentId,
             });
 
-            const key = `${ctx.namespace}__${hashedClientSentKey}`;
-            const streamName = `yjs_${key}`;
+            const key = `${ctx.namespace}__${hashedDocumentId}`;
             const subject = `yjs.${key}`;
-            const consumerName = `consumer_${nanoid()}`;
+            const streamName = `yjs.${key}`;
+            const consumerName = `yjs_subscription_consumer_${nanoid()}`;
 
             // const telemetryTrackerRoom = initTelemetryTrackerRoom(
             //     ctx.services.ephemeralState.telemetryTracker,
@@ -204,9 +223,9 @@ export const docUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
             });
 
             for await (const streamMessage of streamMessages) {
-                const updateSessionID = streamMessage.headers?.get('sessionID');
+                const updateSessionID = streamMessage.headers?.get('sessionId');
 
-                if (updateSessionID !== sessionID) {
+                if (updateSessionID !== sessionId) {
                     const updateString = ctx.services.natsStringCodec.decode(streamMessage.data);
 
                     yield {
@@ -228,7 +247,7 @@ export const docUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
         } catch (error) {
             throw error;
         } finally {
-            delete ctx.services.localState.sessionMeta[sessionID];
+            delete ctx.services.localState.sessionMeta[sessionId];
         }
     });
 

@@ -5,7 +5,7 @@ import { getDefaultClient, TAirStateClient } from '../client.mjs';
 
 export type TSharedYDocOptions = {
     client?: TAirStateClient;
-    key?: string;
+    documentId?: string;
     doc: y.Doc;
     token?: string | (() => string | Promise<string>);
 };
@@ -27,13 +27,13 @@ export type TSharedYDoc = {
 export function sharedYDoc(options: TSharedYDocOptions): TSharedYDoc {
     const airState = options.client ?? getDefaultClient();
 
-    const key =
-        options.key ??
+    const documentId =
+        options.documentId ??
         (typeof window !== 'undefined'
             ? `${window.location.host}${window.location.pathname}`
             : undefined);
 
-    if (typeof key === 'undefined') {
+    if (typeof documentId === 'undefined') {
         throw new Error('you must specify a key property as a key could not be inferred');
     }
 
@@ -55,7 +55,7 @@ export function sharedYDoc(options: TSharedYDocOptions): TSharedYDoc {
         disconnectListeners.forEach((listener) => listener());
     });
 
-    let sessionID: null | string = null;
+    let sessionId: null | string = null;
 
     let updates: [string, any][] = [];
     let scheduled = false;
@@ -64,7 +64,7 @@ export function sharedYDoc(options: TSharedYDocOptions): TSharedYDoc {
     let syncing = false;
 
     async function syncUpdates() {
-        if (syncing || !updates.length || !sessionID) {
+        if (syncing || !updates.length || !sessionId) {
             return;
         }
 
@@ -82,8 +82,7 @@ export function sharedYDoc(options: TSharedYDocOptions): TSharedYDoc {
                 );
 
             await airState.trpc.yjs.docUpdate.mutate({
-                key: key!,
-                sessionID: sessionID,
+                sessionId: sessionId,
                 encodedUpdates: updatesToSync.map(([update, origin]) => update),
             });
 
@@ -136,7 +135,7 @@ export function sharedYDoc(options: TSharedYDocOptions): TSharedYDoc {
 
     const subscription = airState.trpc.yjs.docUpdates.subscribe(
         {
-            key: key,
+            documentId: documentId,
         },
         {
             onError(error) {
@@ -144,7 +143,7 @@ export function sharedYDoc(options: TSharedYDocOptions): TSharedYDoc {
             },
             async onData(message) {
                 if (message.type === 'session-info') {
-                    sessionID = message.session_id;
+                    sessionId = message.session_id;
 
                     let token: null | string = null;
 
@@ -162,7 +161,7 @@ export function sharedYDoc(options: TSharedYDocOptions): TSharedYDoc {
 
                     const { hasWrittenFirstUpdate } =
                         await airState.trpc.yjs.docInit.mutate({
-                            sessionID: sessionID,
+                            sessionId: sessionId,
                             token: token,
                             initialState: uint8ArrayToBase64(
                                 y.encodeStateAsUpdateV2(options.doc),

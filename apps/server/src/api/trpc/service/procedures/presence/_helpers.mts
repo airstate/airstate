@@ -6,20 +6,16 @@ const stringCodec = StringCodec();
 
 export type TNATSPresenceMessage = {
     session_id: string;
-    peer_key: string;
+    peer_id: string;
     timestamp: number;
 } & (
     | {
-          type: 'static';
-          staticState: Record<string, any>;
+          type: 'meta';
+          meta: Record<string, any>;
       }
     | {
-          type: 'dynamic';
-          dynamicState: Record<string, any>;
-      }
-    | {
-          type: 'focus';
-          isFocused: boolean;
+          type: 'state';
+          state: Record<string, any>;
       }
 );
 
@@ -30,32 +26,26 @@ export type TPresenceState<
     peers: Record<
         string,
         {
-            client_key: string;
+            client_id: string;
 
             connectionState?: {
                 connected: boolean;
                 lastUpdateTimestamp: number;
             };
 
-            focusState?: {
-                isFocused: boolean;
+            meta?: {
+                meta: STATIC_STATE_TYPE;
                 lastUpdateTimestamp: number;
             };
 
-            staticState?: {
-                state: STATIC_STATE_TYPE;
-                lastUpdateTimestamp: number;
-            };
-
-            dynamicState?: {
+            state?: {
                 state: DYNAMIC_STATE_TYPE;
                 lastUpdateTimestamp: number;
             };
         }
     >;
-    summary: {
+    stats: {
         totalPeers: number;
-        focusedPeers: number;
     };
 };
 
@@ -81,19 +71,14 @@ export async function getInitialPresenceState(
     const peerMap: Record<
         string,
         {
-            client_key: string;
+            client_id: string;
 
-            focusState?: {
-                isFocused: boolean;
+            meta?: {
+                meta: Record<string, any>;
                 lastUpdateTimestamp: number;
             };
 
-            staticState?: {
-                state: Record<string, any>;
-                lastUpdateTimestamp: number;
-            };
-
-            dynamicState?: {
+            state?: {
                 state: Record<string, any>;
                 lastUpdateTimestamp: number;
             };
@@ -117,29 +102,24 @@ export async function getInitialPresenceState(
             const messageData = stringCodec.decode(streamMessage.data);
             const message = JSON.parse(messageData) as TNATSPresenceMessage;
 
-            keySet.add(message.peer_key);
+            keySet.add(message.peer_id);
 
-            if (!(message.peer_key in peerMap)) {
-                peerMap[message.peer_key] = {
-                    client_key: message.peer_key,
+            if (!(message.peer_id in peerMap)) {
+                peerMap[message.peer_id] = {
+                    client_id: message.peer_id,
                 };
             }
 
-            const peer = peerMap[message.peer_key];
+            const peer = peerMap[message.peer_id];
 
-            if (message.type === 'static') {
-                peer.staticState = {
-                    state: message.staticState,
+            if (message.type === 'meta') {
+                peer.meta = {
+                    meta: message.meta,
                     lastUpdateTimestamp: message.timestamp,
                 };
-            } else if (message.type === 'dynamic') {
-                peer.dynamicState = {
-                    state: message.dynamicState,
-                    lastUpdateTimestamp: message.timestamp,
-                };
-            } else if (message.type === 'focus') {
-                peer.focusState = {
-                    isFocused: message.isFocused,
+            } else if (message.type === 'state') {
+                peer.state = {
+                    state: message.state,
                     lastUpdateTimestamp: message.timestamp,
                 };
             }
@@ -158,9 +138,8 @@ export async function getInitialPresenceState(
     return {
         state: {
             peers: peerMap,
-            summary: {
+            stats: {
                 totalPeers: peers.length,
-                focusedPeers: peers.filter((peer) => peer.focusState?.isFocused ?? false).length,
             },
         },
         lastSeq: lastSeq,

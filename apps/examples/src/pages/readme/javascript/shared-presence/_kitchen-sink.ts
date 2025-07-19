@@ -10,7 +10,7 @@ const customClient = getDefaultClient();
 
 const presence = sharedPresence<TOptionalShapeOfDynamicState>({
 
-    roomKey: 'a-specific-room-key',          // if you don't want AirState to infer from URL
+    roomId: 'a-specific-room-key',          // if you don't want AirState to infer from URL
     peerKey: 'uniquely-identify-the-client', // yeah, email is fine; session id is also fine
     client: customClient,                    // in case you have more than one client
     token: 'jwt-signed-by-your-server',      // to maintain auth

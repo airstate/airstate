@@ -49,7 +49,7 @@ export function ReactReadmeSharedPresenceQuickStartAdvanced() {
     } = useSharedPresence<TOptionalTypeOfDynamicState>({
 
         peerKey: `${Math.random()}`,        // any string that uniquely identifies the user; could be email.
-        roomKey: 'a-specific-room-key',     // if you don't want airstate to infer from url
+        roomId: 'a-specific-room-key',     // if you don't want airstate to infer from url
         token: 'jwt-signed-by-your-server', // to maintain authentication & authorization
         client: customClient,               // if you don't use to use the default client with default config
 

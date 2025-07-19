@@ -98,7 +98,7 @@ export function sharedState<T extends TJSONAble = any>(
 
     const sharedDoc = sharedYDoc({
         doc: usingDoc,
-        key: options?.key,
+        documentId: options?.key,
         client: options?.client,
         token: options?.token,
     });
@@ -118,7 +118,7 @@ export function sharedState<T extends TJSONAble = any>(
 
             const nextSharedDoc = sharedYDoc({
                 doc: nextDoc,
-                key: options?.key,
+                documentId: options?.key,
                 client: options?.client,
                 token: options?.token,
             });

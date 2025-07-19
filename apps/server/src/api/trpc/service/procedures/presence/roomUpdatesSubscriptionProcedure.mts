@@ -21,86 +21,85 @@ export type TPresenceMessage =
           state: TPresenceState;
       }
     | {
-          peer_key: string;
+          peer_id: string;
 
           timestamp: number;
 
-          type: 'static-update';
-          state: Record<string, any>;
+          type: 'meta';
+          meta: Record<string, any>;
       }
     | {
-          peer_key: string;
+          peer_id: string;
 
           timestamp: number;
 
-          type: 'dynamic-update';
+          type: 'state';
           state: Record<string, any>;
-      }
-    | {
-          peer_key: string;
-
-          timestamp: number;
-          type: 'focus-update';
-          isFocused: boolean;
       };
 
 export const roomUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
     .input(
         z.object({
-            key: z.string(),
+            room: z.string(),
         }),
     )
     .subscription<AsyncIterable<TPresenceMessage>>(async function* ({ ctx, input, signal }) {
-        const clientSentKey = input.key;
-        const sessionID = nanoid();
-        const hashedClientSentKey: string = createHash('sha256').update(clientSentKey).digest('hex');
+        const clientSentRoomId = input.room;
+        const sessionId = nanoid();
+        const hashedClientSentRoomId: string = createHash('sha256').update(clientSentRoomId).digest('hex');
 
         runInAction(() => {
-            ctx.services.localState.sessionMeta[sessionID] = {
-                roomKey: clientSentKey,
-                roomKeyHashed: hashedClientSentKey,
+            ctx.services.localState.sessionMeta[sessionId] = {
+                type: 'presence',
+                roomId: clientSentRoomId,
+                hashedRoomId: hashedClientSentRoomId,
             };
         });
 
         try {
             yield {
                 type: 'session-info',
-                session_id: sessionID,
+                session_id: sessionId,
             } satisfies TPresenceMessage;
 
             await when(
                 () =>
-                    !(sessionID in ctx.services.localState.sessionMeta) ||
-                    !!ctx.services.localState.sessionMeta[sessionID].meta,
+                    !(sessionId in ctx.services.localState.sessionMeta) ||
+                    ctx.services.localState.sessionMeta[sessionId].type !== 'presence' ||
+                    !!ctx.services.localState.sessionMeta[sessionId].meta,
                 {
                     signal: signal,
                 },
             );
 
-            if (!(sessionID in ctx.services.localState.sessionMeta)) {
+            if (!(sessionId in ctx.services.localState.sessionMeta)) {
                 return;
             }
 
-            const sessionMeta = ctx.services.localState.sessionMeta[sessionID];
+            const sessionType = ctx.services.localState.sessionMeta[sessionId].type;
 
-            if (!sessionMeta.meta) {
-                return;
+            if (sessionType !== 'presence') {
+                throw new TRPCError({
+                    code: 'CONFLICT',
+                    message: `the initialized session type for sessionId "${sessionId}" was "${sessionType}"; expected "presence"`,
+                });
             }
 
-            if (sessionMeta.meta.permissions.presence.join !== true) {
+            const sessionMeta = ctx.services.localState.sessionMeta[sessionId];
+
+            if (sessionMeta.meta?.permissions.join !== true) {
                 throw new TRPCError({
                     code: 'FORBIDDEN',
                     message: 'permission to join presence room is not set',
                 });
             }
 
-            logger.debug(`new subscription for presence room: ${clientSentKey}`, {
-                clientSentKey,
+            logger.debug(`new subscription for presence room: ${clientSentRoomId}`, {
+                clientSentKey: clientSentRoomId,
             });
 
-            const key = `${ctx.namespace}__${hashedClientSentKey}`;
-
-            const streamName = `presence_${key}`;
+            const key = `${ctx.namespace}__${hashedClientSentRoomId}`;
+            const streamName = `presence.${key}`;
 
             // const telemetryTrackerRoom = initTelemetryTrackerRoom(
             //     ctx.services.ephemeralState.telemetryTracker,
@@ -132,7 +131,7 @@ export const roomUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
                 max_msgs_per_subject: 1,
             });
 
-            const consumerName = `consumer_${nanoid()}`;
+            const consumerName = `presence_subscription_consumer_${nanoid()}`;
 
             const { state: initialState, lastSeq } = await getInitialPresenceState(ctx.services, streamName);
 
@@ -161,6 +160,8 @@ export const roomUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
             const steamConsumer = await ctx.services.jetStreamClient.consumers.get(streamName, consumerName);
 
             const streamMessages = await steamConsumer.consume({
+                // this is needed to that the consumer does not wait
+                // for the message buffer to fill up to `max_messages`.
                 max_messages: 1,
             });
 
@@ -168,11 +169,11 @@ export const roomUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
                 const messageData = ctx.services.natsStringCodec.decode(streamMessage.data);
                 const message = JSON.parse(messageData) as TNATSPresenceMessage;
 
-                if (message.type === 'static') {
+                if (message.type === 'meta') {
                     yield {
-                        type: 'static-update',
-                        peer_key: message.peer_key,
-                        state: message.staticState,
+                        type: 'meta',
+                        peer_id: message.peer_id,
+                        meta: message.meta,
                         timestamp: message.timestamp,
                     } satisfies TPresenceMessage;
 
@@ -181,31 +182,18 @@ export const roomUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
                     //     JSON.stringify(message.staticState).length,
                     //     'relayed',
                     // );
-                } else if (message.session_id !== sessionID) {
-                    if (message.type === 'dynamic') {
+                } else if (message.session_id !== sessionId) {
+                    if (message.type === 'state') {
                         yield {
-                            type: 'dynamic-update',
-                            peer_key: message.peer_key,
-                            state: message.dynamicState,
+                            type: 'state',
+                            peer_id: message.peer_id,
+                            state: message.state,
                             timestamp: message.timestamp,
                         } satisfies TPresenceMessage;
 
                         // incrementTelemetryTrackers(
                         //     [telemetryTrackerRoom, telemetryTrackerClient, telemetryTrackerRoomClient],
                         //     JSON.stringify(message.dynamicState).length,
-                        //     'relayed',
-                        // );
-                    } else if (message.type === 'focus') {
-                        yield {
-                            type: 'focus-update',
-                            peer_key: message.peer_key,
-                            isFocused: message.isFocused,
-                            timestamp: message.timestamp,
-                        } satisfies TPresenceMessage;
-
-                        // incrementTelemetryTrackers(
-                        //     [telemetryTrackerRoom, telemetryTrackerClient, telemetryTrackerRoomClient],
-                        //     0,
                         //     'relayed',
                         // );
                     }
@@ -216,7 +204,7 @@ export const roomUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
         } catch (error) {
             throw error;
         } finally {
-            delete ctx.services.localState.sessionMeta[sessionID];
+            delete ctx.services.localState.sessionMeta[sessionId];
         }
     });
 

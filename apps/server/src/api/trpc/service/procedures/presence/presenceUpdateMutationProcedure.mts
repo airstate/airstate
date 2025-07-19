@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z, ZodAny, ZodType } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { servicePlanePassthroughProcedure } from '../../middleware/passthrough.mjs';
 import { extractTokenPayload } from '../../../../../auth/permissions/index.mjs';
@@ -15,29 +15,49 @@ import { createHash } from 'node:crypto';
 export const presenceUpdateMutationProcedure = servicePlanePassthroughProcedure
     .meta({ writePermissionRequired: true })
     .input(
-        z.object({
-            sessionID: z.string(),
-            update: z.discriminatedUnion('type', [
-                z.object({
-                    type: z.literal('dynamic-update'),
-                    state: z.record(z.string(), z.any()),
-                }),
-                z.object({
-                    type: z.literal('focus-update'),
-                    isFocused: z.boolean(),
-                }),
-            ]),
-        }),
+        z
+            .object({
+                update: z.discriminatedUnion('type', [
+                    z.object({
+                        type: z.literal('state'),
+                        state: z.record(z.string(), z.any()),
+                    }),
+                ]),
+            })
+            .and(
+                z.union([
+                    z.object({
+                        sessionID: z.string(),
+                    }) as ZodType<{
+                        /**
+                         * @deprecated prefer `sessionId` instead.
+                         */
+                        sessionID: string;
+                    }>,
+                    z.object({
+                        sessionId: z.string(),
+                    }),
+                ]),
+            ),
     )
     .mutation(async function ({ ctx, input, signal }) {
-        if (!(input.sessionID in ctx.services.localState.sessionMeta)) {
+        const sessionId = 'sessionId' in input ? input.sessionId : input.sessionID;
+
+        if (!(sessionId in ctx.services.localState.sessionMeta)) {
             throw new TRPCError({
                 code: 'NOT_FOUND',
                 message: 'session not found',
             });
         }
 
-        const sessionMeta = ctx.services.localState.sessionMeta[input.sessionID];
+        const sessionMeta = ctx.services.localState.sessionMeta[sessionId];
+
+        if (sessionMeta.type !== 'presence') {
+            throw new TRPCError({
+                code: 'CONFLICT',
+                message: 'the session is not a presence session',
+            });
+        }
 
         if (!sessionMeta.meta) {
             throw new TRPCError({
@@ -46,10 +66,10 @@ export const presenceUpdateMutationProcedure = servicePlanePassthroughProcedure
             });
         }
 
-        const hashedRoomKey = sessionMeta.roomKeyHashed;
+        const hashedRoomKey = sessionMeta.hashedRoomId;
 
-        const peerKey = sessionMeta.meta.peerKey;
-        const hashedPeerKey = sessionMeta.meta.hashedPeerKey;
+        const peerKey = sessionMeta.meta.peerId;
+        const hashedPeerKey = sessionMeta.meta.hashedPeerId;
 
         const key = `${ctx.namespace}__${hashedRoomKey}`;
         const commonSubjectPrefix = `presence.${key}`;
@@ -70,15 +90,15 @@ export const presenceUpdateMutationProcedure = servicePlanePassthroughProcedure
 
         // const telemetryTrackerRoomClient = initTelemetryTrackerRoomClient(telemetryTrackerRoom, telemetryTrackerClient);
 
-        if (input.update.type === 'dynamic-update') {
+        if (input.update.type === 'state') {
             await ctx.services.jetStreamClient.publish(
-                `${commonSubjectPrefix}.dynamic.${hashedPeerKey}`,
+                `${commonSubjectPrefix}.state.${hashedPeerKey}`,
                 ctx.services.natsStringCodec.encode(
                     JSON.stringify({
-                        type: 'dynamic',
-                        session_id: input.sessionID,
-                        peer_key: peerKey,
-                        dynamicState: input.update.state,
+                        type: 'state',
+                        session_id: sessionId,
+                        peer_id: peerKey,
+                        state: input.update.state,
                         timestamp: Date.now(),
                     } satisfies TNATSPresenceMessage),
                 ),
@@ -87,25 +107,6 @@ export const presenceUpdateMutationProcedure = servicePlanePassthroughProcedure
             // incrementTelemetryTrackers(
             //     [telemetryTrackerRoom, telemetryTrackerClient, telemetryTrackerRoomClient],
             //     JSON.stringify(input.update.state).length,
-            //     'received',
-            // );
-        } else {
-            await ctx.services.jetStreamClient.publish(
-                `${commonSubjectPrefix}.focus.${hashedPeerKey}`,
-                ctx.services.natsStringCodec.encode(
-                    JSON.stringify({
-                        type: 'focus',
-                        session_id: input.sessionID,
-                        peer_key: peerKey,
-                        isFocused: input.update.isFocused,
-                        timestamp: Date.now(),
-                    } satisfies TNATSPresenceMessage),
-                ),
-            );
-
-            // incrementTelemetryTrackers(
-            //     [telemetryTrackerRoom, telemetryTrackerClient, telemetryTrackerRoomClient],
-            //     0,
             //     'received',
             // );
         }

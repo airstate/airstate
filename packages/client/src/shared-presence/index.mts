@@ -3,23 +3,21 @@ import { TPresenceState } from './types.mjs';
 
 export type TSharedPresenceOptions<T> = {
     client?: TAirStateClient;
-    peerKey: string;
-    roomKey?: string;
+    peerId: string;
+    room?: string;
     token?: string | (() => string) | (() => Promise<string>);
-    initialDynamicState?: T;
+    initialState?: T;
 };
 
 export type TSharedPresence<T extends Record<string, any> = Record<string, any>> = {
     readonly self: TPresenceState<T>['peers'][string];
     readonly others: TPresenceState<T>['peers'];
-    readonly updateDynamicState: (update: T | ((prev: T) => T)) => void;
-    readonly updateFocusState: (isFocused: boolean) => void;
+    readonly setState: (update: T | ((prev: T) => T)) => void;
     readonly onUpdate: (
         listener: (presenceState: {
             self: TPresenceState<T>['peers'][string];
             others: TPresenceState<T>['peers'];
-            summary: TPresenceState<T>['summary'];
-            state: TPresenceState<T>;
+            stats: TPresenceState<T>['stats'];
         }) => void,
     ) => () => boolean;
     readonly onError: (listener: (error?: Error) => void) => () => boolean;
@@ -34,7 +32,7 @@ export function sharedPresence<T extends Record<string, any>>(
         (presenceState: {
             self: TPresenceState<T>['peers'][string];
             others: TPresenceState<T>['peers'];
-            summary: TPresenceState<T>['summary'];
+            stats: TPresenceState<T>['stats'];
             state: TPresenceState<T>;
         }) => void
     >();
@@ -45,7 +43,7 @@ export function sharedPresence<T extends Record<string, any>>(
     const airState = options.client ?? getDefaultClient();
 
     const roomKey =
-        options.roomKey ??
+        options.room ??
         (typeof window !== 'undefined'
             ? `${window.location.host}${window.location.pathname}`
             : undefined);
@@ -56,39 +54,43 @@ export function sharedPresence<T extends Record<string, any>>(
 
     const currentState: TPresenceState<T> = {
         peers: {
-            [options.peerKey]: {
-                client_key: options.peerKey,
+            [options.peerId]: {
+                peer_id: options.peerId,
+
+                state: {
+                    state: options.initialState as any,
+                    lastUpdateTimestamp: Date.now(),
+                },
             },
         },
-        summary: {
+        stats: {
             totalPeers: 0,
-            focusedPeers: 0,
         },
     };
 
-    if (options.initialDynamicState) {
-        currentState.peers[options.peerKey] = {
-            ...currentState.peers[options.peerKey],
-            dynamicState: {
-                state: options.initialDynamicState,
+    if (options.initialState) {
+        currentState.peers[options.peerId] = {
+            ...currentState.peers[options.peerId],
+            state: {
+                state: options.initialState,
                 lastUpdateTimestamp: Date.now(),
             },
         };
     }
 
     function notifyListeners() {
-        const self = currentState.peers[options.peerKey];
+        const self = currentState.peers[options.peerId];
 
         const others = {
             ...currentState.peers,
         };
 
-        delete others[options.peerKey];
+        delete others[options.peerId];
 
         updateListeners.forEach((listener) => {
             listener({
                 self: self,
-                summary: currentState.summary,
+                stats: currentState.stats,
                 others: others,
                 state: currentState,
             });
@@ -97,127 +99,65 @@ export function sharedPresence<T extends Record<string, any>>(
 
     function recalculateSummary() {
         const peers = Object.values(currentState.peers);
-        let focusedPeerCount = 0;
-
-        for (const peer of peers) {
-            if (peer.focusState?.isFocused) {
-                focusedPeerCount += 1;
-            }
-        }
-
-        currentState.summary.totalPeers = peers.length;
-        currentState.summary.focusedPeers = focusedPeerCount;
+        currentState.stats.totalPeers = peers.length;
     }
 
-    let sessionID: null | string = null;
+    let sessionId: null | string = null;
 
-    let syncingDynamicState = false;
-    let scheduledDynamicState = false;
-    let dynamicStateSyncerTimeout = setTimeout(() => {}, 0);
-    let dynamicStateSyncingFailed = -1;
+    let syncingState = false;
+    let scheduledState = false;
+    let stateSyncerTimeout = setTimeout(() => {}, 0);
+    let stateSyncingFailed = -1;
 
-    let syncingFocusState = false;
-    let scheduledFocusState = false;
-    let focusStateSyncerTimeout = setTimeout(() => {}, 0);
-    let focusStateSyncingFailed = -1;
-
-    async function syncDynamicState() {
-        if (syncingDynamicState || !sessionID) {
+    async function syncState() {
+        if (syncingState || !sessionId) {
             return;
         }
 
-        syncingDynamicState = true;
-        scheduledDynamicState = false;
+        syncingState = true;
+        scheduledState = false;
 
         try {
             await airState.trpc.presence.update.mutate({
-                sessionID: sessionID,
+                sessionID: sessionId,
                 update: {
-                    type: 'dynamic-update',
-                    state: currentState.peers[options.peerKey].dynamicState?.state ?? {},
+                    type: 'state',
+                    state: currentState.peers[options.peerId].state?.state ?? {},
                 },
             });
 
-            dynamicStateSyncingFailed = -1;
+            stateSyncingFailed = -1;
         } catch (error) {
-            dynamicStateSyncingFailed = dynamicStateSyncingFailed + 1;
-            scheduledDynamicState = true;
-            dynamicStateSyncerTimeout = setTimeout(
-                syncDynamicState,
-                Math.max(1.5 ** dynamicStateSyncingFailed * 1_000, 60_000),
+            stateSyncingFailed = stateSyncingFailed + 1;
+            scheduledState = true;
+            stateSyncerTimeout = setTimeout(
+                syncState,
+                Math.max(1.5 ** stateSyncingFailed * 1_000, 60_000),
             );
         } finally {
-            syncingDynamicState = false;
+            syncingState = false;
         }
     }
 
-    async function syncFocusState() {
-        if (syncingFocusState || !sessionID) {
-            return;
-        }
-
-        syncingFocusState = true;
-        scheduledFocusState = false;
-
-        try {
-            const self = currentState.peers[options.peerKey];
-
-            if ('focusState' in self && self.focusState) {
-                await airState.trpc.presence.update.mutate({
-                    sessionID: sessionID,
-                    update: {
-                        type: 'focus-update',
-                        isFocused: self.focusState.isFocused,
-                    },
-                });
-            }
-
-            focusStateSyncingFailed = -1;
-        } catch (error) {
-            focusStateSyncingFailed = focusStateSyncingFailed + 1;
-            scheduledFocusState = true;
-            focusStateSyncerTimeout = setTimeout(
-                syncFocusState,
-                Math.max(1.5 ** focusStateSyncingFailed * 1_000, 60_000),
-            );
-        } finally {
-            syncingFocusState = false;
-        }
-    }
-
-    function triggerDynamicStateSync(force: boolean = false) {
-        if (!scheduledDynamicState || force) {
+    function triggerStateSync(force: boolean = false) {
+        if (!scheduledState || force) {
             if (force) {
-                clearTimeout(dynamicStateSyncerTimeout);
+                clearTimeout(stateSyncerTimeout);
             }
 
-            syncDynamicState();
-        }
-    }
-
-    function triggerFocusStateSync(force: boolean = false) {
-        if (!scheduledFocusState || force) {
-            if (force) {
-                clearTimeout(focusStateSyncerTimeout);
-            }
-
-            syncFocusState();
+            syncState();
         }
     }
 
     function triggerInitialSync() {
-        if (currentState.peers[options.peerKey].dynamicState?.state) {
-            triggerDynamicStateSync(true);
-        }
-
-        if (currentState.peers[options.peerKey].dynamicState?.state) {
-            triggerFocusStateSync(true);
+        if (currentState.peers[options.peerId].state?.state) {
+            triggerStateSync(true);
         }
     }
 
     airState.trpc.presence.roomUpdates.subscribe(
         {
-            key: roomKey,
+            room: roomKey,
         },
         {
             async onData(message) {
@@ -228,50 +168,41 @@ export function sharedPresence<T extends Record<string, any>>(
                             : options.token;
 
                     await airState.trpc.presence.peerInit.mutate({
-                        peerKey: options.peerKey,
+                        peerId: options.peerId,
                         token: resolvedToken ?? null,
-                        sessionID: message.session_id,
+                        sessionId: message.session_id,
                     });
 
-                    sessionID = message.session_id;
+                    sessionId = message.session_id;
                 } else if (message.type === 'init') {
-                    Object.assign(currentState.peers, message.state.peers);
-                    Object.assign(currentState.summary, message.state.summary);
+                    const nextPeers = message.state.peers;
+                    delete nextPeers[options.peerId];
+
+                    Object.assign(currentState.peers, nextPeers);
+                    Object.assign(currentState.stats, message.state.stats);
 
                     recalculateSummary();
                     notifyListeners();
 
                     triggerInitialSync();
-                } else if (message.type === 'static-update') {
-                    currentState.peers[message.peer_key] = {
-                        ...currentState.peers[message.peer_key],
-                        client_key: message.peer_key,
-                        staticState: {
-                            state: message.state,
+                } else if (message.type === 'meta') {
+                    currentState.peers[message.peer_id] = {
+                        ...currentState.peers[message.peer_id],
+                        peer_id: message.peer_id,
+                        meta: {
+                            meta: message.meta,
                             lastUpdateTimestamp: message.timestamp,
                         },
                     };
 
                     recalculateSummary();
                     notifyListeners();
-                } else if (message.type === 'dynamic-update') {
-                    currentState.peers[message.peer_key] = {
-                        ...currentState.peers[message.peer_key],
-                        client_key: message.peer_key,
-                        dynamicState: {
+                } else if (message.type === 'state') {
+                    currentState.peers[message.peer_id] = {
+                        ...currentState.peers[message.peer_id],
+                        peer_id: message.peer_id,
+                        state: {
                             state: message.state as any,
-                            lastUpdateTimestamp: message.timestamp,
-                        },
-                    };
-
-                    recalculateSummary();
-                    notifyListeners();
-                } else if (message.type === 'focus-update') {
-                    currentState.peers[message.peer_key] = {
-                        ...currentState.peers[message.peer_key],
-                        client_key: message.peer_key,
-                        focusState: {
-                            isFocused: message.isFocused,
                             lastUpdateTimestamp: message.timestamp,
                         },
                     };
@@ -285,38 +216,26 @@ export function sharedPresence<T extends Record<string, any>>(
 
     return {
         get self() {
-            return currentState.peers[options.peerKey];
+            return currentState.peers[options.peerId];
         },
         get others() {
             const others = { ...currentState.peers };
-            delete others[options.peerKey];
+            delete others[options.peerId];
 
             return others;
         },
-        updateDynamicState: (update) => {
+        setState: (update) => {
             const nextState =
                 typeof update === 'function'
-                    ? update(
-                          currentState.peers[options.peerKey].dynamicState?.state as any,
-                      )
+                    ? update(currentState.peers[options.peerId].state?.state as any)
                     : update;
 
-            currentState.peers[options.peerKey].dynamicState = {
+            currentState.peers[options.peerId].state = {
                 state: nextState,
                 lastUpdateTimestamp: Date.now(),
             };
 
-            triggerDynamicStateSync();
-            recalculateSummary();
-            notifyListeners();
-        },
-        updateFocusState: (isFocused) => {
-            currentState.peers[options.peerKey].focusState = {
-                isFocused: isFocused,
-                lastUpdateTimestamp: Date.now(),
-            };
-
-            triggerFocusStateSync();
+            triggerStateSync();
             recalculateSummary();
             notifyListeners();
         },

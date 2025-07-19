@@ -5,31 +5,25 @@ export type TPresenceState<
     peers: Record<
         string,
         {
-            client_key: string;
+            peer_id: string;
 
             connectionState?: {
                 connected: boolean;
                 lastUpdateTimestamp: number;
             };
 
-            focusState?: {
-                isFocused: boolean;
+            meta?: {
+                meta: STATIC_STATE_TYPE;
                 lastUpdateTimestamp: number;
             };
 
-            staticState?: {
-                state: STATIC_STATE_TYPE;
-                lastUpdateTimestamp: number;
-            };
-
-            dynamicState?: {
+            state?: {
                 state: DYNAMIC_STATE_TYPE;
                 lastUpdateTimestamp: number;
             };
         }
     >;
-    summary: {
+    stats: {
         totalPeers: number;
-        focusedPeers: number;
     };
 };

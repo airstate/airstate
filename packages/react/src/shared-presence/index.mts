@@ -7,27 +7,25 @@ export function useSharedPresence<T extends Record<string, any>>(
 ): {
     self: TPresenceState<T>['peers'][string];
     others: TPresenceState<T>['peers'];
-    summary: TPresenceState['summary'];
-    setDynamicState: (value: T | ((prev: T) => T)) => void;
-    setFocus: (isFocused: boolean) => void;
+    stats: TPresenceState['stats'];
+    setState: (value: T | ((prev: T) => T)) => void;
 } {
     const resolvedInitState: TPresenceState<T> = {
         peers: {
-            [options.peerKey]: {
-                client_key: options.peerKey,
+            [options.peerId]: {
+                peer_id: options.peerId,
             },
         },
-        summary: {
+        stats: {
             totalPeers: 0,
-            focusedPeers: 0,
         },
     };
 
-    if (options.initialDynamicState) {
-        resolvedInitState.peers[options.peerKey] = {
-            ...resolvedInitState.peers[options.peerKey],
-            dynamicState: {
-                state: options.initialDynamicState,
+    if (options.initialState) {
+        resolvedInitState.peers[options.peerId] = {
+            ...resolvedInitState.peers[options.peerId],
+            state: {
+                state: options.initialState,
                 lastUpdateTimestamp: Date.now(),
             },
         };
@@ -43,59 +41,48 @@ export function useSharedPresence<T extends Record<string, any>>(
 
     useEffect(() => {
         const sharedPresenceInstance = sharedPresence<T>(options);
-
         sharedPresenceRef.current = sharedPresenceInstance;
 
         const cleanupOnUpdate = sharedPresenceInstance.onUpdate((value) => {
-            publicStateRef.current = value.state;
+            publicStateRef.current = {
+                peers: {
+                    ...value.others,
+                    [value.self.peer_id]: value.self,
+                },
+                stats: value.stats,
+            };
+
             forceUpdate();
         });
 
-        const cleanupOnConnect = sharedPresenceInstance.onConnect(() => {
-            console.info('client connected...');
-        });
-
-        const cleanupOnDisconnect = sharedPresenceInstance.onDisconnect(() => {
-            console.info('client disconnected.');
-        });
         const cleanupOnError = sharedPresenceInstance.onError((error) => {
             console.error(error);
             throw new Error(error?.message);
         });
 
         return () => {
-            cleanupOnConnect();
-            cleanupOnDisconnect();
             cleanupOnError();
             cleanupOnUpdate();
         };
     }, []);
 
-    const setDynamicState = useCallback((value: T | ((prev: T) => T)) => {
+    const setState = useCallback((value: T | ((prev: T) => T)) => {
         if (!sharedPresenceRef.current) {
             throw new Error(`You can not update before sharedPresence is initialized`);
         }
 
-        sharedPresenceRef.current.updateDynamicState(value);
-    }, []);
-
-    const setFocusState = useCallback((isFocused: boolean) => {
-        if (!sharedPresenceRef.current) {
-            throw new Error(`You can not update before sharedPresence is initialized`);
-        }
-        sharedPresenceRef.current.updateFocusState(isFocused);
+        sharedPresenceRef.current.setState(value);
     }, []);
 
     return {
-        self: publicStateRef.current.peers[options.peerKey],
+        self: publicStateRef.current.peers[options.peerId],
         get others() {
             const others = { ...publicStateRef.current.peers };
-            delete others[options.peerKey];
+            delete others[options.peerId];
 
             return others;
         },
-        summary: publicStateRef.current.summary,
-        setDynamicState: setDynamicState,
-        setFocus: setFocusState,
+        stats: publicStateRef.current.stats,
+        setState: setState,
     };
 }

@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z, ZodType } from 'zod';
 import { createHash } from 'node:crypto';
 import { headers } from 'nats';
 import { TRPCError } from '@trpc/server';
@@ -11,21 +11,76 @@ import { resolvePermissions } from '../../../../../auth/permissions/index.mjs';
 export const docUpdateMutationProcedure = servicePlanePassthroughProcedure
     .meta({ writePermissionRequired: true })
     .input(
-        z.object({
-            key: z.string(),
-            sessionID: z.string(),
-            encodedUpdates: z.string().array(),
-        }),
+        z
+            .object({
+                encodedUpdates: z.string().array(),
+            })
+            .and(
+                z.union([
+                    z.object({
+                        key: z.string(),
+                    }) as ZodType<{
+                        /**
+                         * @deprecated passing `key` is no longer needed
+                         */
+                        key: string;
+                    }>,
+                    z.object({}),
+                ]),
+            )
+            .and(
+                z.union([
+                    z.object({
+                        sessionID: z.string(),
+                    }) as ZodType<{
+                        /**
+                         * @deprecated prefer `sessionId` instead.
+                         */
+                        sessionID: string;
+                    }>,
+                    z.object({
+                        sessionId: z.string(),
+                    }),
+                ]),
+            ),
     )
     .mutation(async function ({ ctx, input, signal }) {
-        // TODO: check permissions based on the sessionID
+        const sessionId = 'sessionId' in input ? input.sessionId : input.sessionID;
 
-        console.log('server received update for session', input.sessionID);
+        if (!(sessionId in ctx.services.localState.sessionMeta)) {
+            throw new TRPCError({
+                code: 'NOT_FOUND',
+                message: 'session not found',
+            });
+        }
 
-        const clientSentKey = input.key;
-        const hashedClientSentKey: string = createHash('sha256').update(clientSentKey).digest('hex');
+        const sessionMeta = ctx.services.localState.sessionMeta[sessionId];
 
-        const key = `${ctx.namespace}__${hashedClientSentKey}`;
+        if (sessionMeta.type !== 'yjs') {
+            throw new TRPCError({
+                code: 'CONFLICT',
+                message: 'the session is not a yjs session',
+            });
+        }
+
+        if (!sessionMeta.meta) {
+            throw new TRPCError({
+                code: 'NOT_FOUND',
+                message: 'the session has not been initialized yet',
+            });
+        }
+
+        if (sessionMeta.meta.permissions.write !== true) {
+            throw new TRPCError({
+                code: 'FORBIDDEN',
+                message: 'the token does not have the permisison to write to this session',
+            });
+        }
+
+        const documentId = sessionMeta.documentId;
+        const hashedDocumentId: string = sessionMeta.hashedDocumentId;
+
+        const key = `${ctx.namespace}__${hashedDocumentId}`;
         const subject = `yjs.${key}`;
 
         // const telemetryTrackerRoom = initTelemetryTrackerRoom(
@@ -45,7 +100,7 @@ export const docUpdateMutationProcedure = servicePlanePassthroughProcedure
         // const telemetryTrackerRoomClient = initTelemetryTrackerRoomClient(telemetryTrackerRoom, telemetryTrackerClient);
 
         const publishHeaders = headers();
-        publishHeaders.set('sessionID', input.sessionID);
+        publishHeaders.set('sessionId', sessionId);
 
         try {
             for (const encodedUpdate of input.encodedUpdates) {
