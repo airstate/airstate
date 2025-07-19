@@ -135,7 +135,7 @@ export const peerInitMutationProcedure = servicePlanePassthroughProcedure
                             name: streamName,
                             subjects: [`presence.${key}.>`],
                             storage: StorageType.File,
-                            max_msgs_per_subject: 1,
+                            max_msgs_per_subject: parseInt(env.AIRSTATE_PRESENCE_RETENTION_COUNT ?? '1'),
                         });
 
                         await ctx.services.jetStreamClient.publish(

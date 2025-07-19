@@ -27,6 +27,12 @@ export const env = createEnv({
 
         SHARED_SIGNING_KEY: z.string().optional(),
 
+        AIRSTATE_PRESENCE_RETENTION_COUNT: z
+            .string()
+            .regex(/^[0-9]+$/)
+            .default('3')
+            .optional(),
+
         DEFAULT_YJS_READ_PERMISSION: booleanEnvSchema.default('true'),
         DEFAULT_YJS_WRITE_PERMISSION: booleanEnvSchema.default('true'),
         DEFAULT_PRESENCE_JOIN_PERMISSION: booleanEnvSchema.default('true'),

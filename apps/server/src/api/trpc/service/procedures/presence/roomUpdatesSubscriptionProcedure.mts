@@ -7,6 +7,7 @@ import { nanoid } from 'nanoid';
 import { getInitialPresenceState, TNATSPresenceMessage, TPresenceState } from './_helpers.mjs';
 import { runInAction, when } from 'mobx';
 import { TRPCError } from '@trpc/server';
+import { env } from '../../../../../env.mjs';
 // import { initTelemetryTrackerRoom } from '../../../../../utils/telemetry/rooms.mjs';
 // import { initTelemetryTrackerClient, initTelemetryTrackerRoomClient } from '../../../../../utils/telemetry/clients.mjs';
 // import { incrementTelemetryTrackers } from '../../../../../utils/telemetry/increment.mjs';
@@ -128,7 +129,7 @@ export const roomUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
                 name: streamName,
                 subjects: [`presence.${key}.>`],
                 storage: StorageType.File,
-                max_msgs_per_subject: 1,
+                max_msgs_per_subject: parseInt(env.AIRSTATE_PRESENCE_RETENTION_COUNT ?? '1'),
             });
 
             const consumerName = `presence_subscription_consumer_${nanoid()}`;
