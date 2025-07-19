@@ -175,6 +175,7 @@ export function sharedPresence<T extends TJSONAble>(
                         peerId: options.peerId,
                         token: resolvedToken ?? null,
                         sessionId: message.session_id,
+                        initialState: options.initialState,
                     });
 
                     sessionId = message.session_id;

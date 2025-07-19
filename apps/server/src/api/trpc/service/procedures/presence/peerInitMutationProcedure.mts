@@ -10,6 +10,7 @@ import { TNATSPresenceMessage } from './_helpers.mjs';
 import { createHash } from 'node:crypto';
 import { StorageType } from 'nats';
 import { runInAction } from 'mobx';
+import { TJSONAble } from '../../../../../types/misc.mjs';
 // import { initTelemetryTrackerRoom } from '../../../../../utils/telemetry/rooms.mjs';
 // import { initTelemetryTrackerClient, initTelemetryTrackerRoomClient } from '../../../../../utils/telemetry/clients.mjs';
 // import { incrementTelemetryTrackers } from '../../../../../utils/telemetry/increment.mjs';
@@ -20,6 +21,7 @@ export const peerInitMutationProcedure = servicePlanePassthroughProcedure
         z
             .object({
                 token: z.string().nullable(),
+                initialState: z.any().optional() as ZodType<TJSONAble>,
             })
             .and(
                 z.union([
@@ -95,19 +97,18 @@ export const peerInitMutationProcedure = servicePlanePassthroughProcedure
 
         // const telemetryTrackerRoomClient = initTelemetryTrackerRoomClient(telemetryTrackerRoom, telemetryTrackerClient);
 
-        const commonMeta = {
+        const meta = {
             peerId: peerId,
             hashedPeerId: hashedPeerId,
             permissions: defaultPermissions['presence'],
         };
 
+        let tokenMeta: any = undefined;
+
         if (input.token) {
             if (!ctx.appSecret) {
-                logger.warn('no shared signing key, cannot verify token');
-
-                runInAction(() => {
-                    ctx.services.localState.sessionMeta[sessionId].meta = commonMeta;
-                });
+                logger.error('no shared signing key, cannot verify token');
+                throw new Error('no shared signing key');
             } else {
                 const extracted = extractTokenPayload(input.token, ctx.appSecret);
 
@@ -119,55 +120,66 @@ export const peerInitMutationProcedure = servicePlanePassthroughProcedure
                         });
                     }
 
-                    runInAction(() => {
-                        ctx.services.localState.sessionMeta[sessionId].meta = {
-                            ...commonMeta,
-                            permissions: merge(
-                                defaultPermissions['presence'],
-                                extracted.data.presence?.permissions ?? {},
-                            ),
-                        };
+                    Object.assign(meta, {
+                        permissions: merge(defaultPermissions['presence'], extracted.data.presence?.permissions ?? {}),
                     });
 
-                    if (extracted.data.presence?.meta) {
-                        // ensure the stream exists
-                        await ctx.services.jetStreamManager.streams.add({
-                            name: streamName,
-                            subjects: [`presence.${key}.>`],
-                            storage: StorageType.File,
-                            max_msgs_per_subject: parseInt(env.AIRSTATE_PRESENCE_RETENTION_COUNT ?? '1'),
-                        });
-
-                        await ctx.services.jetStreamClient.publish(
-                            `${commonSubjectPrefix}.meta.${hashedPeerId}`,
-                            ctx.services.natsStringCodec.encode(
-                                JSON.stringify({
-                                    type: 'meta',
-                                    session_id: sessionId,
-                                    peer_id: peerId,
-                                    meta: extracted.data.presence.meta,
-                                    timestamp: Date.now(),
-                                } satisfies TNATSPresenceMessage),
-                            ),
-                        );
-
-                        // incrementTelemetryTrackers(
-                        //     [telemetryTrackerRoom, telemetryTrackerClient, telemetryTrackerRoomClient],
-                        //     JSON.stringify(extracted.data.presence.staticState).length,
-                        //     'received',
-                        // );
-                    }
-                } else {
-                    runInAction(() => {
-                        ctx.services.localState.sessionMeta[sessionId].meta = commonMeta;
-                    });
+                    tokenMeta = extracted.data.presence?.meta;
                 }
             }
-        } else {
-            runInAction(() => {
-                ctx.services.localState.sessionMeta[sessionId].meta = commonMeta;
+        }
+
+        const needsStream = !!input.initialState || !!tokenMeta;
+
+        if (needsStream) {
+            // ensure the stream exists
+            await ctx.services.jetStreamManager.streams.add({
+                name: streamName,
+                subjects: [`presence.${key}.>`],
+                storage: StorageType.File,
+                max_msgs_per_subject: parseInt(env.AIRSTATE_PRESENCE_RETENTION_COUNT ?? '1'),
             });
         }
+
+        if (tokenMeta) {
+            await ctx.services.jetStreamClient.publish(
+                `${commonSubjectPrefix}.meta.${hashedPeerId}`,
+                ctx.services.natsStringCodec.encode(
+                    JSON.stringify({
+                        type: 'meta',
+                        session_id: sessionId,
+                        peer_id: peerId,
+                        meta: tokenMeta,
+                        timestamp: Date.now(),
+                    } satisfies TNATSPresenceMessage),
+                ),
+            );
+        }
+
+        if (input.initialState) {
+            await ctx.services.jetStreamClient.publish(
+                `${commonSubjectPrefix}.state.${hashedPeerId}`,
+                ctx.services.natsStringCodec.encode(
+                    JSON.stringify({
+                        type: 'state',
+                        session_id: sessionId,
+                        peer_id: peerId,
+                        state: input.initialState,
+                        timestamp: Date.now(),
+                    } satisfies TNATSPresenceMessage),
+                ),
+            );
+        }
+
+        runInAction(() => {
+            ctx.services.localState.sessionMeta[sessionId].meta = meta;
+        });
+
+        // incrementTelemetryTrackers(
+        //     [telemetryTrackerRoom, telemetryTrackerClient, telemetryTrackerRoomClient],
+        //     JSON.stringify(extracted.data.presence.staticState).length,
+        //     'received',
+        // );
     });
 
 export type TPeerInitMutationProcedure = typeof peerInitMutationProcedure;

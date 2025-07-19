@@ -1,6 +1,7 @@
 import React, { useId, useState } from 'react';
 import { useSharedState, configure, useSharedPresence } from '@airstate/react';
 import { nanoid } from 'nanoid';
+import { z } from 'astro/zod';
 
 configure({
     server: 'ws://localhost:11001/ws',
@@ -30,6 +31,9 @@ export default function App() {
         peerId: peer,
         room: id,
         initialState: [0, 0],
+        validate: (raw) => {
+            return z.tuple([z.number(), z.number()]).parse(raw);
+        },
     });
 
     return (

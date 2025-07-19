@@ -15,6 +15,9 @@ export type TSharedStateOptions<T extends TJSONAble> = {
 
     token?: string | (() => string | Promise<string>);
     initialValue?: T | (() => T);
+
+    validate?: (rawState: any) => T;
+    throwOnValidationError?: boolean;
 };
 
 export type TSharedState<T extends TJSONAble> = {
