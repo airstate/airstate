@@ -8,6 +8,8 @@ import { merge } from 'es-toolkit/object';
 import { defaultPermissions } from '../../context.mjs';
 import { TNATSPresenceMessage } from './_helpers.mjs';
 import { createHash } from 'node:crypto';
+import { initMetricsTrackerClient } from '../../../../../utils/metric/clients.mjs';
+import { incrementMetricsTracker } from '../../../../../utils/metric/increment.mjs';
 // import { initTelemetryTrackerRoom } from '../../../../../utils/telemetry/rooms.mjs';
 // import { initTelemetryTrackerClient, initTelemetryTrackerRoomClient } from '../../../../../utils/telemetry/clients.mjs';
 // import { incrementTelemetryTrackers } from '../../../../../utils/telemetry/increment.mjs';
@@ -89,6 +91,13 @@ export const presenceUpdateMutationProcedure = servicePlanePassthroughProcedure
         // });
 
         // const telemetryTrackerRoomClient = initTelemetryTrackerRoomClient(telemetryTrackerRoom, telemetryTrackerClient);
+        const metricsTrackerClient = initMetricsTrackerClient(ctx.services.ephemeralState.metricTracker, {
+            serviceType: 'presence',
+            containerId: key,
+            clientId: ctx.clientId,
+            namespace: ctx.namespace,
+            appId: ctx.appId,
+        });
 
         if (input.update.type === 'state') {
             await ctx.services.jetStreamClient.publish(
@@ -109,6 +118,7 @@ export const presenceUpdateMutationProcedure = servicePlanePassthroughProcedure
             //     JSON.stringify(input.update.state).length,
             //     'received',
             // );
+            incrementMetricsTracker(metricsTrackerClient, JSON.stringify(input.update.state).length, 'received');
         }
     });
 

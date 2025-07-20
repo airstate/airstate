@@ -1,7 +1,9 @@
 import { TTelemetryTracker } from '../types/telemetry.mjs';
+import { TMetricsTracker } from '../types/metrics.mjs';
 
 export type TEphemeralState = {
     // telemetryTracker: TTelemetryTracker;
+    metricTracker: TMetricsTracker;
 };
 
 export async function createEphemeralState(): Promise<TEphemeralState> {
@@ -10,6 +12,16 @@ export async function createEphemeralState(): Promise<TEphemeralState> {
         //     clients: {},
         //     rooms: {},
         // },
+        metricTracker: {
+            services: {
+                ydoc: {
+                    documents: {},
+                },
+                presence: {
+                    rooms: {},
+                },
+            },
+        },
     };
 }
 

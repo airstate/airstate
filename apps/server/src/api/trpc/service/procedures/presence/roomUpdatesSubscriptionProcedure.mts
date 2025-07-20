@@ -9,6 +9,8 @@ import { runInAction, when } from 'mobx';
 import { TRPCError } from '@trpc/server';
 import { env } from '../../../../../env.mjs';
 import { TJSONAble } from '../../../../../types/misc.mjs';
+import { initMetricsTrackerClient } from '../../../../../utils/metric/clients.mjs';
+import { incrementMetricsTracker } from '../../../../../utils/metric/increment.mjs';
 // import { initTelemetryTrackerRoom } from '../../../../../utils/telemetry/rooms.mjs';
 // import { initTelemetryTrackerClient, initTelemetryTrackerRoomClient } from '../../../../../utils/telemetry/clients.mjs';
 // import { incrementTelemetryTrackers } from '../../../../../utils/telemetry/increment.mjs';
@@ -125,6 +127,14 @@ export const roomUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
             //     telemetryTrackerClient,
             // );
 
+            const metricsTrackerClient = initMetricsTrackerClient(ctx.services.ephemeralState.metricTracker, {
+                serviceType: 'presence',
+                containerId: key,
+                clientId: ctx.clientId,
+                namespace: ctx.namespace,
+                appId: ctx.appId,
+            });
+
             // ensure the stream exists
             await ctx.services.jetStreamManager.streams.add({
                 name: streamName,
@@ -184,6 +194,8 @@ export const roomUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
                     //     JSON.stringify(message.staticState).length,
                     //     'relayed',
                     // );
+
+                    incrementMetricsTracker(metricsTrackerClient, JSON.stringify(message.meta).length, 'sent');
                 } else if (message.session_id !== sessionId) {
                     if (message.type === 'state') {
                         yield {
@@ -198,6 +210,8 @@ export const roomUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
                         //     JSON.stringify(message.dynamicState).length,
                         //     'relayed',
                         // );
+
+                        incrementMetricsTracker(metricsTrackerClient, JSON.stringify(message.state).length, 'sent');
                     }
                 }
 

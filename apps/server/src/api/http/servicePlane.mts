@@ -3,8 +3,14 @@ import * as trpcExpress from '@trpc/server/adapters/express';
 import { TServicePlaneContextCreator } from '../trpc/service/context.mjs';
 import { servicePlaneAppRouter } from '../trpc/service/routers/index.mjs';
 import { errorMiddleware } from './middleware/errorMiddleware.mjs';
+import { registerMetricsHTTPRoutes } from './metrics/metrics.mjs';
+import { TServices } from '../../services.mjs';
 
-export async function registerServicePlaneHTTPRoutes(expressApp: Express, createContext: TServicePlaneContextCreator) {
+export async function registerServicePlaneHTTPRoutes(
+    expressApp: Express,
+    createContext: TServicePlaneContextCreator,
+    services: TServices,
+) {
     const app = expressApp;
 
     app.get('/', (req, res) => {
@@ -24,6 +30,7 @@ export async function registerServicePlaneHTTPRoutes(expressApp: Express, create
     // Register HTTP endpoints
     const httpEndpointRouter = express.Router();
     app.use('/http', httpEndpointRouter);
+    registerMetricsHTTPRoutes(httpEndpointRouter, services);
 
     app.use(errorMiddleware);
 }

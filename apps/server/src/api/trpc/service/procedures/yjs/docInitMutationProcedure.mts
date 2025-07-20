@@ -7,6 +7,8 @@ import { extractTokenPayload } from '../../../../../auth/permissions/index.mjs';
 import { merge } from 'es-toolkit/object';
 import { headers, StorageType } from 'nats';
 import { runInAction } from 'mobx';
+import { initMetricsTrackerClient } from '../../../../../utils/metric/clients.mjs';
+import { incrementMetricsTracker } from '../../../../../utils/metric/increment.mjs';
 // import { initTelemetryTrackerRoom } from '../../../../../utils/telemetry/rooms.mjs';
 // import { initTelemetryTrackerClient, initTelemetryTrackerRoomClient } from '../../../../../utils/telemetry/clients.mjs';
 // import { incrementTelemetryTrackers } from '../../../../../utils/telemetry/increment.mjs';
@@ -100,6 +102,13 @@ export const docInitMutationProcedure = servicePlanePassthroughProcedure
 
         // const telemetryTrackerRoomClient = initTelemetryTrackerRoomClient(telemetryTrackerRoom, telemetryTrackerClient);
 
+        const metricsTrackerClient = initMetricsTrackerClient(ctx.services.ephemeralState.metricTracker, {
+            serviceType: 'ydoc',
+            containerId: key,
+            clientId: ctx.clientId,
+            namespace: ctx.namespace,
+            appId: ctx.appId,
+        });
         runInAction(() => {
             sessionMeta.meta = meta;
         });
@@ -126,6 +135,7 @@ export const docInitMutationProcedure = servicePlanePassthroughProcedure
                 //     input.initialState.length,
                 //     'received',
                 // );
+                incrementMetricsTracker(metricsTrackerClient, input.initialState.length, 'received');
 
                 const streamInfo = await ctx.services.jetStreamManager.streams.info(streamName);
                 const messageCount = streamInfo.state.messages;
