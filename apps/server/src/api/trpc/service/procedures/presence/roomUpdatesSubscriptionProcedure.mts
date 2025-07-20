@@ -8,6 +8,7 @@ import { getInitialPresenceState, TNATSPresenceMessage, TPresenceState } from '.
 import { runInAction, when } from 'mobx';
 import { TRPCError } from '@trpc/server';
 import { env } from '../../../../../env.mjs';
+import { TJSONAble } from '../../../../../types/misc.mjs';
 // import { initTelemetryTrackerRoom } from '../../../../../utils/telemetry/rooms.mjs';
 // import { initTelemetryTrackerClient, initTelemetryTrackerRoomClient } from '../../../../../utils/telemetry/clients.mjs';
 // import { incrementTelemetryTrackers } from '../../../../../utils/telemetry/increment.mjs';
@@ -27,7 +28,7 @@ export type TPresenceMessage =
           timestamp: number;
 
           type: 'meta';
-          meta: Record<string, any>;
+          meta: any;
       }
     | {
           peer_id: string;
@@ -35,7 +36,7 @@ export type TPresenceMessage =
           timestamp: number;
 
           type: 'state';
-          state: Record<string, any>;
+          state: any;
       };
 
 export const roomUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure

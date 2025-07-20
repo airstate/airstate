@@ -12,18 +12,15 @@ export type TNATSPresenceMessage = {
 } & (
     | {
           type: 'meta';
-          meta: Record<string, any>;
+          meta: any;
       }
     | {
           type: 'state';
-          state: Record<string, any>;
+          state: TJSONAble;
       }
 );
 
-export type TPresenceState<
-    STATE_TYPE extends TJSONAble | undefined,
-    META_TYPE extends Record<string, any> = Record<string, any>,
-> = {
+export type TPresenceState<STATE_TYPE extends TJSONAble = TJSONAble, META_TYPE extends TJSONAble = TJSONAble> = {
     peers: Record<
         string,
         {
@@ -43,7 +40,7 @@ export type TPresenceState<
 export async function getInitialPresenceState(
     jetStream: JetStreamServices,
     streamName: string,
-): Promise<{ state: TPresenceState<any>; lastSeq: number }> {
+): Promise<{ state: TPresenceState; lastSeq: number }> {
     const ephemeralConsumerName = `coordinator_consumer_${nanoid()}`;
 
     await jetStream.jetStreamManager.consumers.add(streamName, {

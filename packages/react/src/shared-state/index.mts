@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { sharedState, TAirStateClient, TJSONAble, TSharedState } from '@airstate/client';
 import { useForceUpdate } from '../utils/useForceUpdate.mjs';
 
-export type TOptions = {
+export type TOptions<T extends TJSONAble> = {
     client?: TAirStateClient;
 
     /**
@@ -12,15 +12,21 @@ export type TOptions = {
 
     channel?: string;
     token?: string | (() => string | Promise<string>);
+
+    validate?: (rawState: any) => T;
+
+    onError?: (error: any) => void;
 };
 
 export function useSharedState<T extends TJSONAble>(
     initialState: T | (() => T),
-    options?: TOptions,
-): [T, (value: T | ((prev: T) => T)) => void, boolean] {
+    options?: TOptions<T>,
+): [T, (value: T | ((prev: T) => T)) => void, boolean, any] {
     const resolvedInitialValue = typeof initialState === 'function' ? initialState() : initialState;
 
     const [initialComputedState] = useState<T>(resolvedInitialValue);
+
+    const errorRef = useRef<any>(undefined);
 
     const sharedStateRef = useRef<TSharedState<T> | null>(null);
 
@@ -36,6 +42,8 @@ export function useSharedState<T extends TJSONAble>(
             channel: options?.channel ?? options?.key,
             token: options?.token,
             initialValue: initialState,
+
+            validate: options?.validate,
         });
 
         sharedStateRef.current = sharedStateInstance;
@@ -52,13 +60,16 @@ export function useSharedState<T extends TJSONAble>(
 
         const cleanupOnUpdate = sharedStateInstance.onUpdate((value) => {
             publicStateRef.current = value;
+            errorRef.current = undefined;
 
             forceUpdate();
         });
 
         const cleanupOnError = sharedStateInstance.onError((error) => {
-            console.error(error);
-            throw new Error(error?.message);
+            errorRef.current = error;
+            options?.onError?.(error);
+
+            forceUpdate();
         });
 
         return () => {
@@ -82,5 +93,5 @@ export function useSharedState<T extends TJSONAble>(
         forceUpdate();
     }, []);
 
-    return [publicStateRef.current, setState, isSyncedRef.current];
+    return [publicStateRef.current, setState, isSyncedRef.current, errorRef];
 }

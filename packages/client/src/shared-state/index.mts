@@ -15,13 +15,15 @@ export type TSharedStateOptions<T extends TJSONAble> = {
 
     token?: string | (() => string | Promise<string>);
     initialValue?: T | (() => T);
+
+    validate?: (rawState: any) => T;
 };
 
 export type TSharedState<T extends TJSONAble> = {
     readonly update: (update: T | ((previousValue: T) => T)) => void;
     readonly onUpdate: (listener: (value: T, origin: any) => void) => () => boolean;
     readonly onSynced: (listener: (value: T) => void) => () => boolean;
-    readonly onError: (listener: (error?: Error) => void) => () => boolean;
+    readonly onError: (listener: (error?: any) => void) => () => boolean;
     readonly onConnect: (listener: () => void) => () => boolean;
     readonly onDisconnect: (listener: () => void) => () => boolean;
     readonly destroy: () => void;
@@ -35,7 +37,7 @@ export function sharedState<T extends TJSONAble = any>(
 
     const updateListeners = new Set<(value: T, origin: any) => void>();
     const syncedListeners = new Set<(value: T) => void>();
-    const errorListeners = new Set<(error?: Error) => void>();
+    const errorListeners = new Set<(error?: any) => void>();
     const connectListeners = new Set<() => void>();
     const disconnectListeners = new Set<() => void>();
 
@@ -53,9 +55,25 @@ export function sharedState<T extends TJSONAble = any>(
         const updateHandler = (update: Uint8Array, origin: any) => {
             const decoded = decodeYDocToObject({ doc: doc });
 
-            updateListeners.forEach((listener) => {
-                listener(decoded.data as any, origin);
-            });
+            if (options?.validate) {
+                const decodedData = decoded.data;
+
+                try {
+                    const nextState = options.validate(decodedData);
+
+                    updateListeners.forEach((listener) => {
+                        listener(nextState, origin);
+                    });
+                } catch (error) {
+                    errorListeners.forEach((listener) => {
+                        listener(error);
+                    });
+                }
+            } else {
+                updateListeners.forEach((listener) => {
+                    listener(decoded.data as any, origin);
+                });
+            }
         };
 
         doc.on('update', updateHandler);
@@ -177,7 +195,7 @@ export function sharedState<T extends TJSONAble = any>(
             syncedListeners.add(listener);
             return () => syncedListeners.delete(listener);
         },
-        onError: (listener: (error?: Error) => void) => {
+        onError: (listener: (error?: any) => void) => {
             errorListeners.add(listener);
             return () => errorListeners.delete(listener);
         },

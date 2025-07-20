@@ -1,5 +1,19 @@
 # @airstate/client
 
+## 1.0.1
+
+### Patch Changes
+
+- de48c05: request version bump: telemetry request format changed
+
+## 1.0.0
+
+## 0.1.12
+
+### Patch Changes
+
+- 241cba5: Improved presence type exported. Localized to @airstate/client and not re-exported from @airstate/server
+
 ## 0.1.11
 
 ### Patch Changes

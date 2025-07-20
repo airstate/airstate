@@ -11,4 +11,4 @@ export const clientLogsSubscriptionProcedure = servicePlanePassthroughProcedure.
     }
 });
 
-export type TclientLogsSubscriptionProcedure = typeof clientLogsSubscriptionProcedure;
+export type TClientLogsSubscriptionProcedure = typeof clientLogsSubscriptionProcedure;

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { TSharedPresenceOptions, TSharedPresence, TPresenceState, sharedPresence, TJSONAble } from '@airstate/client';
 import { useForceUpdate } from '../utils/useForceUpdate.mjs';
 
-export function useSharedPresence<T extends TJSONAble | undefined>(
+export function useSharedPresence<T extends TJSONAble>(
     options: TSharedPresenceOptions<T>,
 ): {
     self: TPresenceState<T>['peers'][string];
