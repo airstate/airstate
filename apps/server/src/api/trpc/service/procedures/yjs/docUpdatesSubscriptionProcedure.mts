@@ -8,8 +8,8 @@ import { servicePlanePassthroughProcedure } from '../../middleware/passthrough.m
 import { nanoid } from 'nanoid';
 import { runInAction, when } from 'mobx';
 import { TRPCError } from '@trpc/server';
-import { initMetricsTrackerClient } from '../../../../../utils/metric/clients.mjs';
-import { incrementMetricsTracker } from '../../../../../utils/metric/increment.mjs';
+//import { initMetricsTrackerClient } from '../../../../../utils/metric/clients.mjs';
+//import { incrementMetricsTracker } from '../../../../../utils/metric/increment.mjs';
 // import { initTelemetryTrackerRoom } from '../../../../../utils/telemetry/rooms.mjs';
 // import { initTelemetryTrackerRoomrClient, initTelemetryTrackerRoomClient } from '../../../../../utils/telemetry/clients.mjs';
 // import { incrementTelemetryTrackers } from '../../../../../utils/telemetry/increment.mjs';
@@ -137,13 +137,13 @@ export const docUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
             //     telemetryTrackerRoom,
             //     telemetryTrackerClient,
             // );
-            const metricsTrackerClient = initMetricsTrackerClient(ctx.services.ephemeralState.metricTracker, {
-                serviceType: 'ydoc',
-                containerId: key,
-                clientId: ctx.clientId,
-                namespace: ctx.namespace,
-                appId: ctx.appId,
-            });
+            // const metricsTrackerClient = initMetricsTrackerClient(ctx.services.ephemeralState.metricTracker, {
+            //     serviceType: 'ydoc',
+            //     containerId: key,
+            //     clientId: ctx.clientId,
+            //     namespace: ctx.namespace,
+            //     appId: ctx.appId,
+            // });
             // ensure the stream exists
             await ctx.services.jetStreamManager.streams.add({
                 name: streamName,
@@ -198,7 +198,7 @@ export const docUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
                 //     merged.mergedUpdate.length,
                 //     'relayed',
                 // );
-                incrementMetricsTracker(metricsTrackerClient, merged.mergedUpdate.length, 'sent');
+                //incrementMetricsTracker(metricsTrackerClient, merged.mergedUpdate.length, 'sent');
             } else {
                 yield {
                     type: 'sync',
@@ -212,7 +212,7 @@ export const docUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
                 //     0,
                 //     'relayed',
                 // );
-                incrementMetricsTracker(metricsTrackerClient, 0, 'sent');
+                //incrementMetricsTracker(metricsTrackerClient, 0, 'sent');
             }
 
             if (merged) {
@@ -256,7 +256,7 @@ export const docUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
                     //     updateString.length,
                     //     'received',
                     // );
-                    incrementMetricsTracker(metricsTrackerClient, updateString.length, 'received');
+                    //incrementMetricsTracker(metricsTrackerClient, updateString.length, 'received');
                 }
 
                 streamMessage.ack();
