@@ -20,7 +20,6 @@
         "@trpc/server": "11.1.2",
         "async-iterable-queue": "^1.0.16",
         "bufferutil": "4.0.9",
-        "bullmq": "5.1.0",
         "cookie": "^1.0.2",
         "dbly-linked-list": "^0.3.5",
         "es-toolkit": "^1.37.2",

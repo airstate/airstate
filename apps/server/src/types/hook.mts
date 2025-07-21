@@ -4,20 +4,18 @@ export type THookEvent =
           data: {
               roomId: string;
               namespace: string;
-              appId: string;
+              appId: string | null;
               labels?: string[];
           };
-          eventTime: number;
       }
     | {
           event_type: 'ydoc.document.created';
           data: {
               documentId: string;
               namespace: string;
-              appId: string;
+              appId: string | null;
               labels?: string[];
           };
-          eventTime: number;
       }
     | {
           event_type: 'client.connected';
@@ -27,7 +25,7 @@ export type THookEvent =
                     roomId: string;
                     clientId: string;
                     namespace: string;
-                    appId: string;
+                    appId: string | null;
                     groups?: string[];
                 }
               | {
@@ -35,11 +33,9 @@ export type THookEvent =
                     documentId: string;
                     clientId: string;
                     namespace: string;
-                    appId: string;
+                    appId: string | null;
                     groups?: string[];
                 };
-
-          eventTime: number;
       }
     | {
           event_type: 'client.disconnected';
@@ -49,7 +45,7 @@ export type THookEvent =
                     roomId: string;
                     clientId: string;
                     namespace: string;
-                    appId: string;
+                    appId: string | null;
                     groups?: string[];
                 }
               | {
@@ -57,9 +53,7 @@ export type THookEvent =
                     documentId: string;
                     clientId: string;
                     namespace: string;
-                    appId: string;
+                    appId: string | null;
                     groups?: string[];
                 };
-
-          eventTime: number;
       };
