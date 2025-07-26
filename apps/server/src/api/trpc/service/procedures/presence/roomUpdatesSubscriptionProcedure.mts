@@ -11,6 +11,7 @@ import { env } from '../../../../../env.mjs';
 import { TJSONAble } from '../../../../../types/misc.mjs';
 import { initMetricsTrackerClient } from '../../../../../utils/metric/clients.mjs';
 import { incrementMetricsTracker } from '../../../../../utils/metric/increment.mjs';
+import { dispatchHook } from '../../../../../hooks/dispatcher.mjs';
 // import { initTelemetryTrackerRoom } from '../../../../../utils/telemetry/rooms.mjs';
 // import { initTelemetryTrackerClient, initTelemetryTrackerRoomClient } from '../../../../../utils/telemetry/clients.mjs';
 // import { incrementTelemetryTrackers } from '../../../../../utils/telemetry/increment.mjs';
@@ -105,6 +106,22 @@ export const roomUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
             const key = `${ctx.namespace}__${hashedClientSentRoomId}`;
             const streamName = `presence_${key}`;
 
+            const action = await dispatchHook('clientSubscribed', {
+                type: 'clientSubscribed',
+                service: 'presence',
+                roomId: streamName,
+                clientId: ctx.clientId,
+                namespace: ctx.clientId,
+                appId: ctx.clientId,
+            });
+
+            if (action?.drop) {
+                throw new TRPCError({
+                    code: 'FORBIDDEN',
+                    message: `Subscription denied: ${action?.reason}`,
+                });
+            }
+
             // const telemetryTrackerRoom = initTelemetryTrackerRoom(
             //     ctx.services.ephemeralState.telemetryTracker,
             //     'presence',
@@ -141,6 +158,12 @@ export const roomUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
                 subjects: [`presence.${key}.>`],
                 storage: StorageType.File,
                 max_msgs_per_subject: parseInt(env.AIRSTATE_PRESENCE_RETENTION_COUNT ?? '1'),
+            });
+            await dispatchHook('roomCreated', {
+                type: 'roomCreated',
+                roomId: streamName,
+                appId: ctx.appId,
+                namespace: ctx.namespace,
             });
 
             const consumerName = `presence_subscription_consumer_${nanoid()}`;
@@ -221,6 +244,14 @@ export const roomUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
             throw error;
         } finally {
             delete ctx.services.localState.sessionMeta[sessionId];
+            await dispatchHook('clientUnsubscribed', {
+                type: 'clientUnsubscribed',
+                service: 'presence',
+                roomId: `presence_${ctx.namespace}__${hashedClientSentRoomId}`,
+                clientId: ctx.clientId,
+                namespace: ctx.clientId,
+                appId: ctx.clientId,
+            });
         }
     });
 

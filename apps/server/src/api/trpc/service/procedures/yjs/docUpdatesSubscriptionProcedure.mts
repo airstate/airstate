@@ -10,6 +10,7 @@ import { runInAction, when } from 'mobx';
 import { TRPCError } from '@trpc/server';
 import { initMetricsTrackerClient } from '../../../../../utils/metric/clients.mjs';
 import { incrementMetricsTracker } from '../../../../../utils/metric/increment.mjs';
+import { dispatchHook } from '../../../../../hooks/dispatcher.mjs';
 // import { initTelemetryTrackerRoom } from '../../../../../utils/telemetry/rooms.mjs';
 // import { initTelemetryTrackerRoomrClient, initTelemetryTrackerRoomClient } from '../../../../../utils/telemetry/clients.mjs';
 // import { incrementTelemetryTrackers } from '../../../../../utils/telemetry/increment.mjs';
@@ -115,6 +116,22 @@ export const docUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
             const subject = `yjs.${key}`;
             const streamName = `yjs_${key}`;
             const consumerName = `yjs_subscription_consumer_${nanoid()}`;
+
+            const action = await dispatchHook('clientSubscribed', {
+                type: 'clientSubscribed',
+                service: 'ydoc',
+                documentId: streamName,
+                clientId: ctx.clientId,
+                namespace: ctx.clientId,
+                appId: ctx.clientId,
+            });
+
+            if (action?.drop) {
+                throw new TRPCError({
+                    code: 'FORBIDDEN',
+                    message: `Subscription denied: ${action?.reason}`,
+                });
+            }
 
             // const telemetryTrackerRoom = initTelemetryTrackerRoom(
             //     ctx.services.ephemeralState.telemetryTracker,
@@ -265,6 +282,14 @@ export const docUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
             throw error;
         } finally {
             delete ctx.services.localState.sessionMeta[sessionId];
+            await dispatchHook('clientUnsubscribed', {
+                type: 'clientUnsubscribed',
+                service: 'ydoc',
+                documentId: `yjs_${ctx.namespace}__${hashedDocumentId}`,
+                clientId: ctx.clientId,
+                namespace: ctx.clientId,
+                appId: ctx.clientId,
+            });
         }
     });
 

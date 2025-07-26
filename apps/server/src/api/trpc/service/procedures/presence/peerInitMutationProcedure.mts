@@ -13,6 +13,7 @@ import { runInAction } from 'mobx';
 import { TJSONAble } from '../../../../../types/misc.mjs';
 import { initMetricsTrackerClient } from '../../../../../utils/metric/clients.mjs';
 import { incrementMetricsTracker } from '../../../../../utils/metric/increment.mjs';
+import { dispatchHook } from '../../../../../hooks/dispatcher.mjs';
 // import { initTelemetryTrackerRoom } from '../../../../../utils/telemetry/rooms.mjs';
 // import { initTelemetryTrackerClient, initTelemetryTrackerRoomClient } from '../../../../../utils/telemetry/clients.mjs';
 // import { incrementTelemetryTrackers } from '../../../../../utils/telemetry/increment.mjs';
@@ -148,6 +149,12 @@ export const peerInitMutationProcedure = servicePlanePassthroughProcedure
                 subjects: [`presence.${key}.>`],
                 storage: StorageType.File,
                 max_msgs_per_subject: parseInt(env.AIRSTATE_PRESENCE_RETENTION_COUNT ?? '1'),
+            });
+            await dispatchHook('roomCreated', {
+                type: 'roomCreated',
+                roomId: streamName,
+                appId: ctx.appId,
+                namespace: ctx.namespace,
             });
         }
 

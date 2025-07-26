@@ -9,6 +9,7 @@ import { headers, StorageType } from 'nats';
 import { runInAction } from 'mobx';
 import { initMetricsTrackerClient } from '../../../../../utils/metric/clients.mjs';
 import { incrementMetricsTracker } from '../../../../../utils/metric/increment.mjs';
+import { dispatchHook } from '../../../../../hooks/dispatcher.mjs';
 // import { initTelemetryTrackerRoom } from '../../../../../utils/telemetry/rooms.mjs';
 // import { initTelemetryTrackerClient, initTelemetryTrackerRoomClient } from '../../../../../utils/telemetry/clients.mjs';
 // import { incrementTelemetryTrackers } from '../../../../../utils/telemetry/increment.mjs';
@@ -139,6 +140,13 @@ export const docInitMutationProcedure = servicePlanePassthroughProcedure
 
                 const streamInfo = await ctx.services.jetStreamManager.streams.info(streamName);
                 const messageCount = streamInfo.state.messages;
+
+                await dispatchHook('documentCreated', {
+                    type: 'documentCreated',
+                    documentId: streamName,
+                    namespace: ctx.namespace,
+                    appId: ctx.appId,
+                });
 
                 if (messageCount === 1) {
                     hasWrittenFirstUpdate = true;
