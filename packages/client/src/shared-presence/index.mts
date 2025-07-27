@@ -293,8 +293,6 @@ export function sharedPresence<T extends TJSONAble>(
                         lastConnected: message.timestamp,
                     };
 
-                    console.debug(':rcon', message.peer_id);
-
                     recalculateSummary();
                     notifyListeners();
                 } else if (message.type === 'disconnected') {
@@ -304,8 +302,6 @@ export function sharedPresence<T extends TJSONAble>(
                         connected: false,
                         lastDisconnected: message.timestamp,
                     };
-
-                    console.debug(':rdis', message.peer_id);
 
                     recalculateSummary();
                     notifyListeners();
