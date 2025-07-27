@@ -8,6 +8,9 @@ import { servicePlanePassthroughProcedure } from '../../middleware/passthrough.m
 import { nanoid } from 'nanoid';
 import { runInAction, when } from 'mobx';
 import { TRPCError } from '@trpc/server';
+import { initMetricsTrackerClient } from '../../../../../utils/metric/clients.mjs';
+import { incrementMetricsTracker } from '../../../../../utils/metric/increment.mjs';
+import { dispatchHook } from '../../../../../hooks/dispatcher.mjs';
 // import { initTelemetryTrackerRoom } from '../../../../../utils/telemetry/rooms.mjs';
 // import { initTelemetryTrackerRoomrClient, initTelemetryTrackerRoomClient } from '../../../../../utils/telemetry/clients.mjs';
 // import { incrementTelemetryTrackers } from '../../../../../utils/telemetry/increment.mjs';
@@ -114,6 +117,22 @@ export const docUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
             const streamName = `yjs_${key}`;
             const consumerName = `yjs_subscription_consumer_${nanoid()}`;
 
+            const action = await dispatchHook('clientSubscribed', {
+                type: 'clientSubscribed',
+                service: 'ydoc',
+                documentId: streamName,
+                clientId: ctx.clientId,
+                namespace: ctx.clientId,
+                appId: ctx.clientId,
+            });
+
+            if (action?.drop) {
+                throw new TRPCError({
+                    code: 'FORBIDDEN',
+                    message: `Subscription denied: ${action?.reason}`,
+                });
+            }
+
             // const telemetryTrackerRoom = initTelemetryTrackerRoom(
             //     ctx.services.ephemeralState.telemetryTracker,
             //     'ydoc',
@@ -135,7 +154,13 @@ export const docUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
             //     telemetryTrackerRoom,
             //     telemetryTrackerClient,
             // );
-
+            const metricsTrackerClient = initMetricsTrackerClient(ctx.services.ephemeralState.metricTracker, {
+                serviceType: 'ydoc',
+                containerId: key,
+                clientId: ctx.clientId,
+                namespace: ctx.namespace,
+                appId: ctx.appId,
+            });
             // ensure the stream exists
             await ctx.services.jetStreamManager.streams.add({
                 name: streamName,
@@ -190,6 +215,7 @@ export const docUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
                 //     merged.mergedUpdate.length,
                 //     'relayed',
                 // );
+                incrementMetricsTracker(metricsTrackerClient, merged.mergedUpdate.length, 'sent');
             } else {
                 yield {
                     type: 'sync',
@@ -203,6 +229,7 @@ export const docUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
                 //     0,
                 //     'relayed',
                 // );
+                incrementMetricsTracker(metricsTrackerClient, 0, 'sent');
             }
 
             if (merged) {
@@ -246,6 +273,7 @@ export const docUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
                     //     updateString.length,
                     //     'received',
                     // );
+                    incrementMetricsTracker(metricsTrackerClient, updateString.length, 'received');
                 }
 
                 streamMessage.ack();
@@ -254,6 +282,14 @@ export const docUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
             throw error;
         } finally {
             delete ctx.services.localState.sessionMeta[sessionId];
+            await dispatchHook('clientUnsubscribed', {
+                type: 'clientUnsubscribed',
+                service: 'ydoc',
+                documentId: `yjs_${ctx.namespace}__${hashedDocumentId}`,
+                clientId: ctx.clientId,
+                namespace: ctx.clientId,
+                appId: ctx.clientId,
+            });
         }
     });
 

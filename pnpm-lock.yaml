@@ -49,7 +49,7 @@ importers:
         version: 19.1.2(@types/react@19.1.2)
       astro:
         specifier: ^5.7.7
-        version: 5.7.7(@types/node@22.12.0)(jiti@2.4.2)(lightningcss@1.29.2)(rollup@4.40.1)(typescript@5.8.3)
+        version: 5.7.7(@types/node@22.12.0)(ioredis@5.6.1)(jiti@2.4.2)(lightningcss@1.29.2)(rollup@4.40.1)(typescript@5.8.3)
       lucide-react:
         specifier: 0.522.0
         version: 0.522.0(react@19.1.0)
@@ -107,6 +107,9 @@ importers:
       jsonwebtoken:
         specifier: 9.0.2
         version: 9.0.2
+      lodash:
+        specifier: 4.17.21
+        version: 4.17.21
       mobx:
         specifier: ^6.13.7
         version: 6.13.7
@@ -150,6 +153,9 @@ importers:
       '@types/jsonwebtoken':
         specifier: 9.0.9
         version: 9.0.9
+      '@types/lodash':
+        specifier: 4.17.20
+        version: 4.17.20
       '@types/node':
         specifier: 22.12.0
         version: 22.12.0
@@ -775,6 +781,9 @@ packages:
     cpu: [x64]
     os: [win32]
 
+  '@ioredis/commands@1.2.0':
+    resolution: {integrity: sha512-Sx1pU8EM64o2BrqNpEO1CNLtKQwyhuXuqyfH7oGKCk+1a33d2r5saW8zNwm3j6BTExtjrv2BxTgzzkMwts6vGg==}
+
   '@iovalkey/commands@0.1.0':
     resolution: {integrity: sha512-/B9W4qKSSITDii5nkBCHyPkIkAi+ealUtr1oqBJsLxjSRLka4pxun2VvMNSmcwgAMxgXtQfl0qRv7TE+udPJzg==}
 
@@ -1201,6 +1210,9 @@ packages:
 
   '@types/jsonwebtoken@9.0.9':
     resolution: {integrity: sha512-uoe+GxEuHbvy12OUQct2X9JenKM3qAscquYymuQN4fMWG9DBQtykrQEFcAbVACF7qaLw9BePSodUL0kquqBJpQ==}
+
+  '@types/lodash@4.17.20':
+    resolution: {integrity: sha512-H3MHACvFUEiujabxhaI/ImO6gUrd8oOurg7LQtS7mbwIXA/cUqWrvBsaeJ23aZEPk1TAYkurjfMbSELfoCXlGA==}
 
   '@types/luxon@3.4.2':
     resolution: {integrity: sha512-TifLZlFudklWlMBfhubvgqTXRzLDI5pCbGa4P8a3wPyUQSW+1xQ5eDsreP9DWHX3tjq1ke96uYG/nwundroWcA==}
@@ -2158,6 +2170,10 @@ packages:
 
   inherits@2.0.4:
     resolution: {integrity: sha512-k/vGaX4/Yla3WzyMCvTQOXYeIHvqOKtnqBduzTHpzpQZzAskKMhZ2K+EnBiSM9zGSoIFeMpXKxa4dYeZIQqewQ==}
+
+  ioredis@5.6.1:
+    resolution: {integrity: sha512-UxC0Yv1Y4WRJiGQxQkP0hfdL0/5/6YvdfOOClRgJ0qppSarkhneSa6UvkMkms0AkdGimSH3Ikqm+6mkMmX7vGA==}
+    engines: {node: '>=12.22.0'}
 
   iovalkey@0.3.1:
     resolution: {integrity: sha512-pSmFj/ZDFLP8AzqIAMpNJArhHYNeyqIwfcUULwZv8g6y3eaUGrlnlT7QXLrJAp0yiGCAqe1hPA33x/h5opNP9w==}
@@ -4569,6 +4585,9 @@ snapshots:
   '@img/sharp-win32-x64@0.33.5':
     optional: true
 
+  '@ioredis/commands@1.2.0':
+    optional: true
+
   '@iovalkey/commands@0.1.0': {}
 
   '@istanbuljs/load-nyc-config@1.1.0':
@@ -5064,6 +5083,8 @@ snapshots:
       '@types/ms': 2.1.0
       '@types/node': 22.12.0
 
+  '@types/lodash@4.17.20': {}
+
   '@types/luxon@3.4.2': {}
 
   '@types/mdast@4.0.4':
@@ -5191,7 +5212,7 @@ snapshots:
 
   array-union@2.1.0: {}
 
-  astro@5.7.7(@types/node@22.12.0)(jiti@2.4.2)(lightningcss@1.29.2)(rollup@4.40.1)(typescript@5.8.3):
+  astro@5.7.7(@types/node@22.12.0)(ioredis@5.6.1)(jiti@2.4.2)(lightningcss@1.29.2)(rollup@4.40.1)(typescript@5.8.3):
     dependencies:
       '@astrojs/compiler': 2.11.0
       '@astrojs/internal-helpers': 0.6.1
@@ -5242,7 +5263,7 @@ snapshots:
       ultrahtml: 1.6.0
       unifont: 0.4.0
       unist-util-visit: 5.0.0
-      unstorage: 1.16.0
+      unstorage: 1.16.0(ioredis@5.6.1)
       vfile: 6.0.3
       vite: 6.3.3(@types/node@22.12.0)(jiti@2.4.2)(lightningcss@1.29.2)
       vitefu: 1.0.6(vite@6.3.3(@types/node@22.12.0)(jiti@2.4.2)(lightningcss@1.29.2))
@@ -6201,6 +6222,21 @@ snapshots:
       wrappy: 1.0.2
 
   inherits@2.0.4: {}
+
+  ioredis@5.6.1:
+    dependencies:
+      '@ioredis/commands': 1.2.0
+      cluster-key-slot: 1.1.2
+      debug: 4.4.0(supports-color@5.5.0)
+      denque: 2.1.0
+      lodash.defaults: 4.2.0
+      lodash.isarguments: 3.1.0
+      redis-errors: 1.2.0
+      redis-parser: 3.0.0
+      standard-as-callback: 2.1.0
+    transitivePeerDependencies:
+      - supports-color
+    optional: true
 
   iovalkey@0.3.1:
     dependencies:
@@ -8069,7 +8105,7 @@ snapshots:
 
   unpipe@1.0.0: {}
 
-  unstorage@1.16.0:
+  unstorage@1.16.0(ioredis@5.6.1):
     dependencies:
       anymatch: 3.1.3
       chokidar: 4.0.3
@@ -8079,6 +8115,8 @@ snapshots:
       node-fetch-native: 1.6.6
       ofetch: 1.4.1
       ufo: 1.6.1
+    optionalDependencies:
+      ioredis: 5.6.1
 
   update-browserslist-db@1.1.3(browserslist@4.24.4):
     dependencies:

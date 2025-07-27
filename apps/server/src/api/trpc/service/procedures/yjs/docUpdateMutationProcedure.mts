@@ -4,6 +4,8 @@ import { headers } from 'nats';
 import { TRPCError } from '@trpc/server';
 import { servicePlanePassthroughProcedure } from '../../middleware/passthrough.mjs';
 import { resolvePermissions } from '../../../../../auth/permissions/index.mjs';
+import { initMetricsTrackerClient } from '../../../../../utils/metric/clients.mjs';
+import { incrementMetricsTracker } from '../../../../../utils/metric/increment.mjs';
 // import { initTelemetryTrackerRoom } from '../../../../../utils/telemetry/rooms.mjs';
 // import { initTelemetryTrackerClient, initTelemetryTrackerRoomClient } from '../../../../../utils/telemetry/clients.mjs';
 // import { incrementTelemetryTrackers } from '../../../../../utils/telemetry/increment.mjs';
@@ -99,6 +101,13 @@ export const docUpdateMutationProcedure = servicePlanePassthroughProcedure
 
         // const telemetryTrackerRoomClient = initTelemetryTrackerRoomClient(telemetryTrackerRoom, telemetryTrackerClient);
 
+        const metricsTrackerClient = initMetricsTrackerClient(ctx.services.ephemeralState.metricTracker, {
+            serviceType: 'ydoc',
+            containerId: key,
+            clientId: ctx.clientId,
+            namespace: ctx.namespace,
+            appId: ctx.appId,
+        });
         const publishHeaders = headers();
         publishHeaders.set('sessionId', sessionId);
 
@@ -117,6 +126,8 @@ export const docUpdateMutationProcedure = servicePlanePassthroughProcedure
                 //     encodedUpdate.length,
                 //     'received',
                 // );
+
+                incrementMetricsTracker(metricsTrackerClient, encodedUpdate.length, 'received');
             }
         } catch (err) {
             throw new TRPCError({

@@ -12,6 +12,13 @@ import { Consumer, ConsumerMessages } from 'nats/lib/jetstream/consumer.js';
 import { atom } from 'synchronization-atom';
 import { createBlockingQueue } from '../../../../../lib/queue/index.mjs';
 import { TPresenceMessageInitPeers } from '../../../control/procedures/presence/presence.mjs';
+import { TJSONAble } from '../../../../../types/misc.mjs';
+import { initMetricsTrackerClient } from '../../../../../utils/metric/clients.mjs';
+import { incrementMetricsTracker } from '../../../../../utils/metric/increment.mjs';
+import { dispatchHook } from '../../../../../hooks/dispatcher.mjs';
+// import { initTelemetryTrackerRoom } from '../../../../../utils/telemetry/rooms.mjs';
+// import { initTelemetryTrackerClient, initTelemetryTrackerRoomClient } from '../../../../../utils/telemetry/clients.mjs';
+// import { incrementTelemetryTrackers } from '../../../../../utils/telemetry/increment.mjs';
 
 export type TPresenceMessage =
     | {
@@ -119,12 +126,64 @@ export const roomUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
             const key = `${ctx.namespace}__${hashedClientSentRoomId}`;
             const streamName = `presence_${key}`;
 
+            const action = await dispatchHook('clientSubscribed', {
+                type: 'clientSubscribed',
+                service: 'presence',
+                roomId: streamName,
+                clientId: ctx.clientId,
+                namespace: ctx.clientId,
+                appId: ctx.clientId,
+            });
+
+            if (action?.drop) {
+                throw new TRPCError({
+                    code: 'FORBIDDEN',
+                    message: `Subscription denied: ${action?.reason}`,
+                });
+            }
+
+            // const telemetryTrackerRoom = initTelemetryTrackerRoom(
+            //     ctx.services.ephemeralState.telemetryTracker,
+            //     'presence',
+            //     key,
+            // );
+
+            // const telemetryTrackerClient = await initTelemetryTrackerClient(
+            //     ctx.services.ephemeralState.telemetryTracker,
+            //     {
+            //         id: ctx.clientId ?? '',
+            //         ipAddress: ctx.clientIPAddress ?? '0.0.0.0',
+            //         userAgentString: ctx.clientUserAgentString ?? 'unknown',
+            //         serverHostname: ctx.serverHostname ?? 'unknown',
+            //         clientPageHostname: ctx.clientPageHostname ?? 'unknown',
+            //     },
+            // );
+
+            // const telemetryTrackerRoomClient = initTelemetryTrackerRoomClient(
+            //     telemetryTrackerRoom,
+            //     telemetryTrackerClient,
+            // );
+
+            const metricsTrackerClient = initMetricsTrackerClient(ctx.services.ephemeralState.metricTracker, {
+                serviceType: 'presence',
+                containerId: key,
+                clientId: ctx.clientId,
+                namespace: ctx.namespace,
+                appId: ctx.appId,
+            });
+
             // ensure the stream exists
             await ctx.services.jetStreamManager.streams.add({
                 name: streamName,
                 subjects: [`presence.${key}.>`],
                 storage: StorageType.File,
                 max_msgs_per_subject: parseInt(env.AIRSTATE_PRESENCE_RETENTION_COUNT ?? '1'),
+            });
+            await dispatchHook('roomCreated', {
+                type: 'roomCreated',
+                roomId: streamName,
+                appId: ctx.appId,
+                namespace: ctx.namespace,
             });
 
             const messageQueue = createBlockingQueue<TPresenceMessage | Error | null>();
@@ -228,6 +287,8 @@ export const roomUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
                                 meta: message.meta,
                                 timestamp: message.timestamp,
                             } satisfies TPresenceMessage);
+
+                            incrementMetricsTracker(metricsTrackerClient, JSON.stringify(message.meta).length, 'sent');
                         } else if (message.session_id !== sessionId) {
                             if (message.type === 'state') {
                                 messageQueue.enqueue({
@@ -236,6 +297,8 @@ export const roomUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
                                     state: message.state,
                                     timestamp: message.timestamp,
                                 } satisfies TPresenceMessage);
+
+                                incrementMetricsTracker(metricsTrackerClient, JSON.stringify(message.state).length, 'sent');
                             }
                         }
 
@@ -274,6 +337,15 @@ export const roomUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
             if (cleanupConnectionStateSubscription) {
                 cleanupConnectionStateSubscription();
             }
+            
+            await dispatchHook('clientUnsubscribed', {
+                type: 'clientUnsubscribed',
+                service: 'presence',
+                roomId: `presence_${ctx.namespace}__${hashedClientSentRoomId}`,
+                clientId: ctx.clientId,
+                namespace: ctx.clientId,
+                appId: ctx.clientId,
+            });
         }
     });
 

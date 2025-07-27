@@ -50,7 +50,7 @@ export async function initServicePlane(services: TServices) {
     const createServicePlaneHTTPContext = await servicePlaneHTTPContextCreatorFactory(services);
 
     logger.debug('registering service-plane http routes');
-    await registerServicePlaneHTTPRoutes(servicePlaneExpressApp, createServicePlaneHTTPContext);
+    await registerServicePlaneHTTPRoutes(servicePlaneExpressApp, createServicePlaneHTTPContext, services);
 
     logger.debug('attaching service-plane ws handlers');
     await registerServicePlaneWebSocketHandler(servicePlaneWebSocketServer, createServicePlaneHTTPContext);

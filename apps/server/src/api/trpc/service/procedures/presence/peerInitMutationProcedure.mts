@@ -11,6 +11,9 @@ import { createHash } from 'node:crypto';
 import { StorageType } from 'nats';
 import { runInAction } from 'mobx';
 import { TJSONAble } from '../../../../../types/misc.mjs';
+import { initMetricsTrackerClient } from '../../../../../utils/metric/clients.mjs';
+import { incrementMetricsTracker } from '../../../../../utils/metric/increment.mjs';
+import { dispatchHook } from '../../../../../hooks/dispatcher.mjs';
 // import { initTelemetryTrackerRoom } from '../../../../../utils/telemetry/rooms.mjs';
 // import { initTelemetryTrackerClient, initTelemetryTrackerRoomClient } from '../../../../../utils/telemetry/clients.mjs';
 // import { incrementTelemetryTrackers } from '../../../../../utils/telemetry/increment.mjs';
@@ -81,6 +84,30 @@ export const peerInitMutationProcedure = servicePlanePassthroughProcedure
         const commonSubjectPrefix = `presence.${key}`;
         const streamName = `presence_${key}`;
 
+        // const telemetryTrackerRoom = initTelemetryTrackerRoom(
+        //     ctx.services.ephemeralState.telemetryTracker,
+        //     'presence',
+        //     key,
+        // );
+
+        // const telemetryTrackerClient = await initTelemetryTrackerClient(ctx.services.ephemeralState.telemetryTracker, {
+        //     id: ctx.clientId ?? '',
+        //     ipAddress: ctx.clientIPAddress ?? '0.0.0.0',
+        //     userAgentString: ctx.clientUserAgentString ?? 'unknown',
+        //     serverHostname: ctx.serverHostname ?? 'unknown',
+        //     clientPageHostname: ctx.clientPageHostname ?? 'unknown',
+        // });
+
+        // const telemetryTrackerRoomClient = initTelemetryTrackerRoomClient(telemetryTrackerRoom, telemetryTrackerClient);
+
+        const metricsTrackerClient = initMetricsTrackerClient(ctx.services.ephemeralState.metricTracker, {
+            serviceType: 'presence',
+            containerId: key,
+            clientId: ctx.clientId,
+            namespace: ctx.namespace,
+            appId: ctx.appId,
+        });
+
         const meta = {
             peerId: peerId,
             hashedPeerId: hashedPeerId,
@@ -122,6 +149,12 @@ export const peerInitMutationProcedure = servicePlanePassthroughProcedure
                 subjects: [`presence.${key}.>`],
                 storage: StorageType.File,
                 max_msgs_per_subject: parseInt(env.AIRSTATE_PRESENCE_RETENTION_COUNT ?? '1'),
+            });
+            await dispatchHook('roomCreated', {
+                type: 'roomCreated',
+                roomId: streamName,
+                appId: ctx.appId,
+                namespace: ctx.namespace,
             });
         }
 
