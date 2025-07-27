@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { TSharedPresenceOptions, TSharedPresence, TPresenceState, sharedPresence, TJSONAble } from '@airstate/client';
+import { useCallback, useEffect, useRef } from 'react';
+import { sharedPresence, TJSONAble, TPresenceState, TSharedPresence, TSharedPresenceOptions } from '@airstate/client';
 import { useForceUpdate } from '../utils/useForceUpdate.mjs';
 
 export function useSharedPresence<T extends TJSONAble>(
@@ -17,7 +17,8 @@ export function useSharedPresence<T extends TJSONAble>(
 
     const sharedPresenceRef = useRef<TSharedPresence<T> | null>(null);
 
-    const publicSelfStateRef = useRef<TSharedPresence<T>['self'] | undefined>(undefined);
+    const temporarySelfState = useRef<T>(options.initialState);
+    const publicSelfRef = useRef<TSharedPresence<T>['self'] | undefined>(undefined);
 
     const publicOthersStateRef = useRef<TPresenceState<T>>({
         peers: {},
@@ -46,7 +47,7 @@ export function useSharedPresence<T extends TJSONAble>(
         sharedPresenceRef.current = sharedPresenceInstance;
 
         const cleanupOnUpdate = sharedPresenceInstance.onUpdate((value) => {
-            publicSelfStateRef.current = value.self;
+            publicSelfRef.current = value.self;
 
             publicOthersStateRef.current = {
                 peers: {
@@ -82,20 +83,24 @@ export function useSharedPresence<T extends TJSONAble>(
         };
     }, [isEnabled]);
 
-    const setState = useCallback((value: T | ((prev: T) => T)) => {
+    const setState = useCallback((update: T | ((prev: T) => T)) => {
         if (!sharedPresenceRef.current) {
-            publicSelfStateRef.current = value as any;
+            temporarySelfState.current = typeof update === 'function' ? update(temporarySelfState.current) : update;
         } else {
-            sharedPresenceRef.current.setState(value as any);
+            sharedPresenceRef.current.setState(update);
         }
     }, []);
 
     return {
-        self: publicSelfStateRef.current ?? {
-            peerId: options.peerId,
-            state: options.initialState,
-            lastUpdated: Date.now(),
-            connected: false,
+        get self() {
+            return (
+                publicSelfRef.current ?? {
+                    peerId: options.peerId,
+                    state: options.initialState,
+                    lastUpdated: Date.now(),
+                    connected: false,
+                }
+            );
         },
         others: publicOthersStateRef.current.peers,
         stats: {
