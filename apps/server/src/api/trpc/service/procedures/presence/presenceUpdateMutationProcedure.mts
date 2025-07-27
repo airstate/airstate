@@ -8,9 +8,6 @@ import { merge } from 'es-toolkit/object';
 import { defaultPermissions } from '../../context.mjs';
 import { TNATSPresenceMessage } from './_helpers.mjs';
 import { createHash } from 'node:crypto';
-// import { initTelemetryTrackerRoom } from '../../../../../utils/telemetry/rooms.mjs';
-// import { initTelemetryTrackerClient, initTelemetryTrackerRoomClient } from '../../../../../utils/telemetry/clients.mjs';
-// import { incrementTelemetryTrackers } from '../../../../../utils/telemetry/increment.mjs';
 
 export const presenceUpdateMutationProcedure = servicePlanePassthroughProcedure
     .meta({ writePermissionRequired: true })

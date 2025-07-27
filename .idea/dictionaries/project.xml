@@ -2,6 +2,7 @@
   <dictionary name="project">
     <words>
       <w>airstate</w>
+      <w>trpc</w>
       <w>valkey</w>
     </words>
   </dictionary>

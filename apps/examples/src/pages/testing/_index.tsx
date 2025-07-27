@@ -12,7 +12,7 @@ const id = usp.get('id') ?? 'default';
 const peer = usp.get('peer') ?? 'default';
 
 export default function App() {
-    const [state, setState, ready] = useSharedState('off', {
+    const [state, setState, ready, error] = useSharedState('off', {
         channel: id,
         validate(data) {
             return z.enum(['on', 'off']).parse(data);

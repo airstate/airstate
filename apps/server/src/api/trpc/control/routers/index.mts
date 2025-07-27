@@ -1,5 +1,6 @@
 import { controlPlanePublicProcedure, controlPlaneRouter } from '../index.mjs';
-import { getInfoProcedure } from '../procedures/info/getInfoProcedure.mjs';
+import { getInfoProcedure, TGetInfoProcedure } from '../procedures/info/getInfoProcedure.mjs';
+import { presenceSubscriptionProcedure, TPresenceSubscriptProcedure } from '../procedures/presence/presence.mjs';
 
 // note: all delegated routers are cast to their own type with
 //       `as` to work around TypeScript's maximum type inference
@@ -11,7 +12,8 @@ export const controlPlaneAppRouter = controlPlaneRouter({
             message: 'HELLO FROM AirState control-plane tRPC SERVER',
         };
     }),
-    info: getInfoProcedure,
+    info: getInfoProcedure as TGetInfoProcedure,
+    presence: presenceSubscriptionProcedure as TPresenceSubscriptProcedure,
 });
 
 export type TControlPlaneAppRouter = typeof controlPlaneAppRouter;

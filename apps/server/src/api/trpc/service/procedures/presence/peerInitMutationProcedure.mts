@@ -81,22 +81,6 @@ export const peerInitMutationProcedure = servicePlanePassthroughProcedure
         const commonSubjectPrefix = `presence.${key}`;
         const streamName = `presence_${key}`;
 
-        // const telemetryTrackerRoom = initTelemetryTrackerRoom(
-        //     ctx.services.ephemeralState.telemetryTracker,
-        //     'presence',
-        //     key,
-        // );
-
-        // const telemetryTrackerClient = await initTelemetryTrackerClient(ctx.services.ephemeralState.telemetryTracker, {
-        //     id: ctx.clientId ?? '',
-        //     ipAddress: ctx.clientIPAddress ?? '0.0.0.0',
-        //     userAgentString: ctx.clientUserAgentString ?? 'unknown',
-        //     serverHostname: ctx.serverHostname ?? 'unknown',
-        //     clientPageHostname: ctx.clientPageHostname ?? 'unknown',
-        // });
-
-        // const telemetryTrackerRoomClient = initTelemetryTrackerRoomClient(telemetryTrackerRoom, telemetryTrackerClient);
-
         const meta = {
             peerId: peerId,
             hashedPeerId: hashedPeerId,
@@ -174,12 +158,6 @@ export const peerInitMutationProcedure = servicePlanePassthroughProcedure
         runInAction(() => {
             ctx.services.localState.sessionMeta[sessionId].meta = meta;
         });
-
-        // incrementTelemetryTrackers(
-        //     [telemetryTrackerRoom, telemetryTrackerClient, telemetryTrackerRoomClient],
-        //     JSON.stringify(extracted.data.presence.staticState).length,
-        //     'received',
-        // );
     });
 
 export type TPeerInitMutationProcedure = typeof peerInitMutationProcedure;

@@ -11,6 +11,9 @@
         "dev": "pnpm build:watch",
         "test": "jest"
     },
+    "dependencies": {
+        "nanoid": "^5.1.5"
+    },
     "peerDependencies": {
         "react": ">=17",
         "@airstate/client": "workspace:*"
