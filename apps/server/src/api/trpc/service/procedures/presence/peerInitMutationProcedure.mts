@@ -11,8 +11,9 @@ import { createHash } from 'node:crypto';
 import { StorageType } from 'nats';
 import { runInAction } from 'mobx';
 import { TJSONAble } from '../../../../../types/misc.mjs';
-//import { initMetricsTrackerClient } from '../../../../../utils/metric/clients.mjs';
-//import { incrementMetricsTracker } from '../../../../../utils/metric/increment.mjs';
+import { initMetricsTrackerClient } from '../../../../../utils/metric/clients.mjs';
+import { incrementMetricsTracker } from '../../../../../utils/metric/increment.mjs';
+import { dispatchHook } from '../../../../../hooks/dispatcher.mjs';
 // import { initTelemetryTrackerRoom } from '../../../../../utils/telemetry/rooms.mjs';
 // import { initTelemetryTrackerClient, initTelemetryTrackerRoomClient } from '../../../../../utils/telemetry/clients.mjs';
 // import { incrementTelemetryTrackers } from '../../../../../utils/telemetry/increment.mjs';
@@ -99,13 +100,13 @@ export const peerInitMutationProcedure = servicePlanePassthroughProcedure
 
         // const telemetryTrackerRoomClient = initTelemetryTrackerRoomClient(telemetryTrackerRoom, telemetryTrackerClient);
 
-        // const metricsTrackerClient = initMetricsTrackerClient(ctx.services.ephemeralState.metricTracker, {
-        //     serviceType: 'presence',
-        //     containerId: key,
-        //     clientId: ctx.clientId,
-        //     namespace: ctx.namespace,
-        //     appId: ctx.appId,
-        // });
+        const metricsTrackerClient = initMetricsTrackerClient(ctx.services.ephemeralState.metricTracker, {
+            serviceType: 'presence',
+            containerId: key,
+            clientId: ctx.clientId,
+            namespace: ctx.namespace,
+            appId: ctx.appId,
+        });
 
         const meta = {
             peerId: peerId,
@@ -149,6 +150,12 @@ export const peerInitMutationProcedure = servicePlanePassthroughProcedure
                 storage: StorageType.File,
                 max_msgs_per_subject: parseInt(env.AIRSTATE_PRESENCE_RETENTION_COUNT ?? '1'),
             });
+            await dispatchHook('roomCreated', {
+                type: 'roomCreated',
+                roomId: streamName,
+                appId: ctx.appId,
+                namespace: ctx.namespace,
+            });
         }
 
         if (tokenMeta) {
@@ -184,12 +191,6 @@ export const peerInitMutationProcedure = servicePlanePassthroughProcedure
         runInAction(() => {
             ctx.services.localState.sessionMeta[sessionId].meta = meta;
         });
-
-        // incrementTelemetryTrackers(
-        //     [telemetryTrackerRoom, telemetryTrackerClient, telemetryTrackerRoomClient],
-        //     JSON.stringify(extracted.data.presence.staticState).length,
-        //     'received',
-        // );
     });
 
 export type TPeerInitMutationProcedure = typeof peerInitMutationProcedure;

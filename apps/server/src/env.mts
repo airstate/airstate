@@ -43,6 +43,14 @@ export const env = createEnv({
             .regex(/^[0-9]+$/)
             .default('0'),
         DEFAULT_PRESENCE_READ_SUMMARY_PERMISSION: booleanEnvSchema.default('true'),
+
+        HOOK_URL_CLIENT_CONNECTED: z.string().optional(),
+        HOOK_URL_CLIENT_DISCONNECTED: z.string().optional(),
+        HOOK_URL_CLIENT_SUBSCRIBED: z.string().optional(),
+        HOOK_URL_CLIENT_UNSUBSCRIBED: z.string().optional(),
+        HOOK_URL_ROOM_CREATED: z.string().optional(),
+        HOOK_URL_DOCUMENT_CREATED: z.string().optional(),
+        HOOK_URL_GLOBAL: z.string().optional(),
     },
     runtimeEnv: process.env,
 });

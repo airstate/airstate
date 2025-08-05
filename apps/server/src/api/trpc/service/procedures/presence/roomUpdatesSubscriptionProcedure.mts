@@ -8,9 +8,14 @@ import { getInitialPresenceState, TNATSPresenceMessage, TPresenceState } from '.
 import { runInAction, when } from 'mobx';
 import { TRPCError } from '@trpc/server';
 import { env } from '../../../../../env.mjs';
+import { Consumer, ConsumerMessages } from 'nats/lib/jetstream/consumer.js';
+import { atom } from 'synchronization-atom';
+import { createBlockingQueue } from '../../../../../lib/queue/index.mjs';
+import { TPresenceMessageInitPeers } from '../../../control/procedures/presence/presence.mjs';
 import { TJSONAble } from '../../../../../types/misc.mjs';
-//import { initMetricsTrackerClient } from '../../../../../utils/metric/clients.mjs';
-//import { incrementMetricsTracker } from '../../../../../utils/metric/increment.mjs';
+import { initMetricsTrackerClient } from '../../../../../utils/metric/clients.mjs';
+import { incrementMetricsTracker } from '../../../../../utils/metric/increment.mjs';
+import { dispatchHook } from '../../../../../hooks/dispatcher.mjs';
 // import { initTelemetryTrackerRoom } from '../../../../../utils/telemetry/rooms.mjs';
 // import { initTelemetryTrackerClient, initTelemetryTrackerRoomClient } from '../../../../../utils/telemetry/clients.mjs';
 // import { incrementTelemetryTrackers } from '../../../../../utils/telemetry/increment.mjs';
@@ -39,6 +44,13 @@ export type TPresenceMessage =
 
           type: 'state';
           state: any;
+      }
+    | {
+          peer_id: string;
+
+          timestamp: number;
+
+          type: 'connected' | 'disconnected';
       };
 
 export const roomUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
@@ -52,6 +64,11 @@ export const roomUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
         const sessionId = nanoid();
         const hashedClientSentRoomId: string = createHash('sha256').update(clientSentRoomId).digest('hex');
 
+        const trailingOctetPair = hashedClientSentRoomId.slice(-4);
+        const presenceControlPlaneSelector = parseInt(trailingOctetPair, 16);
+        const controlPlaneClients = ctx.services.controlClients.clients;
+        const controlPlaneClient = controlPlaneClients[presenceControlPlaneSelector % controlPlaneClients.length];
+
         runInAction(() => {
             ctx.services.localState.sessionMeta[sessionId] = {
                 type: 'presence',
@@ -59,6 +76,10 @@ export const roomUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
                 hashedRoomId: hashedClientSentRoomId,
             };
         });
+
+        let streamConsumer: Consumer | null = null;
+        let streamMessages: ConsumerMessages | null = null;
+        let cleanupConnectionStateSubscription: (() => void) | null = null;
 
         try {
             yield {
@@ -105,6 +126,22 @@ export const roomUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
             const key = `${ctx.namespace}__${hashedClientSentRoomId}`;
             const streamName = `presence_${key}`;
 
+            const action = await dispatchHook('clientSubscribed', {
+                type: 'clientSubscribed',
+                service: 'presence',
+                roomId: streamName,
+                clientId: ctx.clientId,
+                namespace: ctx.clientId,
+                appId: ctx.clientId,
+            });
+
+            if (action?.drop) {
+                throw new TRPCError({
+                    code: 'FORBIDDEN',
+                    message: `Subscription denied: ${action?.reason}`,
+                });
+            }
+
             // const telemetryTrackerRoom = initTelemetryTrackerRoom(
             //     ctx.services.ephemeralState.telemetryTracker,
             //     'presence',
@@ -127,13 +164,13 @@ export const roomUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
             //     telemetryTrackerClient,
             // );
 
-            // const metricsTrackerClient = initMetricsTrackerClient(ctx.services.ephemeralState.metricTracker, {
-            //     serviceType: 'presence',
-            //     containerId: key,
-            //     clientId: ctx.clientId,
-            //     namespace: ctx.namespace,
-            //     appId: ctx.appId,
-            // });
+            const metricsTrackerClient = initMetricsTrackerClient(ctx.services.ephemeralState.metricTracker, {
+                serviceType: 'presence',
+                containerId: key,
+                clientId: ctx.clientId,
+                namespace: ctx.namespace,
+                appId: ctx.appId,
+            });
 
             // ensure the stream exists
             await ctx.services.jetStreamManager.streams.add({
@@ -142,10 +179,70 @@ export const roomUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
                 storage: StorageType.File,
                 max_msgs_per_subject: parseInt(env.AIRSTATE_PRESENCE_RETENTION_COUNT ?? '1'),
             });
+            await dispatchHook('roomCreated', {
+                type: 'roomCreated',
+                roomId: streamName,
+                appId: ctx.appId,
+                namespace: ctx.namespace,
+            });
+
+            const messageQueue = createBlockingQueue<TPresenceMessage | Error | null>();
 
             const consumerName = `presence_subscription_consumer_${nanoid()}`;
 
-            const { state: initialState, lastSeq } = await getInitialPresenceState(ctx.services, streamName);
+            const initialConnectionStateAtom = atom<null | TPresenceMessageInitPeers>(null);
+
+            const connectionStateSubscription = controlPlaneClient.trpc.presence.subscribe(
+                {
+                    roomId: clientSentRoomId,
+                    peerId: sessionMeta.meta.peerId,
+                    sessionId: sessionId,
+                },
+                {
+                    signal: signal,
+                    onComplete() {
+                        messageQueue.enqueue(null);
+                    },
+                    onError(error) {
+                        messageQueue.enqueue(error);
+                    },
+                    onData(data) {
+                        if (data.type === 'init') {
+                            initialConnectionStateAtom.conditionallyUpdate(() => true, data.peers);
+                        } else if (data.type === 'connected') {
+                            if (data.peerId !== sessionMeta.meta!.peerId) {
+                                messageQueue.enqueue({
+                                    peer_id: data.peerId,
+                                    type: 'connected',
+                                    timestamp: Date.now(),
+                                });
+                            }
+                        } else if (data.type === 'disconnected') {
+                            if (data.peerId !== sessionMeta.meta!.peerId) {
+                                messageQueue.enqueue({
+                                    peer_id: data.peerId,
+                                    type: 'disconnected',
+                                    timestamp: Date.now(),
+                                });
+                            }
+                        }
+                    },
+                },
+            );
+
+            cleanupConnectionStateSubscription = connectionStateSubscription.unsubscribe;
+
+            await initialConnectionStateAtom.waitFor((data) => data !== null);
+
+            const initialConnectionStateAtomState = initialConnectionStateAtom.getState();
+
+            const initialConnectionStateData = initialConnectionStateAtomState!;
+
+            const { state: initialState, lastSeq } = await getInitialPresenceState(
+                ctx.services,
+                streamName,
+                initialConnectionStateData,
+            );
 
             yield {
                 type: 'init',
@@ -169,58 +266,86 @@ export const roomUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
                 });
             }
 
-            const steamConsumer = await ctx.services.jetStreamClient.consumers.get(streamName, consumerName);
+            streamConsumer = await ctx.services.jetStreamClient.consumers.get(streamName, consumerName);
 
-            const streamMessages = await steamConsumer.consume({
+            streamMessages = await streamConsumer.consume({
                 // this is needed to that the consumer does not wait
                 // for the message buffer to fill up to `max_messages`.
                 max_messages: 1,
             });
 
-            for await (const streamMessage of streamMessages) {
-                const messageData = ctx.services.natsStringCodec.decode(streamMessage.data);
-                const message = JSON.parse(messageData) as TNATSPresenceMessage;
+            (async () => {
+                try {
+                    for await (const streamMessage of streamMessages) {
+                        const messageData = ctx.services.natsStringCodec.decode(streamMessage.data);
+                        const message = JSON.parse(messageData) as TNATSPresenceMessage;
 
-                if (message.type === 'meta') {
-                    yield {
-                        type: 'meta',
-                        peer_id: message.peer_id,
-                        meta: message.meta,
-                        timestamp: message.timestamp,
-                    } satisfies TPresenceMessage;
+                        if (message.type === 'meta') {
+                            messageQueue.enqueue({
+                                type: 'meta',
+                                peer_id: message.peer_id,
+                                meta: message.meta,
+                                timestamp: message.timestamp,
+                            } satisfies TPresenceMessage);
 
-                    // incrementTelemetryTrackers(
-                    //     [telemetryTrackerRoom, telemetryTrackerClient, telemetryTrackerRoomClient],
-                    //     JSON.stringify(message.staticState).length,
-                    //     'relayed',
-                    // );
+                            incrementMetricsTracker(metricsTrackerClient, JSON.stringify(message.meta).length, 'sent');
+                        } else if (message.session_id !== sessionId) {
+                            if (message.type === 'state') {
+                                messageQueue.enqueue({
+                                    type: 'state',
+                                    peer_id: message.peer_id,
+                                    state: message.state,
+                                    timestamp: message.timestamp,
+                                } satisfies TPresenceMessage);
 
-                    //incrementMetricsTracker(metricsTrackerClient, JSON.stringify(message.meta).length, 'sent');
-                } else if (message.session_id !== sessionId) {
-                    if (message.type === 'state') {
-                        yield {
-                            type: 'state',
-                            peer_id: message.peer_id,
-                            state: message.state,
-                            timestamp: message.timestamp,
-                        } satisfies TPresenceMessage;
+                                incrementMetricsTracker(metricsTrackerClient, JSON.stringify(message.state).length, 'sent');
+                            }
+                        }
 
-                        // incrementTelemetryTrackers(
-                        //     [telemetryTrackerRoom, telemetryTrackerClient, telemetryTrackerRoomClient],
-                        //     JSON.stringify(message.dynamicState).length,
-                        //     'relayed',
-                        // );
-
-                        //incrementMetricsTracker(metricsTrackerClient, JSON.stringify(message.state).length, 'sent');
+                        streamMessage.ack();
                     }
+                } catch (error) {
+                    throw error;
+                } finally {
                 }
+            })().then(() => {});
 
-                streamMessage.ack();
+            while (true) {
+                const message = await messageQueue.dequeue();
+
+                if (message instanceof Error) {
+                    throw message;
+                } else if (message === null) {
+                    break;
+                } else {
+                    yield message satisfies TPresenceMessage;
+                }
             }
         } catch (error) {
             throw error;
         } finally {
             delete ctx.services.localState.sessionMeta[sessionId];
+
+            if (streamMessages) {
+                streamMessages.stop();
+            }
+
+            if (streamConsumer) {
+                await streamConsumer.delete();
+            }
+
+            if (cleanupConnectionStateSubscription) {
+                cleanupConnectionStateSubscription();
+            }
+            
+            await dispatchHook('clientUnsubscribed', {
+                type: 'clientUnsubscribed',
+                service: 'presence',
+                roomId: `presence_${ctx.namespace}__${hashedClientSentRoomId}`,
+                clientId: ctx.clientId,
+                namespace: ctx.clientId,
+                appId: ctx.clientId,
+            });
         }
     });
 

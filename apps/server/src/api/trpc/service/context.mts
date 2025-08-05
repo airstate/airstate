@@ -10,6 +10,8 @@ import { merge } from 'es-toolkit/object';
 import { AsyncIterableQueue } from 'async-iterable-queue';
 import { ConsoleMessage } from '../../../schema/consoleMessage.mjs';
 import { getFirstForwardedIPAddress } from '../../../utils/ip/request.mjs';
+import { dispatchHook } from '../../../hooks/dispatcher.mjs';
+import { TRPCError } from '@trpc/server';
 
 export const defaultPermissions: TPermissions = {
     presence: {
@@ -80,10 +82,26 @@ export async function servicePlaneHTTPContextCreatorFactory(services: TServices)
             ? merge(resolvedConfig.base_permissions, defaultPermissions)
             : defaultPermissions;
 
+        const action = await dispatchHook('clientConnected', {
+            type: 'clientConnected',
+            clientId: clientId,
+            namespace: resolvedConfig?.namespace ?? '__default',
+            appId: appId,
+            groups: resolvedConfig?.groups,
+        });
+
+        if (action?.drop) {
+            throw new TRPCError({
+                code: 'FORBIDDEN',
+                message: `Connection dropped by hook policy: ${action?.reason}`,
+            });
+        }
+
         return {
             namespace: resolvedConfig?.namespace ?? '__default',
             connectionId: nanoid(),
             appId: appId,
+            groups: resolvedConfig?.groups,
             appSecret: resolvedConfig?.app_secret ?? env.SHARED_SIGNING_KEY,
             clientSentConnectionID: connectionId,
             clientId: clientId,

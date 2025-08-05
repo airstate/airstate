@@ -5,3 +5,5 @@ export const getInfoProcedure = controlPlanePublicProcedure.query(async ({ ctx }
         runId: ctx.services.info.runId,
     };
 });
+
+export type TGetInfoProcedure = typeof getInfoProcedure;

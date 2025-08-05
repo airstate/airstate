@@ -2,7 +2,6 @@ import * as y from 'yjs';
 import { AirStateInitialStateUndoManager, RemoteOrigin } from '../nominal-types.mjs';
 import { base64ToUint8Array, uint8ArrayToBase64 } from '../utils.mjs';
 import { getDefaultClient, TAirStateClient } from '../client.mjs';
-import { decodeYDocToObject } from '../ydocjson.mjs';
 
 export type TSharedYDocOptions = {
     client?: TAirStateClient;
@@ -48,11 +47,11 @@ export function sharedYDoc(options: TSharedYDocOptions): TSharedYDoc {
         (doc: y.Doc, initMeta: { hasWrittenFirstUpdate: boolean }) => void
     >();
 
-    const cleanupOnOpen = airState.onOpen(() => {
+    const cleanupOnOpen = airState.onConnect(() => {
         connectListeners.forEach((listener) => listener());
     });
 
-    const cleanupOnClose = airState.onClose(() => {
+    const cleanupOnClose = airState.onDisconnect(() => {
         disconnectListeners.forEach((listener) => listener());
     });
 
@@ -82,7 +81,7 @@ export function sharedYDoc(options: TSharedYDocOptions): TSharedYDoc {
                         !(origin instanceof AirStateInitialStateUndoManager),
                 );
 
-            await airState.trpc.yjs.docUpdate.mutate({
+            airState.trpc.yjs.docUpdate.mutate({
                 sessionId: sessionId,
                 encodedUpdates: updatesToSync.map(([update, origin]) => update),
             });

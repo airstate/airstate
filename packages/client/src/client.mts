@@ -16,10 +16,13 @@ const defaultOptions: TClientOptions = { server: DEFAULT_SERVER };
 
 export type TAirStateClient = {
     readonly trpc: TRPCClient<TServicePlaneAppRouter>;
-    readonly onOpen: (listener: () => void) => () => boolean;
+    readonly onConnect: (listener: () => void) => () => boolean;
     readonly onError: (listener: (errorEvent?: Event) => void) => () => boolean;
-    readonly onClose: (listener: (cause?: { code?: number }) => void) => () => boolean;
-    readonly isOpen: boolean;
+    readonly onDisconnect: (
+        listener: (cause?: { code?: number }) => void,
+    ) => () => boolean;
+    readonly connected: boolean;
+    readonly destroy: () => void;
 };
 
 export function createClient(options?: TClientOptions): TAirStateClient {
@@ -40,9 +43,9 @@ export function createClient(options?: TClientOptions): TAirStateClient {
         return storedClientId;
     })();
 
-    const openListeners = new Set<() => void>();
+    const connectListeners = new Set<() => void>();
     const errorListeners = new Set<(errorEvent?: Event) => void>();
-    const closeListeners = new Set<(cause?: { code?: number }) => void>();
+    const disconnectListeners = new Set<(cause?: { code?: number }) => void>();
 
     let isOpen = false;
 
@@ -65,14 +68,14 @@ export function createClient(options?: TClientOptions): TAirStateClient {
             };
         },
         onOpen() {
-            openListeners.forEach((listener) => listener());
+            connectListeners.forEach((listener) => listener());
             isOpen = true;
         },
         onError(errorEvent) {
             errorListeners.forEach((listener) => listener(errorEvent));
         },
         onClose(reason) {
-            closeListeners.forEach((listener) => listener(reason));
+            disconnectListeners.forEach((listener) => listener(reason));
             isOpen = false;
         },
     });
@@ -87,20 +90,27 @@ export function createClient(options?: TClientOptions): TAirStateClient {
 
     return {
         trpc: client,
-        get isOpen() {
+        get connected() {
             return isOpen;
         },
-        onOpen(listener: () => void) {
-            openListeners.add(listener);
-            return () => openListeners.delete(listener);
+        onConnect(listener: () => void) {
+            connectListeners.add(listener);
+            return () => connectListeners.delete(listener);
         },
         onError(listener: (errorEvent?: Event) => void) {
             errorListeners.add(listener);
             return () => errorListeners.delete(listener);
         },
-        onClose(listener: (cause?: { code?: number }) => void) {
-            closeListeners.add(listener);
-            return () => closeListeners.delete(listener);
+        onDisconnect(listener: (cause?: { code?: number }) => void) {
+            disconnectListeners.add(listener);
+            return () => disconnectListeners.delete(listener);
+        },
+        destroy() {
+            wsClient.close();
+
+            connectListeners.clear();
+            disconnectListeners.clear();
+            errorListeners.clear();
         },
     };
 }

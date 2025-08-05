@@ -125,6 +125,9 @@ importers:
       scope-utilities:
         specifier: ^2.2.1
         version: 2.2.1
+      synchronization-atom:
+        specifier: ^2.0.2
+        version: 2.0.2
       ua-parser-js:
         specifier: ^2.0.3
         version: 2.0.3
@@ -137,6 +140,9 @@ importers:
       yjs:
         specifier: 13.6.24
         version: 13.6.24
+      yocto-queue:
+        specifier: ^1.2.1
+        version: 1.2.1
       zod:
         specifier: 3.24.1
         version: 3.24.1
@@ -205,6 +211,9 @@ importers:
 
   packages/react:
     dependencies:
+      nanoid:
+        specifier: ^5.1.5
+        version: 5.1.5
       react:
         specifier: '>=17'
         version: 19.1.0

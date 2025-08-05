@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { TSharedPresenceOptions, TSharedPresence, TPresenceState, sharedPresence, TJSONAble } from '@airstate/client';
+import { useCallback, useEffect, useRef } from 'react';
+import { sharedPresence, TJSONAble, TPresenceState, TSharedPresence, TSharedPresenceOptions } from '@airstate/client';
 import { useForceUpdate } from '../utils/useForceUpdate.mjs';
 
 export function useSharedPresence<T extends TJSONAble>(
@@ -9,46 +9,49 @@ export function useSharedPresence<T extends TJSONAble>(
     others: TPresenceState<T>['peers'];
     stats: TPresenceState<T>['stats'];
     setState: (value: T | ((prev: T) => T)) => void;
+    connected: boolean | undefined;
+    started: boolean | undefined;
+    error: any | null;
 } {
-    const resolvedInitState: TPresenceState<T> = {
-        peers: {
-            [options.peerId]: {
-                peerId: options.peerId,
-
-                state: options.initialState as any,
-                lastUpdated: Date.now(),
-            },
-        },
-        stats: {
-            totalPeers: 0,
-        },
-    };
-
-    if (options.initialState) {
-        resolvedInitState.peers[options.peerId] = {
-            ...resolvedInitState.peers[options.peerId],
-            state: options.initialState,
-            lastUpdated: Date.now(),
-        };
-    }
-
-    const [initialComputedState] = useState<TPresenceState<T>>(resolvedInitState);
+    const isEnabled = !('enabled' in options) || options.enabled === undefined || options.enabled === true;
 
     const sharedPresenceRef = useRef<TSharedPresence<T> | null>(null);
 
-    const publicStateRef = useRef<TPresenceState<T>>(initialComputedState);
+    const temporarySelfState = useRef<T>(options.initialState);
+    const publicSelfRef = useRef<TSharedPresence<T>['self'] | undefined>(undefined);
+
+    const publicOthersStateRef = useRef<TPresenceState<T>>({
+        peers: {},
+        stats: {
+            totalPeers: 1,
+        },
+    });
+
+    const publicErrorRef = useRef<any | null>(null);
 
     const forceUpdate = useForceUpdate();
 
     useEffect(() => {
-        const sharedPresenceInstance = sharedPresence<T>(options);
+        if (!isEnabled) {
+            if (sharedPresenceRef.current) {
+                sharedPresenceRef.current.destroy();
+            }
+
+            return;
+        }
+
+        const sharedPresenceInstance = sharedPresence<T>({
+            ...options,
+        });
+
         sharedPresenceRef.current = sharedPresenceInstance;
 
         const cleanupOnUpdate = sharedPresenceInstance.onUpdate((value) => {
-            publicStateRef.current = {
+            publicSelfRef.current = value.self;
+
+            publicOthersStateRef.current = {
                 peers: {
                     ...value.others,
-                    [value.self.peerId]: value.self,
                 },
                 stats: value.stats,
             };
@@ -58,36 +61,60 @@ export function useSharedPresence<T extends TJSONAble>(
 
         const cleanupOnError = sharedPresenceInstance.onError((error) => {
             console.error(error);
-            throw new Error(error?.message);
+            publicErrorRef.current = error;
+        });
+
+        const cleanupOnConnect = sharedPresenceInstance.onConnect(() => {
+            forceUpdate();
+        });
+
+        const cleanupOnDisconnect = sharedPresenceInstance.onDisconnect(() => {
+            forceUpdate();
         });
 
         return () => {
             cleanupOnError();
             cleanupOnUpdate();
+            cleanupOnConnect();
+            cleanupOnDisconnect();
+
+            sharedPresenceInstance.destroy();
+            sharedPresenceRef.current = null;
         };
-    }, []);
+    }, [isEnabled]);
 
-    const setState = useCallback((value: T | ((prev: T) => T)) => {
+    const setState = useCallback((update: T | ((prev: T) => T)) => {
         if (!sharedPresenceRef.current) {
-            throw new Error(`You can not update before sharedPresence is initialized`);
+            temporarySelfState.current = typeof update === 'function' ? update(temporarySelfState.current) : update;
+        } else {
+            sharedPresenceRef.current.setState(update);
         }
-
-        sharedPresenceRef.current.setState(value);
     }, []);
 
     return {
-        self: {
-            peerId: options.peerId,
-            state: publicStateRef.current.peers[options.peerId].state,
-            lastUpdated: publicStateRef.current.peers[options.peerId].lastUpdated,
+        get self() {
+            return (
+                publicSelfRef.current ?? {
+                    peerId: options.peerId,
+                    state: options.initialState,
+                    lastUpdated: Date.now(),
+                    connected: false,
+                }
+            );
         },
-        get others() {
-            const others = { ...publicStateRef.current.peers };
-            delete others[options.peerId];
-
-            return others;
+        others: publicOthersStateRef.current.peers,
+        stats: {
+            totalPeers: publicOthersStateRef.current.stats.totalPeers,
         },
-        stats: publicStateRef.current.stats,
         setState: setState,
+        get connected() {
+            return sharedPresenceRef.current?.connected;
+        },
+        get started() {
+            return !!sharedPresenceRef.current?.started;
+        },
+        get error() {
+            return publicErrorRef.current;
+        },
     };
 }

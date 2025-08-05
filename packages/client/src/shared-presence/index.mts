@@ -13,6 +13,8 @@ export type TSharedPresenceOptions<T extends TJSONAble> = {
 };
 
 export type TSharedPresence<T extends TJSONAble = TJSONAble> = {
+    readonly peerId: string;
+
     readonly self: TPresenceState<T>['peers'][string];
     readonly others: TPresenceState<T>['peers'];
     readonly setState: (update: T | ((prev: T) => T)) => void;
@@ -24,8 +26,16 @@ export type TSharedPresence<T extends TJSONAble = TJSONAble> = {
         }) => void,
     ) => () => boolean;
     readonly onError: (listener: (error?: any) => void) => () => boolean;
+
+    readonly connected: boolean;
     readonly onConnect: (listener: () => void) => () => boolean;
     readonly onDisconnect: (listener: () => void) => () => boolean;
+
+    readonly started: boolean;
+    readonly onStarted: (listener: () => void) => () => boolean;
+    readonly onStopped: (listener: () => void) => () => boolean;
+
+    readonly destroy: () => void;
 };
 
 export function sharedPresence<T extends TJSONAble>(
@@ -39,9 +49,12 @@ export function sharedPresence<T extends TJSONAble>(
             state: TPresenceState<T>;
         }) => void
     >();
+
     const errorListeners = new Set<(error?: any) => void>();
     const connectListeners = new Set<() => void>();
     const disconnectListeners = new Set<() => void>();
+    const startedListeners = new Set<() => void>();
+    const stoppedListeners = new Set<() => void>();
 
     const airState = options.client ?? getDefaultClient();
 
@@ -62,6 +75,9 @@ export function sharedPresence<T extends TJSONAble>(
 
                 state: options.initialState as any,
                 lastUpdated: Date.now(),
+
+                connected: true,
+                lastConnected: Date.now(),
             },
         },
         stats: {
@@ -69,28 +85,20 @@ export function sharedPresence<T extends TJSONAble>(
         },
     };
 
-    if (options.initialState) {
-        currentState.peers[options.peerId] = {
-            ...currentState.peers[options.peerId],
-            state: options.initialState,
-            lastUpdated: Date.now(),
-        };
-    }
-
     function notifyListeners() {
         const self = currentState.peers[options.peerId];
 
-        const others = {
+        const publicOthers = {
             ...currentState.peers,
         };
 
-        delete others[options.peerId];
+        delete publicOthers[options.peerId];
 
         updateListeners.forEach((listener) => {
             listener({
                 self: self,
                 stats: currentState.stats,
-                others: others,
+                others: publicOthers,
                 state: currentState,
             });
         });
@@ -119,8 +127,8 @@ export function sharedPresence<T extends TJSONAble>(
         scheduledState = false;
 
         try {
-            await airState.trpc.presence.update.mutate({
-                sessionID: sessionId,
+            airState.trpc.presence.update.mutate({
+                sessionId: sessionId,
                 update: {
                     type: 'state',
                     state: peer.state,
@@ -158,11 +166,54 @@ export function sharedPresence<T extends TJSONAble>(
         }
     }
 
-    airState.trpc.presence.roomUpdates.subscribe(
+    function setState(update: T | ((prev: T) => T)) {
+        currentState.peers[options.peerId] = {
+            ...currentState.peers[options.peerId],
+            state:
+                typeof update === 'function'
+                    ? update(currentState.peers[options.peerId].state as any)
+                    : update,
+            lastUpdated: Date.now(),
+        };
+
+        delete currentState.peers[options.peerId]['error'];
+
+        triggerStateSync();
+        recalculateSummary();
+        notifyListeners();
+    }
+
+    let isStarted = false;
+
+    const { unsubscribe } = airState.trpc.presence.roomUpdates.subscribe(
         {
             room: roomKey,
         },
         {
+            onStarted() {
+                isStarted = true;
+
+                startedListeners.forEach((listener) => {
+                    listener();
+                });
+            },
+            onError(error) {
+                errorListeners.forEach((listener) => listener(error));
+            },
+            onStopped() {
+                isStarted = false;
+
+                stoppedListeners.forEach((listener) => {
+                    listener();
+                });
+            },
+            onComplete() {
+                isStarted = false;
+
+                stoppedListeners.forEach((listener) => {
+                    listener();
+                });
+            },
             async onData(message) {
                 if (message.type === 'session-info') {
                     const resolvedToken =
@@ -180,7 +231,6 @@ export function sharedPresence<T extends TJSONAble>(
                     sessionId = message.session_id;
                 } else if (message.type === 'init') {
                     const nextPeers = message.state.peers;
-                    delete nextPeers[options.peerId];
 
                     Object.assign(currentState.peers, nextPeers);
                     Object.assign(currentState.stats, message.state.stats);
@@ -235,41 +285,58 @@ export function sharedPresence<T extends TJSONAble>(
 
                     recalculateSummary();
                     notifyListeners();
+                } else if (message.type === 'connected') {
+                    currentState.peers[message.peer_id] = {
+                        ...currentState.peers[message.peer_id],
+                        peerId: message.peer_id,
+                        connected: true,
+                        lastConnected: message.timestamp,
+                    };
+
+                    recalculateSummary();
+                    notifyListeners();
+                } else if (message.type === 'disconnected') {
+                    currentState.peers[message.peer_id] = {
+                        ...currentState.peers[message.peer_id],
+                        peerId: message.peer_id,
+                        connected: false,
+                        lastDisconnected: message.timestamp,
+                    };
+
+                    recalculateSummary();
+                    notifyListeners();
                 }
             },
         },
     );
+
+    airState.onConnect(() => {
+        connectListeners.forEach((listener) => {
+            listener();
+        });
+    });
+
+    airState.onDisconnect(() => {
+        disconnectListeners.forEach((listener) => {
+            listener();
+        });
+    });
 
     return {
         get self() {
             return currentState.peers[options.peerId];
         },
         get others() {
-            const others = { ...currentState.peers };
-            delete others[options.peerId];
-
-            return others;
-        },
-        setState: (update) => {
-            const peer = currentState.peers[options.peerId];
-
-            const nextPeer = {
-                ...peer,
-                state:
-                    typeof update === 'function'
-                        ? update(currentState.peers[options.peerId].state as any)
-                        : update,
-                lastUpdated: Date.now(),
+            const publicOthers = {
+                ...currentState.peers,
             };
 
-            delete nextPeer['error'];
+            delete publicOthers[options.peerId];
 
-            currentState.peers[options.peerId] = nextPeer;
-
-            triggerStateSync();
-            recalculateSummary();
-            notifyListeners();
+            return publicOthers;
         },
+        peerId: options.peerId,
+        setState: setState,
         onUpdate: (listener) => {
             updateListeners.add(listener);
             return () => updateListeners.delete(listener);
@@ -285,6 +352,28 @@ export function sharedPresence<T extends TJSONAble>(
         onDisconnect: (listener) => {
             disconnectListeners.add(listener);
             return () => disconnectListeners.delete(listener);
+        },
+        onStarted: (listener) => {
+            startedListeners.add(listener);
+            return () => startedListeners.delete(listener);
+        },
+        onStopped: (listener) => {
+            stoppedListeners.add(listener);
+            return () => stoppedListeners.delete(listener);
+        },
+        get connected() {
+            return airState.connected;
+        },
+        get started() {
+            return isStarted;
+        },
+        destroy() {
+            updateListeners.clear();
+            errorListeners.clear();
+            connectListeners.clear();
+            disconnectListeners.clear();
+
+            unsubscribe();
         },
     };
 }
