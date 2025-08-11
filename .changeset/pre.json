@@ -7,5 +7,7 @@
     "@airstate/client": "1.0.1",
     "@airstate/react": "1.0.1"
   },
-  "changesets": []
+  "changesets": [
+    "major-bobcats-stay"
+  ]
 }
