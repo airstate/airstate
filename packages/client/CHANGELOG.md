@@ -1,5 +1,11 @@
 # @airstate/client
 
+## 2.0.1
+
+### Patch Changes
+
+- 35bd80d: Updated documentation
+
 ## 2.0.0
 
 ### Major Changes
