@@ -14,10 +14,10 @@ of real-time collaboration experiences.
 ## Install
 
 ```bash
-pnpm add @airstate/client@beta @airstate/react@beta
+pnpm add @airstate/client @airstate/react
 
 # or
-npm install --save @airstate/client@beta @airstate/react@beta
+npm install --save @airstate/client @airstate/react
 ```
 
 Note: [`@airstate/client`](https://www.npmjs.com/package/@airstate/client) is a required peer dependency of the 
@@ -25,7 +25,7 @@ React SDK
 
 ## Configure
 
-Get your `appKey` from [console.airstate.dev](https://console.airstate.dev)
+Get your `appId` from [console.airstate.dev](https://console.airstate.dev)
 
 ```ts
 import { configure } from '@airstate/client';
@@ -34,7 +34,7 @@ import { configure } from '@airstate/client';
 // (it's safe to call outside react components)
 
 configure({
-    appId: '[your app key]',
+    appId: '[your app id]',
 });
 ```
 
