@@ -1,5 +1,13 @@
 # @airstate/react
 
+## 2.0.1
+
+### Patch Changes
+
+- 35bd80d: Updated documentation
+- Updated dependencies [35bd80d]
+    - @airstate/client@2.0.1
+
 ## 2.0.0
 
 ### Major Changes
