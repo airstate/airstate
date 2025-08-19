@@ -11,6 +11,7 @@ import { TRPCError } from '@trpc/server';
 import { initMetricsTrackerClient } from '../../../../../utils/metric/clients.mjs';
 import { incrementMetricsTracker } from '../../../../../utils/metric/increment.mjs';
 import { dispatchHook } from '../../../../../hooks/dispatcher.mjs';
+import { Consumer, ConsumerMessages } from 'nats/lib/jetstream/consumer.js';
 // import { initTelemetryTrackerRoom } from '../../../../../utils/telemetry/rooms.mjs';
 // import { initTelemetryTrackerRoomrClient, initTelemetryTrackerRoomClient } from '../../../../../utils/telemetry/clients.mjs';
 // import { incrementTelemetryTrackers } from '../../../../../utils/telemetry/increment.mjs';
@@ -67,6 +68,9 @@ export const docUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
                 session: initialSessionObject,
             });
         });
+
+        let streamConsumer: Consumer | null = null;
+        let streamMessages: ConsumerMessages | null = null;
 
         try {
             yield {
@@ -238,20 +242,20 @@ export const docUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
                     ack_policy: AckPolicy.Explicit,
                     deliver_policy: DeliverPolicy.StartSequence,
                     opt_start_seq: merged.lastSeq + 1,
-                    inactive_threshold: 10 * 1e9,
+                    inactive_threshold: 60 * 1e9,
                 });
             } else {
                 await ctx.services.jetStreamManager.consumers.add(streamName, {
                     name: consumerName,
                     ack_policy: AckPolicy.Explicit,
                     deliver_policy: DeliverPolicy.All,
-                    inactive_threshold: 10 * 1e9,
+                    inactive_threshold: 60 * 1e9,
                 });
             }
 
-            const steamConsumer = await ctx.services.jetStreamClient.consumers.get(streamName, consumerName);
+            streamConsumer = await ctx.services.jetStreamClient.consumers.get(streamName, consumerName);
 
-            const streamMessages = await steamConsumer.consume({
+            streamMessages = await streamConsumer.consume({
                 max_messages: 1,
             });
 
@@ -282,6 +286,15 @@ export const docUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
             throw error;
         } finally {
             delete ctx.services.localState.sessionMeta[sessionId];
+
+            if (streamMessages) {
+                streamMessages.stop();
+            }
+
+            if (streamConsumer) {
+                await streamConsumer.delete();
+            }
+
             await dispatchHook('clientUnsubscribed', {
                 type: 'clientUnsubscribed',
                 service: 'ydoc',

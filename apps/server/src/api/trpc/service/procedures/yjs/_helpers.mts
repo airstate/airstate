@@ -23,7 +23,7 @@ export async function getMergedUpdate(
             name: ephemeralConsumerName,
             deliver_policy: DeliverPolicy.All,
             ack_policy: AckPolicy.None,
-            inactive_threshold: 0.1 * 1e9,
+            inactive_threshold: 60 * 1e9,
         });
     } else {
         await jetStream.jetStreamManager.consumers.add(streamName, {
@@ -31,7 +31,7 @@ export async function getMergedUpdate(
             deliver_policy: DeliverPolicy.StartSequence,
             opt_start_seq: previous.lastSeq + 1,
             ack_policy: AckPolicy.None,
-            inactive_threshold: 0.1 * 1e9,
+            inactive_threshold: 60 * 1e9,
         });
     }
 

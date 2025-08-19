@@ -64,7 +64,7 @@ export async function getInitialPresenceState(
         name: ephemeralConsumerName,
         deliver_policy: DeliverPolicy.All,
         ack_policy: AckPolicy.None,
-        inactive_threshold: 0.1 * 1e9,
+        inactive_threshold: 60 * 1e9,
     });
 
     try {
@@ -162,6 +162,10 @@ export async function getInitialPresenceState(
 
                 messagesRead++;
                 lastSeq = streamMessage.seq;
+            }
+
+            if (messagesRead === 0) {
+                break;
             }
 
             messagesToRead -= messagesRead;
