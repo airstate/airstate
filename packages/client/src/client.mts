@@ -4,12 +4,12 @@ import { nanoid } from 'nanoid';
 
 export type TClientOptions =
     | {
-          appId: string;
-      }
+        appId: string;
+    }
     | {
-          server: string;
-          appId?: string;
-      };
+        server: string;
+        appId?: string;
+    };
 
 const DEFAULT_SERVER = 'wss://server.airstate.dev/ws';
 const defaultOptions: TClientOptions = { server: DEFAULT_SERVER };

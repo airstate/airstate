@@ -26,6 +26,10 @@ services:
               published: 11002
               protocol: tcp
 
+            - target: 11003 # `go-server-tester` HTTP port
+              published: 11003
+              protocol: tcp
+
         volumes:
             - source: .
               target: /mono
@@ -52,7 +56,6 @@ services:
             - target: /bitnami/valkey/data
               source: valkey-data
               type: volume
-
 
     nats:
         restart: unless-stopped
