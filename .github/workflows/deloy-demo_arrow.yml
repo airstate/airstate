@@ -6,7 +6,7 @@ on:
       - demo
     paths:
       - ./example/arrow
-      - ./.github/deploy-demo_arrow.yml
+      - ./.github/workflows/deploy-demo_arrow.yml
 
 jobs:
   deploy:
