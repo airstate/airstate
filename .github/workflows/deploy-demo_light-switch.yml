@@ -1,0 +1,41 @@
+name: "Deploy Demo: Light Switch"
+
+on:
+  push:
+    branches:
+      - demo
+    paths:
+      - example/light-switch/**
+      - .github/workflows/deploy-demo_light-switch.yml
+
+jobs:
+  deploy:
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: package.json
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Install dependencies
+        run: pnpm --ignore-workspace install
+        working-directory: ./example/light-switch
+
+      - name: Build Project
+        run: pnpm --ignore-workspace build
+        working-directory: ./example/light-switch
+
+      - name: Build project & deploy
+        run: pnpx wrangler pages deploy ./dist --project-name=airstate-demo--light-switch --branch=main
+        working-directory: ./example/light-switch
+        env:
+          NODE_ENV: production
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+
