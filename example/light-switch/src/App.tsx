@@ -10,8 +10,7 @@ if (!import.meta.env.VITE_AIRSTATE_APP_ID) {
 }
 
 configure({
-    // appId: import.meta.env.VITE_AIRSTATE_APP_ID,
-    server: 'ws://localhost:11001/ws'
+    appId: import.meta.env.VITE_AIRSTATE_APP_ID,
 });
 
 const url = new URL(window.location.href);

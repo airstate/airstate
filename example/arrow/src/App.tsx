@@ -4,8 +4,12 @@ import { configure } from '@airstate/client';
 import { Remote } from './components/Remote.tsx';
 import { Arrow } from './components/Arrow.tsx';
 
+if (!import.meta.env.VITE_AIRSTATE_APP_ID) {
+    throw new Error('please set the VITE_AIRSTATE_APP_ID env variable when building');
+}
+
 configure({
-    appId: 'pk_airstate_mtpHCrXLo_OnSCjXXTW5C',
+    appId: import.meta.env.VITE_AIRSTATE_APP_ID,
 });
 
 function App() {

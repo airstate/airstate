@@ -30,6 +30,8 @@ jobs:
       - name: Build Project
         run: pnpm --ignore-workspace build
         working-directory: ./example/arrow
+        env:
+          VITE_AIRSTATE_APP_ID: ${{ vars.DEMO_AIRSTATE_APP_ID }}
 
       - name: Build project & deploy
         run: pnpx wrangler pages deploy ./dist --project-name=airstate-demo--arrow --branch=main
