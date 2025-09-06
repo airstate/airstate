@@ -1,0 +1,41 @@
+name: "Deploy Demo: Arrow"
+
+on:
+  push:
+    branches:
+      - demo
+    paths:
+      - ./example/arrow
+      - ./.github/deploy-demo_arrow.yml
+
+jobs:
+  deploy:
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: package.json
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Install dependencies
+        run: pnpm --ignore-workspace install
+        working-directory: ./example/arrow
+
+      - name: Build Project
+        run: pnpm --ignore-workspace build
+        working-directory: ./example/arrow
+
+      - name: Build project & deploy
+        run: pnpx wrangler pages deploy ./dist --project-name=airstate-demo--arrow --branch=production
+        working-directory: ./example/arrow
+        env:
+          NODE_ENV: production
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+
