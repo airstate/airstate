@@ -12,13 +12,9 @@ import { Consumer, ConsumerMessages } from 'nats/lib/jetstream/consumer.js';
 import { atom } from 'synchronization-atom';
 import { createBlockingQueue } from '../../../../../lib/queue/index.mjs';
 import { TPresenceMessageInitPeers } from '../../../control/procedures/presence/presence.mjs';
-import { TJSONAble } from '../../../../../types/misc.mjs';
 import { initMetricsTrackerClient } from '../../../../../utils/metric/clients.mjs';
 import { incrementMetricsTracker } from '../../../../../utils/metric/increment.mjs';
 import { dispatchHook } from '../../../../../hooks/dispatcher.mjs';
-// import { initTelemetryTrackerRoom } from '../../../../../utils/telemetry/rooms.mjs';
-// import { initTelemetryTrackerClient, initTelemetryTrackerRoomClient } from '../../../../../utils/telemetry/clients.mjs';
-// import { incrementTelemetryTrackers } from '../../../../../utils/telemetry/increment.mjs';
 
 export type TPresenceMessage =
     | {
@@ -298,7 +294,11 @@ export const roomUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
                                     timestamp: message.timestamp,
                                 } satisfies TPresenceMessage);
 
-                                incrementMetricsTracker(metricsTrackerClient, JSON.stringify(message.state).length, 'sent');
+                                incrementMetricsTracker(
+                                    metricsTrackerClient,
+                                    JSON.stringify(message.state).length,
+                                    'sent',
+                                );
                             }
                         }
 
@@ -337,7 +337,7 @@ export const roomUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
             if (cleanupConnectionStateSubscription) {
                 cleanupConnectionStateSubscription();
             }
-            
+
             await dispatchHook('clientUnsubscribed', {
                 type: 'clientUnsubscribed',
                 service: 'presence',
