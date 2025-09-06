@@ -32,7 +32,7 @@ jobs:
         working-directory: ./example/arrow
 
       - name: Build project & deploy
-        run: pnpx wrangler pages deploy ./dist --project-name=airstate-demo--arrow --branch=production
+        run: pnpx wrangler pages deploy ./dist --project-name=airstate-demo--arrow --branch=main
         working-directory: ./example/arrow
         env:
           NODE_ENV: production
