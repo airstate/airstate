@@ -5,8 +5,8 @@ on:
     branches:
       - demo
     paths:
-      - ./example/arrow
-      - ./.github/workflows/deploy-demo_arrow.yml
+      - example/arrow/**
+      - .github/workflows/deploy-demo_arrow.yml
 
 jobs:
   deploy:
