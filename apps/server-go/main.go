@@ -8,19 +8,10 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"time"
 
 	"github.com/coder/websocket"
 	"github.com/coder/websocket/wsjson"
 )
-
-// EchoMessage represents the structure for messages
-type EchoMessage struct {
-	Type      string      `json:"type"`
-	Data      interface{} `json:"data"`
-	Timestamp time.Time   `json:"timestamp"`
-	Size      int         `json:"size"`
-}
 
 func main() {
 	http.HandleFunc("/ws", handleWebSocket)
@@ -128,12 +119,12 @@ func routeMethodCall(ctx context.Context, conn *websocket.Conn, id uint64, metho
 	case "query":
 		switch path {
 		case "echo.run":
-			runEchoProcedure(ctx, conn, id, input)
+			go runEchoProcedure(ctx, conn, id, input)
 		}
 	case "mutation":
 		switch path {
 		case "uppercase":
-			runUppercaseProcedure(ctx, conn, id, input)
+			go runUppercaseProcedure(ctx, conn, id, input)
 		}
 	case "subscription":
 	}
@@ -172,18 +163,6 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 
 	log.Printf("New WebSocket connection from %s", r.RemoteAddr)
-
-	// Send welcome message
-	welcomeMsg := EchoMessage{
-		Type:      "welcome",
-		Data:      "Connected to JSON Echo Server",
-		Timestamp: time.Now(),
-	}
-
-	if err := wsjson.Write(ctx, conn, welcomeMsg); err != nil {
-		log.Printf("Failed to send welcome message: %v", err)
-		return
-	}
 
 	var connectionParams interface{}
 
