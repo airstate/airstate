@@ -1,5 +1,7 @@
-import { TTelemetryTracker } from '../types/telemetry.mjs';
 import { TMetricsTracker } from '../types/metrics.mjs';
+import { atom } from 'synchronization-atom';
+
+export type TAtom = ReturnType<typeof atom<any>>;
 
 export type TRoomPresenceListener = (roomId: string, event: 'connected' | 'disconnected', peerId: string) => void;
 
@@ -29,6 +31,24 @@ export type TEphemeralState = {
             };
         };
     };
+
+    service: {
+        serverState: {
+            channels: {
+                [channelKey: string]: {
+                    subscriptionKey: string;
+                    channelKey: string;
+
+                    stateKey: string;
+
+                    subscriptionListeners: Set<(stateKey: string, data: any) => void>;
+
+                    lock: TAtom;
+                };
+            };
+        };
+    };
+
     // telemetryTracker: TTelemetryTracker;
     metricTracker: TMetricsTracker;
 };
@@ -40,10 +60,7 @@ export async function createEphemeralState(): Promise<TEphemeralState> {
                 connectionStateTracker: {},
             },
         },
-        // telemetryTracker: {
-        //     clients: {},
-        //     rooms: {},
-        // },
+
         metricTracker: {
             services: {
                 ydoc: {
@@ -52,6 +69,12 @@ export async function createEphemeralState(): Promise<TEphemeralState> {
                 presence: {
                     rooms: {},
                 },
+            },
+        },
+
+        service: {
+            serverState: {
+                channels: {},
             },
         },
     };

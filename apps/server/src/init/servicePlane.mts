@@ -9,6 +9,7 @@ import { registerServicePlaneHTTPRoutes } from '../api/http/servicePlane.mjs';
 import { registerServicePlaneWebSocketHandler } from '../api/websocket/servicePlane.mjs';
 import { env } from '../env.mjs';
 import { TServices } from '../services.mjs';
+import { servicePlanePort } from './_derivations.mjs';
 
 export async function initServicePlane(services: TServices) {
     const servicePlaneExpressApp = express();
@@ -54,8 +55,6 @@ export async function initServicePlane(services: TServices) {
 
     logger.debug('attaching service-plane ws handlers');
     await registerServicePlaneWebSocketHandler(servicePlaneWebSocketServer, createServicePlaneHTTPContext);
-
-    const servicePlanePort = parseInt(env.AIRSTATE_PORT ?? env.PORT ?? '11001');
 
     servicePlaneServer.listen(servicePlanePort, '0.0.0.0', () => {
         logger.info(`🚂 express: service-plane: listening on http://0.0.0.0:${servicePlanePort}/`, {

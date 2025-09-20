@@ -31,7 +31,7 @@ const customClient = getDefaultClient();
     const state = sharedState<TOptionalSharedStateType>({
 
         initialValue: { tomato: 'reddish' }, // the initial state
-        key: 'a-specific-room-key',          // if you don't want airstate to infer from url
+        channel: 'a-specific-room-key',      // if you don't want airstate to infer from url
         token: 'jwt-signed-by-your-server',  // to maintain authentication & authorization
         client: customClient                 // if you don't want to use the default client
 

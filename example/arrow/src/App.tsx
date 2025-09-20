@@ -9,7 +9,8 @@ if (!import.meta.env.VITE_AIRSTATE_APP_ID) {
 }
 
 configure({
-    appId: import.meta.env.VITE_AIRSTATE_APP_ID,
+    // appId: import.meta.env.VITE_AIRSTATE_APP_ID,
+    server: 'wss://',
 });
 
 function App() {

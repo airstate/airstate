@@ -7,7 +7,7 @@ import { TServices } from '../services.mjs';
 import { controlPlaneHTTPContextCreatorFactory } from '../api/trpc/control/context.mjs';
 import { registerControlPlaneHTTPRoutes } from '../api/http/controlPlane.mjs';
 import { registerControlPlaneWebSocketHandler } from '../api/websocket/controlPlane.mjs';
-import { controlPlanePort } from './derivations.mjs';
+import { controlPlanePort } from './_derivations.mjs';
 
 export async function initControlPlane(services: TServices) {
     const controlPlaneExpressApp = express();
@@ -34,7 +34,7 @@ export async function initControlPlane(services: TServices) {
     const createControlPlaneHTTPContext = await controlPlaneHTTPContextCreatorFactory(services);
 
     logger.debug('registering control-plane http routes');
-    await registerControlPlaneHTTPRoutes(controlPlaneExpressApp, createControlPlaneHTTPContext);
+    await registerControlPlaneHTTPRoutes(controlPlaneExpressApp, services, createControlPlaneHTTPContext);
 
     logger.debug('attaching control-plane ws handlers');
     await registerControlPlaneWebSocketHandler(controlPlaneWebSocketServer, createControlPlaneHTTPContext);

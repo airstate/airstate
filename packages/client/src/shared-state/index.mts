@@ -22,12 +22,22 @@ export type TSharedStateOptions<T extends TJSONAble> = {
 export type TSharedState<T extends TJSONAble> = {
     readonly update: (update: T | ((previousValue: T) => T)) => void;
     readonly onUpdate: (listener: (value: T, origin: any) => void) => () => boolean;
+
     readonly onSynced: (listener: (value: T) => void) => () => boolean;
+
     readonly onError: (listener: (error?: any) => void) => () => boolean;
+
     readonly onConnect: (listener: () => void) => () => boolean;
     readonly onDisconnect: (listener: () => void) => () => boolean;
+
+    readonly onStarted: (listener: () => void) => () => boolean;
+    readonly onStopped: (listener: () => void) => () => boolean;
+
     readonly destroy: () => void;
+
     readonly synced: boolean;
+    readonly connected: boolean;
+    readonly started: boolean;
 };
 
 export function sharedState<T extends TJSONAble = any>(
@@ -40,6 +50,9 @@ export function sharedState<T extends TJSONAble = any>(
     const errorListeners = new Set<(error?: any) => void>();
     const connectListeners = new Set<() => void>();
     const disconnectListeners = new Set<() => void>();
+
+    const startListeners = new Set<() => void>();
+    const stopListeners = new Set<() => void>();
 
     let usingDoc = new y.Doc();
     (usingDoc as any).since = 'original';
@@ -125,7 +138,7 @@ export function sharedState<T extends TJSONAble = any>(
         );
     }
 
-    const sharedDoc = sharedYDoc({
+    const sharedDocClientInstance = sharedYDoc({
         doc: usingDoc,
 
         documentId: documentId,
@@ -133,16 +146,18 @@ export function sharedState<T extends TJSONAble = any>(
         token: options?.token,
     });
 
-    const unsubscribeOriginal = register(usingDoc, sharedDoc);
+    let usingInstance = sharedDocClientInstance;
+
+    const unsubscribeOriginal = register(usingDoc, sharedDocClientInstance);
     let unsubscribeNext = () => {};
 
-    sharedDoc.onInit((doc, initMeta) => {
+    sharedDocClientInstance.onInit((doc, initMeta) => {
         if (!initMeta.hasWrittenFirstUpdate) {
-            sharedDoc.filterUpdates(() => []);
+            sharedDocClientInstance.filterUpdates(() => []);
 
             unsubscribeOriginal();
             usingDoc.destroy();
-            sharedDoc.destroy();
+            sharedDocClientInstance.destroy();
 
             const nextDoc = new y.Doc();
 
@@ -152,6 +167,8 @@ export function sharedState<T extends TJSONAble = any>(
                 client: options?.client,
                 token: options?.token,
             });
+
+            usingInstance = nextSharedDoc;
 
             unsubscribeNext = register(nextDoc, nextSharedDoc);
             usingDoc = nextDoc;
@@ -199,6 +216,20 @@ export function sharedState<T extends TJSONAble = any>(
             errorListeners.add(listener);
             return () => errorListeners.delete(listener);
         },
+        get connected() {
+            return usingInstance.connected;
+        },
+        get started() {
+            return usingInstance.started;
+        },
+        onStarted(listener) {
+            startListeners.add(listener);
+            return () => startListeners.delete(listener);
+        },
+        onStopped(listener) {
+            stopListeners.add(listener);
+            return () => stopListeners.delete(listener);
+        },
         onConnect: (listener: () => void) => {
             connectListeners.add(listener);
             return () => connectListeners.delete(listener);
@@ -211,8 +242,12 @@ export function sharedState<T extends TJSONAble = any>(
             updateListeners.clear();
             syncedListeners.clear();
             errorListeners.clear();
+
             connectListeners.clear();
             disconnectListeners.clear();
+
+            startListeners.clear();
+            stopListeners.clear();
 
             unsubscribeNext();
             usingDoc.destroy();

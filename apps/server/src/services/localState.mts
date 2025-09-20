@@ -26,6 +26,14 @@ export type TLocalState = {
 
                       permissions: TPermissions['presence'];
                   };
+              }
+            | {
+                  type: 'server-state';
+
+                  keys: Set<string>;
+                  handler?: (stateKey: string, data: any, origin?: string) => void;
+
+                  meta?: {};
               };
     };
 };

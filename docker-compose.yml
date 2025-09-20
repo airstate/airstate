@@ -10,15 +10,22 @@ services:
         environment:
             NODE_ENV: development
             AIRSTATE_NATS_URL: 'nats://nats:4222'
-            AIRSTATE_PORT: 11001
             AIRSTATE_VALKEY_URL: 'redis://valkey:6379'
 
         ports:
-            - target: 11001 # `server` HTTP port
+            - target: 11001 # `server` HTTP Service port
               published: 11001
               protocol: tcp
 
-            - target: 15001 # `server` HTTP port
+            - target: 21001 # `server` HTTP Control port
+              published: 21001
+              protocol: tcp
+
+            - target: 31001 # `server` HTTP API port
+              published: 31001
+              protocol: tcp
+
+            - target: 15001 # `server` debug port
               published: 15001
               protocol: tcp
 

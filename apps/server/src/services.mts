@@ -8,6 +8,8 @@ import { createInfoService, TInfoService } from './services/info.mjs';
 import { createControlClients, TControlClientsService } from './services/controlClients.mjs';
 import { createLocalState, TLocalStateService } from './services/localState.mjs';
 import { createEphemeralState, TEphemeralStateService } from './services/ephemeralState.mjs';
+import { handleRedisSubscriptionReconnection } from './handlers/redisSubscriptionInitializer.mjs';
+import { handleServerStateUpdates } from './handlers/serverStateUpdates.mjs';
 
 export async function createServices(): Promise<
     NATSServices & TValkeyService & TInfoService & TControlClientsService & TLocalStateService & TEphemeralStateService
@@ -23,6 +25,8 @@ export async function createServices(): Promise<
     const mainKV = await createMainKV(natsConnection);
 
     const valkey = await createValkeyConnection({ connect: true });
+    const valkeySubscription = await createValkeyConnection({ connect: true });
+
     const controlClients = await createControlClients();
 
     const localState = await createLocalState();
@@ -32,6 +36,9 @@ export async function createServices(): Promise<
         mainKV: mainKV,
     });
 
+    handleRedisSubscriptionReconnection(valkeySubscription, ephemeralState);
+    handleServerStateUpdates(valkeySubscription, ephemeralState);
+
     return {
         natsStringCodec: natsStringCodec,
         natsConnection: natsConnection,
@@ -39,6 +46,7 @@ export async function createServices(): Promise<
         jetStreamManager: jetStreamManager,
         mainKV: mainKV,
         valkey: valkey,
+        valkeySubscription: valkeySubscription,
         info: info,
         controlClients: controlClients,
         localState: localState,

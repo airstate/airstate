@@ -13,6 +13,9 @@ export const env = createEnv({
         CONTROL_PORT: z.string().optional(), // don't document
         AIRSTATE_CONTROL_PORT: z.string().optional(), // don't document
 
+        API_PORT: z.string().optional(),
+        AIRSTATE_API_PORT: z.string().optional(),
+
         AIRSTATE_CONFIG_API_BASE_URL: z.string().trim().optional(),
 
         NATS_URL: z.string().optional(),

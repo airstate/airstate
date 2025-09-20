@@ -175,6 +175,7 @@ export const roomUpdatesSubscriptionProcedure = servicePlanePassthroughProcedure
                 storage: StorageType.File,
                 max_msgs_per_subject: parseInt(env.AIRSTATE_PRESENCE_RETENTION_COUNT ?? '1'),
             });
+
             await dispatchHook('roomCreated', {
                 type: 'roomCreated',
                 roomId: streamName,

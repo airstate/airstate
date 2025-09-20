@@ -2,7 +2,7 @@ import { env } from '../env.mjs';
 import { createTRPCClient, createWSClient, wsLink } from '@trpc/client';
 import { TControlPlaneAppRouter } from '../api/trpc/control/routers/index.mjs';
 import { logger } from '../logger.mjs';
-import { controlPlanePort } from '../init/derivations.mjs';
+import { controlPlanePort } from '../init/_derivations.mjs';
 
 export async function createControlClients() {
     const clusterURLs = env.AIRSTATE_CLUSTER ?? `ws://localhost:${controlPlanePort}`;

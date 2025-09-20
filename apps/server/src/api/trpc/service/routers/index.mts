@@ -5,6 +5,8 @@ import {
     clientLogsSubscriptionProcedure,
     TClientLogsSubscriptionProcedure,
 } from '../procedures/logBridge/clientLogsSubscriptionProcedure.mjs';
+import { serverStateRouter, TServerStateRouter } from './server-state.mjs';
+
 // note: all delegated routers are cast to their own type with
 //       `as` to work around TypeScript's maximum type inference
 //       depth limits.
@@ -17,6 +19,7 @@ export const servicePlaneAppRouter = servicePlaneRouter({
     }),
     yjs: yjsRouter as TYJSRouter,
     presence: presenceRouter as TPresenceRouter,
+    serverState: serverStateRouter as TServerStateRouter,
     clientLogsSubscriptionProcedure: clientLogsSubscriptionProcedure as TClientLogsSubscriptionProcedure,
 });
 

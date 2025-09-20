@@ -23,4 +23,5 @@ export async function createValkeyConnection(options?: { url?: string; connect?:
 
 export type TValkeyService = {
     valkey: Redis;
+    valkeySubscription: Redis;
 };

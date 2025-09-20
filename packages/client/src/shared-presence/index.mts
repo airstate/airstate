@@ -127,6 +127,7 @@ export function sharedPresence<T extends TJSONAble>(
         scheduledState = false;
 
         try {
+            // TODO: properly implement exponential back-off
             airState.trpc.presence.update.mutate({
                 sessionId: sessionId,
                 update: {

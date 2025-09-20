@@ -104,6 +104,7 @@ export async function servicePlaneHTTPContextCreatorFactory(services: TServices)
             groups: resolvedConfig?.groups,
             appSecret: resolvedConfig?.app_secret ?? env.SHARED_SIGNING_KEY,
             clientSentConnectionID: connectionId,
+            clientSentId: clientSentId,
             clientId: clientId,
             clientIPAddress: ipAddress,
             clientUserAgentString: userAgentString,

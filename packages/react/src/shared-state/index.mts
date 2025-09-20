@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { sharedState, TAirStateClient, TJSONAble, TSharedState } from '@airstate/client';
 import { useForceUpdate } from '../utils/useForceUpdate.mjs';
 
-export type TOptions<T extends TJSONAble> = {
+export type TSharedStateHookOptions<T extends TJSONAble> = {
     client?: TAirStateClient;
 
     /**
@@ -16,12 +16,25 @@ export type TOptions<T extends TJSONAble> = {
     validate?: (rawState: any) => T;
 
     onError?: (error: any) => void;
+
+    enabled?: boolean;
 };
 
 export function useSharedState<T extends TJSONAble>(
     initialState: T | (() => T),
-    options?: TOptions<T>,
-): [T, (value: T | ((prev: T) => T)) => void, boolean, any] {
+    options?: TSharedStateHookOptions<T>,
+): [
+    T,
+    (value: T | ((prev: T) => T)) => void,
+    {
+        started: boolean;
+        connected: boolean | undefined;
+        synced: boolean;
+        error: any | undefined;
+    },
+] {
+    const isEnabled = !options || !('enabled' in options) || options.enabled === undefined || options.enabled === true;
+
     const resolvedInitialValue = typeof initialState === 'function' ? initialState() : initialState;
 
     const [initialComputedState] = useState<T>(resolvedInitialValue);
@@ -37,6 +50,14 @@ export function useSharedState<T extends TJSONAble>(
     const forceUpdate = useForceUpdate();
 
     useEffect(() => {
+        if (!isEnabled) {
+            if (sharedStateRef.current) {
+                sharedStateRef.current.destroy();
+            }
+
+            return;
+        }
+
         const sharedStateInstance = sharedState({
             client: options?.client,
             channel: options?.channel ?? options?.key,
@@ -72,13 +93,25 @@ export function useSharedState<T extends TJSONAble>(
             forceUpdate();
         });
 
+        const cleanupOnConnect = sharedStateInstance.onConnect(() => {
+            forceUpdate();
+        });
+
+        const cleanupOnDisconnect = sharedStateInstance.onDisconnect(() => {
+            forceUpdate();
+        });
+
         return () => {
             cleanupOnError();
             cleanupOnSynced();
             cleanupOnUpdate();
+
+            cleanupOnConnect();
+            cleanupOnDisconnect();
+
             sharedStateInstance.destroy();
         };
-    }, []);
+    }, [isEnabled]);
 
     const setState = useCallback((value: T | ((prev: T) => T)) => {
         if (!sharedStateRef.current) {
@@ -93,5 +126,14 @@ export function useSharedState<T extends TJSONAble>(
         forceUpdate();
     }, []);
 
-    return [publicStateRef.current, setState, isSyncedRef.current, errorRef];
+    return [
+        publicStateRef.current,
+        setState,
+        {
+            started: sharedStateRef.current?.started ?? false,
+            connected: sharedStateRef.current?.connected,
+            synced: isSyncedRef.current,
+            error: errorRef.current,
+        },
+    ];
 }

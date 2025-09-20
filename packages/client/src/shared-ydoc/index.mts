@@ -12,8 +12,16 @@ export type TSharedYDocOptions = {
 
 export type TSharedYDoc = {
     readonly onError: (listener: (error?: Error) => void) => () => boolean;
+
+    readonly connected: boolean;
+    readonly started: boolean;
+
     readonly onConnect: (listener: () => void) => () => boolean;
     readonly onDisconnect: (listener: () => void) => () => boolean;
+
+    readonly onStarted: (listener: () => void) => () => boolean;
+    readonly onStopped: (listener: () => void) => () => boolean;
+
     readonly onSynced: (listener: (doc: y.Doc) => void) => () => boolean;
     readonly onInit: (
         listener: (doc: y.Doc, initMeta: { hasWrittenFirstUpdate: boolean }) => void,
@@ -40,9 +48,15 @@ export function sharedYDoc(options: TSharedYDocOptions): TSharedYDoc {
     let ready = false;
 
     const errorListeners = new Set<(error?: Error) => void>();
+
     const connectListeners = new Set<() => void>();
     const disconnectListeners = new Set<() => void>();
+
+    const startListeners = new Set<() => void>();
+    const stopListeners = new Set<() => void>();
+
     const syncedListeners = new Set<(doc: y.Doc) => void>();
+
     const initListeners = new Set<
         (doc: y.Doc, initMeta: { hasWrittenFirstUpdate: boolean }) => void
     >();
@@ -116,6 +130,7 @@ export function sharedYDoc(options: TSharedYDocOptions): TSharedYDoc {
         }
     });
 
+    // TODO: move this log subscription out of here and into something more global
     const logSubscription = airState.trpc.clientLogsSubscriptionProcedure.subscribe(
         undefined,
         {
@@ -133,6 +148,8 @@ export function sharedYDoc(options: TSharedYDocOptions): TSharedYDoc {
         },
     );
 
+    let isStarted = false;
+
     const subscription = airState.trpc.yjs.docUpdates.subscribe(
         {
             documentId: documentId,
@@ -140,6 +157,14 @@ export function sharedYDoc(options: TSharedYDocOptions): TSharedYDoc {
         {
             onError(error) {
                 errorListeners.forEach((listener) => listener(error));
+            },
+            onStarted() {
+                isStarted = true;
+                startListeners.forEach((listener) => listener());
+            },
+            onStopped() {
+                isStarted = false;
+                stopListeners.forEach((listener) => listener());
             },
             async onData(message) {
                 if (message.type === 'session-info') {
@@ -224,19 +249,30 @@ export function sharedYDoc(options: TSharedYDocOptions): TSharedYDoc {
     const destroy = () => {
         cleanupOnOpen();
         cleanupOnClose();
+
         subscription.unsubscribe();
         logSubscription.unsubscribe();
+
         errorListeners.clear();
+
         connectListeners.clear();
         disconnectListeners.clear();
+
         syncedListeners.clear();
+
         initListeners.clear();
+
+        startListeners.clear();
+        stopListeners.clear();
     };
 
     return {
         onError: (listener) => {
             errorListeners.add(listener);
             return () => errorListeners.delete(listener);
+        },
+        get connected() {
+            return airState.connected;
         },
         onConnect: (listener) => {
             connectListeners.add(listener);
@@ -253,6 +289,17 @@ export function sharedYDoc(options: TSharedYDocOptions): TSharedYDoc {
         onSynced: (listener) => {
             syncedListeners.add(listener);
             return () => syncedListeners.delete(listener);
+        },
+        get started() {
+            return isStarted;
+        },
+        onStarted(listener) {
+            startListeners.add(listener);
+            return () => startListeners.delete(listener);
+        },
+        onStopped(listener) {
+            stopListeners.add(listener);
+            return () => stopListeners.delete(listener);
         },
         destroy: destroy,
         filterUpdates: (filterFunc) => {
