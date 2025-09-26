@@ -4,7 +4,7 @@ import { TJSONAble } from '../ydocjson.mjs';
 
 export type TSharedPresenceOptions<T extends TJSONAble> = {
     client?: TAirStateClient;
-    peerId: string;
+    peer: string;
     room?: string;
     token?: string | (() => string) | (() => Promise<string>);
     initialState: T;
@@ -13,7 +13,7 @@ export type TSharedPresenceOptions<T extends TJSONAble> = {
 };
 
 export type TSharedPresence<T extends TJSONAble = TJSONAble> = {
-    readonly peerId: string;
+    readonly peer: string;
 
     readonly self: TPresenceState<T>['peers'][string];
     readonly others: TPresenceState<T>['peers'];
@@ -25,7 +25,7 @@ export type TSharedPresence<T extends TJSONAble = TJSONAble> = {
             stats: TPresenceState<T>['stats'];
         }) => void,
     ) => () => boolean;
-    readonly onError: (listener: (error?: any) => void) => () => boolean;
+    readonly onError: (listener: (error?: any, peer?: string) => void) => () => boolean;
 
     readonly connected: boolean;
     readonly onConnect: (listener: () => void) => () => boolean;
@@ -50,7 +50,7 @@ export function sharedPresence<T extends TJSONAble>(
         }) => void
     >();
 
-    const errorListeners = new Set<(error?: any) => void>();
+    const errorListeners = new Set<(error?: any, peer?: string) => void>();
     const connectListeners = new Set<() => void>();
     const disconnectListeners = new Set<() => void>();
     const startedListeners = new Set<() => void>();
@@ -70,8 +70,8 @@ export function sharedPresence<T extends TJSONAble>(
 
     const currentState: TPresenceState<T> = {
         peers: {
-            [options.peerId]: {
-                peerId: options.peerId,
+            [options.peer]: {
+                peer: options.peer,
 
                 state: options.initialState as any,
                 lastUpdated: Date.now(),
@@ -86,13 +86,13 @@ export function sharedPresence<T extends TJSONAble>(
     };
 
     function notifyListeners() {
-        const self = currentState.peers[options.peerId];
+        const self = currentState.peers[options.peer];
 
         const publicOthers = {
             ...currentState.peers,
         };
 
-        delete publicOthers[options.peerId];
+        delete publicOthers[options.peer];
 
         updateListeners.forEach((listener) => {
             listener({
@@ -117,7 +117,7 @@ export function sharedPresence<T extends TJSONAble>(
     let stateSyncingFailed = -1;
 
     async function syncState() {
-        const peer = currentState.peers[options.peerId];
+        const peer = currentState.peers[options.peer];
 
         if (syncingState || !sessionId) {
             return;
@@ -160,7 +160,7 @@ export function sharedPresence<T extends TJSONAble>(
     }
 
     function triggerInitialSync() {
-        const peer = currentState.peers[options.peerId];
+        const peer = currentState.peers[options.peer];
 
         if (peer.state !== undefined) {
             triggerStateSync(true);
@@ -168,16 +168,16 @@ export function sharedPresence<T extends TJSONAble>(
     }
 
     function setState(update: T | ((prev: T) => T)) {
-        currentState.peers[options.peerId] = {
-            ...currentState.peers[options.peerId],
+        currentState.peers[options.peer] = {
+            ...currentState.peers[options.peer],
             state:
                 typeof update === 'function'
-                    ? update(currentState.peers[options.peerId].state as any)
+                    ? update(currentState.peers[options.peer].state as any)
                     : update,
             lastUpdated: Date.now(),
         };
 
-        delete currentState.peers[options.peerId]['error'];
+        delete currentState.peers[options.peer]['error'];
 
         triggerStateSync();
         recalculateSummary();
@@ -223,7 +223,7 @@ export function sharedPresence<T extends TJSONAble>(
                             : options.token;
 
                     await airState.trpc.presence.peerInit.mutate({
-                        peerId: options.peerId,
+                        peer: options.peer,
                         token: resolvedToken ?? null,
                         sessionId: message.session_id,
                         initialState: options.initialState,
@@ -243,7 +243,7 @@ export function sharedPresence<T extends TJSONAble>(
                 } else if (message.type === 'meta') {
                     currentState.peers[message.peer_id] = {
                         ...currentState.peers[message.peer_id],
-                        peerId: message.peer_id,
+                        peer: message.peer_id,
                         meta: message.meta,
                     };
 
@@ -253,9 +253,10 @@ export function sharedPresence<T extends TJSONAble>(
                     if (options.validate) {
                         try {
                             const nextState = options.validate(message.state);
+
                             const nextPeer = {
                                 ...currentState.peers[message.peer_id],
-                                peerId: message.peer_id,
+                                peer: message.peer_id,
                                 state: nextState as any,
                                 lastUpdated: message.timestamp,
                             };
@@ -266,19 +267,19 @@ export function sharedPresence<T extends TJSONAble>(
                         } catch (error) {
                             currentState.peers[message.peer_id] = {
                                 ...currentState.peers[message.peer_id],
-                                peerId: message.peer_id,
+                                peer: message.peer_id,
                                 error: error,
                                 lastUpdated: message.timestamp,
                             };
 
                             errorListeners.forEach((listener) => {
-                                listener(error);
+                                listener(error, message.peer_id);
                             });
                         }
                     } else {
                         currentState.peers[message.peer_id] = {
                             ...currentState.peers[message.peer_id],
-                            peerId: message.peer_id,
+                            peer: message.peer_id,
                             state: message.state,
                             lastUpdated: message.timestamp,
                         };
@@ -289,7 +290,7 @@ export function sharedPresence<T extends TJSONAble>(
                 } else if (message.type === 'connected') {
                     currentState.peers[message.peer_id] = {
                         ...currentState.peers[message.peer_id],
-                        peerId: message.peer_id,
+                        peer: message.peer_id,
                         connected: true,
                         lastConnected: message.timestamp,
                     };
@@ -299,7 +300,7 @@ export function sharedPresence<T extends TJSONAble>(
                 } else if (message.type === 'disconnected') {
                     currentState.peers[message.peer_id] = {
                         ...currentState.peers[message.peer_id],
-                        peerId: message.peer_id,
+                        peer: message.peer_id,
                         connected: false,
                         lastDisconnected: message.timestamp,
                     };
@@ -325,18 +326,18 @@ export function sharedPresence<T extends TJSONAble>(
 
     return {
         get self() {
-            return currentState.peers[options.peerId];
+            return currentState.peers[options.peer];
         },
         get others() {
             const publicOthers = {
                 ...currentState.peers,
             };
 
-            delete publicOthers[options.peerId];
+            delete publicOthers[options.peer];
 
             return publicOthers;
         },
-        peerId: options.peerId,
+        peer: options.peer,
         setState: setState,
         onUpdate: (listener) => {
             updateListeners.add(listener);

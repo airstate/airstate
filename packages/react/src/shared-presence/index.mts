@@ -4,6 +4,7 @@ import { useForceUpdate } from '../utils/useForceUpdate.mjs';
 
 export type TSharedPresenceHookOptions<T extends TJSONAble> = TSharedPresenceOptions<T> & {
     enabled?: boolean;
+    onError?: (error?: any, peer?: string) => void;
 };
 
 export function useSharedPresence<T extends TJSONAble>(
@@ -63,9 +64,12 @@ export function useSharedPresence<T extends TJSONAble>(
             forceUpdate();
         });
 
-        const cleanupOnError = sharedPresenceInstance.onError((error) => {
-            console.error(error);
+        const cleanupOnError = sharedPresenceInstance.onError((error, peer) => {
             publicErrorRef.current = error;
+
+            options.onError?.(error, peer);
+
+            forceUpdate();
         });
 
         const cleanupOnConnect = sharedPresenceInstance.onConnect(() => {
@@ -99,7 +103,7 @@ export function useSharedPresence<T extends TJSONAble>(
         get self() {
             return (
                 publicSelfRef.current ?? {
-                    peerId: options.peerId,
+                    peer: options.peer,
                     state: options.initialState,
                     lastUpdated: Date.now(),
                     connected: false,

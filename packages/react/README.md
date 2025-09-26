@@ -5,9 +5,8 @@ of real-time collaboration experiences.
 
 ## Quick Links
 
-- [DOCS AirState React SDK](https://airstate.dev/docs/latest/client/react/intro)
+- [DOCS AirState React SDK](https://airstate.dev/docs/latest/react/install)
 - [AirState Cloud](https://console.airstate.dev/)
-- [Self Hosting Instruction](https://airstate.dev/docs/latest/self-hosting)
 
 # Quickstart
 
@@ -37,9 +36,6 @@ configure({
     appId: '[your app id]',
 });
 ```
-
-If you want to connect to a self-hosted opensource version of our AirState server,
-please consult the [docs on self-hosting](https://airstate.dev/docs/latest/self-host/connect)
 
 ## SharedState — `useSharedState`
 
@@ -71,41 +67,7 @@ export function App() {
 }
 ```
 
-### `useSharedState` Kitchen Sink Example
-
-Here's an example of using the hook with all the options and returns
-displayed.
-
-```tsx
-export function App() {
-    const [
-        
-        state,     // the data everyone sees
-        setState,  // change the data everyone sees
-        isReady,   // if the first-sync has occurred or not
-        error      // `any` but typically an instance of `Error`
-        
-    ] = useSharedState<TTypeOfState>(
-
-        { potato: 'brownish' },     // the initial state
-        
-        {
-            channel: 'a-specific-room-key',      // if you don't want airstate to infer from url
-            token: 'jwt-signed-by-your-server',  // to maintain authentication & authorization
-            client: customClient,                // if you don't want to use the default client
-            validate: (rawState: any): TTypeOfState => {
-                // return the validated data
-                // or throw error
-                return schema.parse(rawState);
-            }
-        }
-    );
-
-    return <>{/* ... */}</>;
-}
-```
-
-[Read The Docs](https://airstate.dev/docs/latest/client/react/shared-state/usage) for more details on `useSharedState` 
+[Read The Docs](https://airstate.dev/docs/latest/react/shared-state/usage) for more details on `useSharedState`
 and its options.
 
 ## SharedPresence — `useSharedPresence`
@@ -132,7 +94,7 @@ export function App() {
     // and is sharing their state in real-time
 
     const { others, setState } = useSharedPresence({
-        peerId: peerId, // replace this with any string that uniquely identifies the user
+        peer: peerId, // replace this with any string that uniquely identifies the user
         initialState: {
             x: 0,
             y: 0,
@@ -164,45 +126,8 @@ export function App() {
 }
 ```
 
-### `useSharedPresence` Kitchen Sink Example
-Here's a example of using the hook with all the return keys and options
 
-```tsx
-export function App() {
-    const {
-
-        self,              // this peer's data
-        setState,          // set this client's dynamic state
-        others,            // everyone else's data (but not this client's)
-        stats,             // the number of peers who had connected at least once
-        connected,         // if this peer is connected or not
-        started,           // if the presence room has been initialized or not
-        error              // any errors, if any
-
-    } = useSharedPresence<TOptionalTypeOfDynamicState>({
-
-        peerId: peerId,                     // replace this with any string that uniquely identifies the user; ideally keep stable
-        room: 'a-specific-room-key',        // if you don't want airstate to infer from url
-        token: 'jwt-signed-by-your-server', // to maintain authentication & authorization
-        client: customClient,               // if you don't use to use the default client with default config
-
-        initialState: {
-            x: 0,
-            y: 0,
-        },
-
-        validate: (rawState: any) => {
-            // return validated parsed data
-            // or throw error
-            return schema.parse(rawState);
-        }
-    });
-
-    return <>{/* ... */}</>
-}
-```
-
-[Read The Docs](https://airstate.dev/docs/latest/client/react/shared-presence/usage) for more details on `useSharedPresence`
+[Read The Docs](https://airstate.dev/docs/latest/react/shared-presence/usage) for more details on `useSharedPresence`
 and its options.
 
 ## License

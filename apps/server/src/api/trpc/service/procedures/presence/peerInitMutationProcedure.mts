@@ -47,19 +47,27 @@ export const peerInitMutationProcedure = servicePlanePassthroughProcedure
                         peerKey: z.string(),
                     }) as ZodType<{
                         /**
-                         * @deprecated prefer `peerId` instead.
+                         * @deprecated prefer `peer` instead.
                          */
                         peerKey: string;
                     }>,
                     z.object({
                         peerId: z.string(),
+                    }) as ZodType<{
+                        /**
+                         * @deprecated prefer `peer` instead.
+                         */
+                        peerId: string;
+                    }>,
+                    z.object({
+                        peer: z.string(),
                     }),
                 ]),
             ),
     )
     .mutation(async function ({ ctx, input, signal }) {
         const sessionId = 'sessionId' in input ? input.sessionId : input.sessionID;
-        const peerId = 'peerId' in input ? input.peerId : input.peerKey;
+        const peerId = 'peer' in input ? input.peer : 'peerId' in input ? input.peerId : input.peerKey;
 
         if (!(sessionId in ctx.services.localState.sessionMeta)) {
             throw new TRPCError({

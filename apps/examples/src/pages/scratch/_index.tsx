@@ -4,9 +4,7 @@ import { useServerState } from '@airstate/react';
 import { Awareness } from 'y-protocols/awareness';
 import { QuillBinding } from 'y-quill';
 
-const aware = new Awareness();
-
-new QuillBinding(null as any, null as any, aware);
+// new QuillBinding(null as any, null as any, aware);
 
 configure({
     server: `ws://localhost:11001/ws`,

@@ -23,10 +23,10 @@ export type TPresenceState<
     peers: Record<
         string,
         {
-            peerId: string;
+            peer: string;
 
             meta?: META_TYPE;
-            state: STATE_TYPE;
+            state?: STATE_TYPE;
             error?: any;
 
             lastUpdated: number;
