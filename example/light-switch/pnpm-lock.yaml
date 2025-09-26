@@ -9,11 +9,11 @@ importers:
   .:
     dependencies:
       '@airstate/client':
-        specifier: 2.0.0
-        version: 2.0.0(@trpc/server@11.1.2(typescript@5.8.3))(typescript@5.8.3)
+        specifier: 3.0.0
+        version: 3.0.0(@trpc/server@11.1.2(typescript@5.8.3))(typescript@5.8.3)
       '@airstate/react':
-        specifier: 2.0.0
-        version: 2.0.0(@airstate/client@2.0.0(@trpc/server@11.1.2(typescript@5.8.3))(typescript@5.8.3))(react@19.1.1)
+        specifier: 3.0.0
+        version: 3.0.0(@airstate/client@3.0.0(@trpc/server@11.1.2(typescript@5.8.3))(typescript@5.8.3))(react@19.1.1)
       '@tailwindcss/vite':
         specifier: ^4.1.11
         version: 4.1.11(vite@7.1.2(jiti@2.5.1)(lightningcss@1.30.1))
@@ -72,13 +72,13 @@ importers:
 
 packages:
 
-  '@airstate/client@2.0.0':
-    resolution: {integrity: sha512-fYTrGX4qCfEEk28V9uIOQXRhZEVleUZAh7+V+RP/Og63TbIWl/UnATHaacYLH38UtsVSZDrdxJBOF9xXoJXHIA==}
+  '@airstate/client@3.0.0':
+    resolution: {integrity: sha512-zNsRsWHWOFCCVk5LpPdmjlNkPAuKmL0yPdzeWpQthTSFsC7FfnKO/TeSpV45b3LpGjY/Hs4nCBW8sxxau7lZwQ==}
 
-  '@airstate/react@2.0.0':
-    resolution: {integrity: sha512-IijnHxNA4oVsN/rUXqyrPSxHMwaWuAOtYYjTPnJA5oeN2EW0JLOLjr/s20OA/EAQPqPCjIp98Rws94HQ8mr//A==}
+  '@airstate/react@3.0.0':
+    resolution: {integrity: sha512-nIofpdUkZv5dDImbnTpN3ykPCK9qbE3Lz8rycHUvQ+My6MtIbfib8//+4DDZss9lsxag36U5o5RXBX5MvuRk1A==}
     peerDependencies:
-      '@airstate/client': 2.0.0
+      '@airstate/client': 3.0.0
       react: '>=17'
 
   '@ampproject/remapping@2.3.0':
@@ -1385,7 +1385,7 @@ packages:
 
 snapshots:
 
-  '@airstate/client@2.0.0(@trpc/server@11.1.2(typescript@5.8.3))(typescript@5.8.3)':
+  '@airstate/client@3.0.0(@trpc/server@11.1.2(typescript@5.8.3))(typescript@5.8.3)':
     dependencies:
       '@trpc/client': 11.1.2(@trpc/server@11.1.2(typescript@5.8.3))(typescript@5.8.3)
       nanoid: 5.1.5
@@ -1395,9 +1395,9 @@ snapshots:
       - '@trpc/server'
       - typescript
 
-  '@airstate/react@2.0.0(@airstate/client@2.0.0(@trpc/server@11.1.2(typescript@5.8.3))(typescript@5.8.3))(react@19.1.1)':
+  '@airstate/react@3.0.0(@airstate/client@3.0.0(@trpc/server@11.1.2(typescript@5.8.3))(typescript@5.8.3))(react@19.1.1)':
     dependencies:
-      '@airstate/client': 2.0.0(@trpc/server@11.1.2(typescript@5.8.3))(typescript@5.8.3)
+      '@airstate/client': 3.0.0(@trpc/server@11.1.2(typescript@5.8.3))(typescript@5.8.3)
       nanoid: 5.1.5
       react: 19.1.1
 

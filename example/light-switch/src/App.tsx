@@ -11,6 +11,7 @@ if (!import.meta.env.VITE_AIRSTATE_APP_ID) {
 
 configure({
     appId: import.meta.env.VITE_AIRSTATE_APP_ID,
+    server: import.meta.env.VITE_AIRSTATE_SERVER,
 });
 
 const url = new URL(window.location.href);
@@ -29,7 +30,7 @@ function App() {
         self,
         others,
     } = useSharedPresence<{ name: string; color: string; pos: [number, number] }>({
-        peerId: peerId,
+        peer: peerId,
         room: `demo_light-switch_${url.pathname}_presence`,
         initialState: {
             name: url.searchParams.get('name') ?? 'USER',
