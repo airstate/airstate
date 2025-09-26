@@ -1,5 +1,16 @@
 # @airstate/react
 
+## 3.0.0
+
+### Major Changes
+
+- 977d24f: SharedPresence API Changes + ServerState beta
+
+### Patch Changes
+
+- Updated dependencies [977d24f]
+    - @airstate/client@3.0.0
+
 ## 2.0.1
 
 ### Patch Changes
