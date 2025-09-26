@@ -54,7 +54,8 @@ function App() {
 
     const otherLights = Object.values(others)
         .filter((other) => other.connected)
-        .map((other) => other.state);
+        .map((other) => other.state)
+        .filter((state) => state !== undefined);
 
     const ownLight = self.state;
 
@@ -71,14 +72,14 @@ function App() {
             className={clsx(
                 'select-none fixed touch-none top-0 left-0 w-screen h-screen bg-white flex items-center justify-center',
             )}>
-            <Overlay centers={[ownLight, ...otherLights]} isDark={state === 'off'} />
+            <Overlay centers={[ownLight!, ...otherLights]} isDark={state === 'off'} />
             <Switch state={state} onChange={setState} />
             <div className={'absolute flex flex-row justify-center bottom-5'}>
                 <input
                     className={clsx(
                         'w-32 rounded-t-sm border-b-black     border-b-2 text-center px-2 py-1 text-sm outline-0 bg-white shadow-xl',
                     )}
-                    value={self.state.name}
+                    value={self.state!.name}
                     onChange={(ev) => {
                         setPresenceState((state) => ({
                             ...state,
