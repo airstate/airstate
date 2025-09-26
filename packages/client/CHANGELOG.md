@@ -1,5 +1,12 @@
 # @airstate/client
 
+## 3.0.1
+
+### Patch Changes
+
+- 65cce42: presence self state is now typed to be always `T` and never undefined
+- 65cce42: configuration object `server` must be truthy to be considered
+
 ## 3.0.0
 
 ### Major Changes
