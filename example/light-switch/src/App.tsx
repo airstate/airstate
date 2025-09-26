@@ -11,7 +11,7 @@ if (!import.meta.env.VITE_AIRSTATE_APP_ID) {
 
 configure({
     appId: import.meta.env.VITE_AIRSTATE_APP_ID,
-    server: import.meta.env.VITE_AIRSTATE_SERVER,
+    // server: import.meta.env.VITE_AIRSTATE_SERVER,
 });
 
 const url = new URL(window.location.href);
