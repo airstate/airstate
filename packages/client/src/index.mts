@@ -25,6 +25,8 @@ export {
     sharedPresence,
 } from './shared-presence/index.mjs';
 
+export { type TPresencePeer, type TPresenceSelfPeer } from './shared-presence/types.mjs';
+
 export {
     type TServerState,
     type TServerStateOptions,

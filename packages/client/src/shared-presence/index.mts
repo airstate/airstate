@@ -1,5 +1,5 @@
 import { getDefaultClient, TAirStateClient } from '../client.mjs';
-import { TPresenceState } from './types.mjs';
+import { TPresenceSelfPeer, TPresenceState } from './types.mjs';
 import { TJSONAble } from '../ydocjson.mjs';
 
 export type TSharedPresenceOptions<T extends TJSONAble> = {
@@ -20,7 +20,7 @@ export type TSharedPresence<T extends TJSONAble = TJSONAble> = {
     readonly setState: (update: T | ((prev: T) => T)) => void;
     readonly onUpdate: (
         listener: (presenceState: {
-            self: TPresenceState<T>['peers'][string];
+            self: TPresenceSelfPeer<T>;
             others: TPresenceState<T>['peers'];
             stats: TPresenceState<T>['stats'];
         }) => void,
@@ -43,7 +43,7 @@ export function sharedPresence<T extends TJSONAble>(
 ): TSharedPresence<T> {
     const updateListeners = new Set<
         (presenceState: {
-            self: TPresenceState<T>['peers'][string];
+            self: TPresenceSelfPeer<T>;
             others: TPresenceState<T>['peers'];
             stats: TPresenceState<T>['stats'];
             state: TPresenceState<T>;
@@ -86,7 +86,7 @@ export function sharedPresence<T extends TJSONAble>(
     };
 
     function notifyListeners() {
-        const self = currentState.peers[options.peer];
+        const self = currentState.peers[options.peer] as TPresenceSelfPeer<T>;
 
         const publicOthers = {
             ...currentState.peers,
