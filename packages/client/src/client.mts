@@ -4,12 +4,12 @@ import { nanoid } from 'nanoid';
 
 export type TClientOptions =
     | {
-        appId: string;
-    }
+          appId: string;
+      }
     | {
-        server: string;
-        appId?: string;
-    };
+          server: string;
+          appId?: string;
+      };
 
 const DEFAULT_SERVER = 'wss://server.airstate.dev/ws';
 const defaultOptions: TClientOptions = { server: DEFAULT_SERVER };
@@ -50,7 +50,10 @@ export function createClient(options?: TClientOptions): TAirStateClient {
     let isOpen = false;
 
     const wsClient = createWSClient({
-        url: options && 'server' in options ? options.server : DEFAULT_SERVER,
+        url:
+            options && 'server' in options && options.server
+                ? options.server
+                : DEFAULT_SERVER,
         keepAlive: {
             enabled: true,
             intervalMs: 1_000,
