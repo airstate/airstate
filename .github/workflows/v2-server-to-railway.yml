@@ -6,7 +6,7 @@ on:
       - v2-server
 
     paths:
-      - apps/server/**/*
+      - apps/server-rapid/**/*
       - .github/workflows/v2-server-to-railway.yml
       - Dockerfile_server
 

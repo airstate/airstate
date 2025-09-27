@@ -5,7 +5,7 @@ on:
         branches:
             - main
         paths:
-            - apps/server/package.json
+            - apps/server-rapid/package.json
 
 env:
     REGISTRY: docker.io
@@ -32,7 +32,7 @@ jobs:
               with:
                   create-tag: true
                   version-command: |
-                      jq -r '.version' apps/server/package.json
+                      jq -r '.version' apps/server-rapid/package.json
 
             - run: git push origin ${{ steps.detect-new-version.outputs.tag }}
               if: steps.detect-new-version.outputs.previous-version != steps.detect-new-version.outputs.current-version
@@ -62,8 +62,8 @@ jobs:
             - name: Build and push Docker image
               uses: docker/build-push-action@v6
               with:
-                  context: apps/server
-                  file: apps/server/Dockerfile
+                  context: apps/server-rapid
+                  file: apps/server-rapid/Dockerfile
                   push: true
                   tags: ${{ env.IMAGE_NAME }}:${{ needs.tag-git-based-on-server-version.outputs.current-version }}-amd64
                   platforms: linux/amd64
@@ -93,8 +93,8 @@ jobs:
             - name: Build and push Docker image
               uses: docker/build-push-action@v6
               with:
-                  context: apps/server
-                  file: apps/server/Dockerfile
+                  context: apps/server-rapid
+                  file: apps/server-rapid/Dockerfile
                   push: true
                   tags: ${{ env.IMAGE_NAME }}:${{ needs.tag-git-based-on-server-version.outputs.current-version }}-arm64
                   platforms: linux/arm64
@@ -217,4 +217,4 @@ jobs:
                   password: ${{ secrets.DOCKERHUB_PASSWORD }}
                   repository: ${{ env.IMAGE_NAME }}
                   short-description: The official AirState Server image
-                  readme-filepath: ./apps/server/README.md
+                  readme-filepath: ./apps/server-rapid/README.md

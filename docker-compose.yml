@@ -80,7 +80,7 @@ services:
               protocol: tcp
 
         volumes:
-            - source: ./apps/server/nats-server.conf
+            - source: ./apps/server-rapid/nats-server.conf
               target: /etc/nats/nats-server.conf
               type: bind
 

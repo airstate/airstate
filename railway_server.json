@@ -3,8 +3,8 @@
   "build": {
     "builder": "DOCKERFILE",
     "watchPatterns": [
-      "apps/server/src/**/*",
-      "apps/server/package.json",
+      "apps/server-rapid/src/**/*",
+      "apps/server-rapid/package.json",
       "railway_server.json",
       ".github/workflows/v2-server-to-railway.yml"
     ],
