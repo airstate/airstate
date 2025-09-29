@@ -4,13 +4,24 @@ import { TJSONAble } from '../ydocjson.mjs';
 
 export type TSharedPresenceOptions<T extends TJSONAble> = {
     client?: TAirStateClient;
-    peer: string;
+
     room?: string;
+
     token?: string | (() => string) | (() => Promise<string>);
     initialState: T;
 
     validate?: (rawState: any) => T;
-};
+} & (
+    | {
+          /**
+           * @deprecated prefer `peerId` instead
+           */
+          peer: string;
+      }
+    | {
+          peerId: string;
+      }
+);
 
 export type TSharedPresence<T extends TJSONAble = TJSONAble> = {
     readonly peer: string;
@@ -41,6 +52,8 @@ export type TSharedPresence<T extends TJSONAble = TJSONAble> = {
 export function sharedPresence<T extends TJSONAble>(
     options: TSharedPresenceOptions<T>,
 ): TSharedPresence<T> {
+    const peerId = 'peerId' in options ? options.peerId : options.peer;
+
     const updateListeners = new Set<
         (presenceState: {
             self: TPresenceSelfPeer<T>;
@@ -70,8 +83,8 @@ export function sharedPresence<T extends TJSONAble>(
 
     const currentState: TPresenceState<T> = {
         peers: {
-            [options.peer]: {
-                peer: options.peer,
+            [peerId]: {
+                peer: peerId,
 
                 state: options.initialState as any,
                 lastUpdated: Date.now(),
@@ -86,13 +99,13 @@ export function sharedPresence<T extends TJSONAble>(
     };
 
     function notifyListeners() {
-        const self = currentState.peers[options.peer] as TPresenceSelfPeer<T>;
+        const self = currentState.peers[peerId] as TPresenceSelfPeer<T>;
 
         const publicOthers = {
             ...currentState.peers,
         };
 
-        delete publicOthers[options.peer];
+        delete publicOthers[peerId];
 
         updateListeners.forEach((listener) => {
             listener({
@@ -117,7 +130,7 @@ export function sharedPresence<T extends TJSONAble>(
     let stateSyncingFailed = -1;
 
     async function syncState() {
-        const peer = currentState.peers[options.peer];
+        const peer = currentState.peers[peerId];
 
         if (syncingState || !sessionId) {
             return;
@@ -160,7 +173,7 @@ export function sharedPresence<T extends TJSONAble>(
     }
 
     function triggerInitialSync() {
-        const peer = currentState.peers[options.peer];
+        const peer = currentState.peers[peerId];
 
         if (peer.state !== undefined) {
             triggerStateSync(true);
@@ -168,16 +181,16 @@ export function sharedPresence<T extends TJSONAble>(
     }
 
     function setState(update: T | ((prev: T) => T)) {
-        currentState.peers[options.peer] = {
-            ...currentState.peers[options.peer],
+        currentState.peers[peerId] = {
+            ...currentState.peers[peerId],
             state:
                 typeof update === 'function'
-                    ? update(currentState.peers[options.peer].state as any)
+                    ? update(currentState.peers[peerId].state as any)
                     : update,
             lastUpdated: Date.now(),
         };
 
-        delete currentState.peers[options.peer]['error'];
+        delete currentState.peers[peerId]['error'];
 
         triggerStateSync();
         recalculateSummary();
@@ -223,7 +236,7 @@ export function sharedPresence<T extends TJSONAble>(
                             : options.token;
 
                     await airState.trpc.presence.peerInit.mutate({
-                        peer: options.peer,
+                        peer: peerId,
                         token: resolvedToken ?? null,
                         sessionId: message.session_id,
                         initialState: options.initialState,
@@ -326,18 +339,18 @@ export function sharedPresence<T extends TJSONAble>(
 
     return {
         get self() {
-            return currentState.peers[options.peer];
+            return currentState.peers[peerId];
         },
         get others() {
             const publicOthers = {
                 ...currentState.peers,
             };
 
-            delete publicOthers[options.peer];
+            delete publicOthers[peerId];
 
             return publicOthers;
         },
-        peer: options.peer,
+        peer: peerId,
         setState: setState,
         onUpdate: (listener) => {
             updateListeners.add(listener);
