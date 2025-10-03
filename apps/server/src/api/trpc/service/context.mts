@@ -69,12 +69,34 @@ export async function servicePlaneHTTPContextCreatorFactory(services: TServices)
             try {
                 const configRequestURL = new URL(`${env.AIRSTATE_CONFIG_API_BASE_URL}/config`);
                 configRequestURL.searchParams.set('appId', appId);
+                if (clientPageHostname) {
+                    configRequestURL.searchParams.set('clientPageHostname', clientPageHostname);
+                }
 
                 const configRequest = await fetch(`${configRequestURL}`);
+
+                if (!configRequest.ok) {
+                    if (configRequest.status === 403) {
+                        const errorData = await configRequest.json().catch(() => ({}));
+                        throw new TRPCError({
+                            code: 'FORBIDDEN',
+                            message:
+                                errorData.message ||
+                                'Production usage requires a Pro plan. Please upgrade your account.',
+                        });
+                    }
+                }
+
                 return configSchema.parse(await configRequest.json());
             } catch (error) {
                 logger.error(`could not get config for ${appId}`, error);
-                return null;
+                if (error instanceof TRPCError) {
+                    throw error;
+                }
+                throw new TRPCError({
+                    code: 'INTERNAL_SERVER_ERROR',
+                    message: `Could not get config for ${appId}`,
+                });
             }
         });
 
