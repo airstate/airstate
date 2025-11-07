@@ -1,9 +1,9 @@
 services:
   server:
-    image: golang:1.22-bookworm
+    image: golang:1.24-bookworm
     container_name: airstate-server
     working_dir: /app
-    command: bash -lc "go mod download && go run ."
+    command: bash -c "go mod download && go run ."
     volumes:
       - type: bind
         source: .

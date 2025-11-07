@@ -3,290 +3,364 @@ package main
 import (
 	"bufio"
 	"context"
-	"encoding/json"
-	"errors"
 	"fmt"
 	"log"
-	"net/http"
 	"os"
 	"os/signal"
-	"strings"
-	"sync"
+	"syscall"
 	"time"
 
 	"github.com/bytedance/sonic"
-	"github.com/coder/websocket"
+	"github.com/gofiber/contrib/websocket"
 	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/fiber/v2/utils"
 	"github.com/nats-io/nats.go"
 )
 
-var (
-	_ = nats.ErrAuthorization
-)
+var natsConn *nats.Conn
 
-// PublishMessage represents a message to be published to NATS
-type PublishMessage struct {
-	Key     string          `json:"key"`
-	Message json.RawMessage `json:"message"`
+type SSEData struct {
+	Time string `json:"time"`
 }
 
-// NATS connection pool is provided by nats_pool.go
+func connectToNATS() error {
+	natsURL := os.Getenv("NATS_URL")
 
-// sseHandler handles Server-Sent Events requests
-func sseHandler(c *fiber.Ctx) error {
-	// Parse multiple 'key' query parameters
-	queryArgs := c.Context().QueryArgs()
-	var keys []string
-	queryArgs.VisitAll(func(key, value []byte) {
-		if string(key) == "key" {
-			keys = append(keys, string(value))
-		}
-	})
-	if len(keys) == 0 {
-		return c.Status(400).JSON(fiber.Map{
-			"error": "at least one 'key' query parameter is required",
-		})
+	if natsURL == "" {
+		natsURL = "nats://localhost:4222"
 	}
 
-	// Get NATS pool
-	pool, err := getNATSPool()
+	nc, err := nats.Connect(natsURL)
+
 	if err != nil {
-		log.Printf("NATS pool error: %v", err)
-		return c.Status(500).JSON(fiber.Map{
-			"error": "failed to initialize NATS pool",
-		})
+		return err
 	}
 
-	// Set SSE headers
-	c.Set("Content-Type", "text/event-stream")
-	c.Set("Cache-Control", "no-cache")
-	c.Set("Connection", "keep-alive")
-	c.Set("X-Accel-Buffering", "no") // Disable nginx buffering
-
-	// Create context for cancellation
-	ctx, cancel := context.WithCancel(c.Context())
-	defer cancel()
-
-	// Channel to forward messages from NATS to SSE
-	msgChan := make(chan []byte, 100) // Buffered channel for performance
-	errChan := make(chan error, 1)
-
-	// Track subscriptions for cleanup
-	var subscriptions []*nats.Subscription
-	var subMutex sync.Mutex
-
-	// Subscribe to each key
-	for _, key := range keys {
-		if key == "" {
-			continue
-		}
-
-		subject := fmt.Sprintf("server-state.%s", key)
-
-		sub, err := pool.Subscribe(subject, func(msg *nats.Msg) {
-			select {
-			case msgChan <- msg.Data:
-			case <-ctx.Done():
-				return
-			default:
-				// Channel full, skip message (prevents blocking)
-			}
-		})
-
-		if err != nil {
-			log.Printf("Failed to subscribe to %s: %v", subject, err)
-			continue
-		}
-
-		subMutex.Lock()
-		subscriptions = append(subscriptions, sub)
-		subMutex.Unlock()
-	}
-
-	if len(subscriptions) == 0 {
-		return c.Status(400).JSON(fiber.Map{
-			"error": "failed to subscribe to any subjects",
-		})
-	}
-
-	// Cleanup function
-	cleanup := func() {
-		cancel()
-		subMutex.Lock()
-		for _, sub := range subscriptions {
-			if err := sub.Unsubscribe(); err != nil {
-				log.Printf("Error unsubscribing: %v", err)
-			}
-		}
-		subMutex.Unlock()
-		close(msgChan)
-	}
-
-	// Handle client disconnection
-	go func() {
-		<-ctx.Done()
-		cleanup()
-	}()
-
-	// Stream messages to client
-	c.Context().SetBodyStreamWriter(func(w *bufio.Writer) {
-		defer cleanup()
-
-		// Send initial connection message
-		if _, err := w.WriteString(": connected\n\n"); err != nil {
-			return
-		}
-		if err := w.Flush(); err != nil {
-			return
-		}
-
-		for {
-			select {
-			case msg, ok := <-msgChan:
-				if !ok {
-					return
-				}
-
-				// Format as SSE: data: {payload}\n\n
-				// Escape newlines in payload for SSE format
-				escaped := strings.ReplaceAll(utils.UnsafeString(msg), "\n", "\ndata: ")
-				if _, err := w.WriteString(fmt.Sprintf("data: %s\n\n", escaped)); err != nil {
-					return
-				}
-				if err := w.Flush(); err != nil {
-					return
-				}
-
-			case err := <-errChan:
-				if err != nil {
-					log.Printf("SSE error: %v", err)
-					return
-				}
-
-			case <-ctx.Done():
-				return
-			}
-		}
-	})
+	natsConn = nc
+	log.Printf("Connected to NATS at %s", natsURL)
 
 	return nil
 }
 
-func startWebSocketServer() *http.Server {
+func startHTTPServer(ctx context.Context) func() error {
+	app := fiber.New(fiber.Config{
+		DisableStartupMessage: true,
+	})
+
+	app.Get("/", func(c *fiber.Ctx) error {
+		return c.JSON(fiber.Map{
+			"message": "HELLO FROM airstate's server-optimized.",
+			"time":    time.Now().Format(time.RFC3339),
+		})
+	})
+
+	app.Get("/health", func(c *fiber.Ctx) error {
+		return c.JSON(fiber.Map{
+			"status": "OK",
+		})
+	})
+
+	app.Get("/_default/server-state.subscribe-sse", func(c *fiber.Ctx) error {
+		keys := c.Query("key")
+
+		if keys == "" {
+			return c.Status(400).JSON(fiber.Map{
+				"error": "At least one 'key' query parameter is required",
+			})
+		}
+
+		// Parse multiple key parameters
+		var keyList []string
+		for _, key := range c.Context().QueryArgs().PeekMulti("key") {
+			if len(key) > 0 {
+				keyList = append(keyList, string(key))
+			}
+		}
+
+		if len(keyList) == 0 {
+			return c.Status(400).JSON(fiber.Map{
+				"error": "At least one valid 'key' query parameter is required",
+			})
+		}
+
+		c.Set("Content-Type", "text/event-stream")
+		c.Set("Cache-Control", "no-cache")
+		c.Set("Connection", "keep-alive")
+		c.Set("Access-Control-Allow-Origin", "*")
+		c.Set("Access-Control-Allow-Headers", "Cache-Control")
+
+		c.Context().SetBodyStreamWriter(func(w *bufio.Writer) {
+			// Create a channel to receive messages from all subscriptions
+			msgChan := make(chan *nats.Msg, 32)
+			var subscriptions []*nats.Subscription
+
+			// Subscribe to each key
+			for _, key := range keyList {
+				sub, err := natsConn.Subscribe("server-state."+key, func(msg *nats.Msg) {
+					select {
+					case msgChan <- msg:
+					default:
+						// Channel full, drop message
+					}
+				})
+
+				if err != nil {
+					log.Printf("Error subscribing to key %s: %v", key, err)
+					continue
+				}
+
+				subscriptions = append(subscriptions, sub)
+			}
+
+			// Clean up subscriptions when done
+			defer func() {
+				for _, sub := range subscriptions {
+					sub.Unsubscribe()
+				}
+
+				close(msgChan)
+			}()
+
+			// Listen for messages and send as SSE events
+			for {
+				select {
+				case msg, ok := <-msgChan:
+					if !ok {
+						// Channel closed
+						return
+					}
+					// The NATS message data is already JSON, send it directly as SSE
+					fmt.Fprintf(w, "data: %s\n\n", string(msg.Data))
+
+					if err := w.Flush(); err != nil {
+						// Client disconnected or connection error
+						return
+					}
+				case <-ctx.Done():
+					// Server is shutting down
+					return
+				}
+			}
+		})
+
+		return nil
+	})
+
+	// POST endpoint to publish messages to NATS
+	app.Post("/_default/server-state.publish", func(c *fiber.Ctx) error {
+		// Get the key from query parameter
+		key := c.Query("key")
+		if key == "" {
+			return c.Status(400).JSON(fiber.Map{
+				"error": "key query parameter is required",
+			})
+		}
+
+		// Get the JSON body
+		body := c.Body()
+		if len(body) == 0 {
+			return c.Status(400).JSON(fiber.Map{
+				"error": "request body is required",
+			})
+		}
+
+		// Validate that it's valid JSON
+		var jsonData interface{}
+		if err := sonic.Unmarshal(body, &jsonData); err != nil {
+			return c.Status(400).JSON(fiber.Map{
+				"error": "invalid JSON in request body",
+			})
+		}
+
+		// Publish to NATS topic
+		topic := "server-state." + key
+		if err := natsConn.Publish(topic, body); err != nil {
+			return c.Status(500).JSON(fiber.Map{
+				"error": "failed to publish message",
+			})
+		}
+
+		return c.JSON(fiber.Map{
+			"status": "published",
+			"topic":  topic,
+		})
+	})
+
+	port := os.Getenv("PORT")
+
+	if port == "" {
+		port = "8080"
+	}
+
+	go func() {
+		log.Printf("Starting HTTP server on port %s", port)
+
+		if err := app.Listen(":" + port); err != nil {
+			log.Printf("Failed to start HTTP server: %v", err)
+		}
+	}()
+
+	return func() error {
+		return app.Shutdown()
+	}
+}
+
+func startWSServer(ctx context.Context) func() error {
+	app := fiber.New(fiber.Config{
+		DisableStartupMessage: true,
+	})
+
+	// Middleware to check if the request is a WebSocket upgrade
+	app.Use("/rpc", func(c *fiber.Ctx) error {
+		if websocket.IsWebSocketUpgrade(c) {
+			return c.Next()
+		}
+		return fiber.ErrUpgradeRequired
+	})
+
+	// WebSocket endpoint
+	app.Get("/rpc", websocket.New(func(c *websocket.Conn) {
+		// Handle WebSocket connection
+		// Use SetReadDeadline to allow periodic context checks
+		done := make(chan struct{})
+
+		go func() {
+			defer close(done)
+			for {
+				// Check context first
+				select {
+				case <-ctx.Done():
+					return
+				default:
+				}
+
+				// Set read deadline to allow periodic context checks
+				if err := c.SetReadDeadline(time.Now().Add(time.Second)); err != nil {
+					return
+				}
+
+				mt, msg, err := c.ReadMessage()
+				if err != nil {
+					// Check if it's a timeout (expected for context checking)
+					// Timeout errors allow us to loop back and check context
+					if netErr, ok := err.(interface{ Timeout() bool }); ok && netErr.Timeout() {
+						continue
+					}
+					// Any other error means connection is closed or broken
+					return
+				}
+
+				// Parse the message as JSON
+				var msgData map[string]interface{}
+				if err := sonic.Unmarshal(msg, &msgData); err != nil {
+					log.Printf("Error unmarshaling WebSocket message: %v", err)
+					// Continue processing - don't break the connection
+					continue
+				}
+
+				// Extract key and data fields
+				key, keyOk := msgData["key"].(string)
+				data, dataOk := msgData["data"]
+
+				// Validate that both key and data are present
+				if !keyOk || key == "" {
+					log.Printf("Error: missing or invalid 'key' field in WebSocket message")
+					continue
+				}
+
+				if !dataOk {
+					log.Printf("Error: missing 'data' field in WebSocket message")
+					continue
+				}
+
+				// Marshal the data field to JSON bytes
+				dataBytes, err := sonic.Marshal(data)
+				if err != nil {
+					log.Printf("Error marshaling data field: %v", err)
+					continue
+				}
+
+				// Publish to NATS topic
+				topic := "server-state." + key
+				if err := natsConn.Publish(topic, dataBytes); err != nil {
+					log.Printf("Error publishing to NATS topic %s: %v", topic, err)
+					// Continue processing - don't break the connection
+					continue
+				}
+
+				// Echo the message back (basic implementation)
+				if err := c.WriteMessage(mt, msg); err != nil {
+					return
+				}
+			}
+		}()
+
+		// Wait for either context cancellation or connection closure
+		select {
+		case <-ctx.Done():
+			// Server is shutting down, close the connection
+			c.Close()
+		case <-done:
+			// Connection closed normally
+		}
+	}))
+
 	port := os.Getenv("WEBSOCKET_PORT")
 	if port == "" {
 		port = "8081"
 	}
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("/ws/publish", websocketPublishHandler)
-
-	server := &http.Server{
-		Addr:    ":" + port,
-		Handler: mux,
-	}
-
 	go func() {
-		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			log.Printf("WebSocket server error: %v", err)
+		log.Printf("Starting WebSocket server on port %s", port)
+
+		if err := app.Listen(":" + port); err != nil {
+			log.Printf("Failed to start WebSocket server: %v", err)
 		}
 	}()
-	log.Printf("WebSocket server listening on port %s", port)
-	return server
-}
 
-func websocketPublishHandler(w http.ResponseWriter, r *http.Request) {
-	conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{
-		CompressionMode: websocket.CompressionDisabled,
-	})
-	if err != nil {
-		log.Printf("WebSocket accept error: %v", err)
-		return
-	}
-	defer conn.Close(websocket.StatusNormalClosure, "")
-
-	conn.SetReadLimit(1 << 20) // 1 MiB per message
-	readTimeout := 30 * time.Second
-
-	pool, err := getNATSPool()
-	if err != nil {
-		log.Printf("WebSocket NATS pool error: %v", err)
-		conn.Close(websocket.StatusInternalError, "nats unavailable")
-		return
-	}
-
-	ctx := r.Context()
-
-	for {
-		readCtx, cancelRead := context.WithTimeout(ctx, readTimeout)
-		msgType, payload, err := conn.Read(readCtx)
-		cancelRead()
-		if err != nil {
-			s := websocket.CloseStatus(err)
-			if s == websocket.StatusNormalClosure || s == websocket.StatusGoingAway || errors.Is(err, context.Canceled) {
-				return
-			}
-			if errors.Is(err, context.DeadlineExceeded) {
-				continue
-			}
-			log.Printf("WebSocket read error: %v", err)
-			conn.Close(websocket.StatusInternalError, "read error")
-			return
-		}
-
-		if msgType != websocket.MessageText && msgType != websocket.MessageBinary {
-			continue
-		}
-
-		var msg PublishMessage
-		if err := sonic.Unmarshal(payload, &msg); err != nil {
-			if writeErr := conn.Write(ctx, websocket.MessageText, []byte(`{"error":"invalid json"}`)); writeErr != nil {
-				log.Printf("WebSocket write error: %v", writeErr)
-				return
-			}
-			continue
-		}
-		if strings.TrimSpace(msg.Key) == "" {
-			if writeErr := conn.Write(ctx, websocket.MessageText, []byte(`{"error":"key is required"}`)); writeErr != nil {
-				log.Printf("WebSocket write error: %v", writeErr)
-				return
-			}
-			continue
-		}
-
-		subject := fmt.Sprintf("server-state.%s", msg.Key)
-		publishPayload := msg.Message
-		if len(publishPayload) == 0 {
-			publishPayload = []byte("null")
-		}
-
-		if err := pool.Publish(subject, publishPayload); err != nil {
-			log.Printf("WebSocket publish error: %v", err)
-			if writeErr := conn.Write(ctx, websocket.MessageText, []byte(`{"error":"publish failed"}`)); writeErr != nil {
-				log.Printf("WebSocket write error: %v", writeErr)
-				return
-			}
-			continue
-		}
+	return func() error {
+		return app.Shutdown()
 	}
 }
 
 func main() {
-	stop, err := startServers()
-	if err != nil {
-		log.Fatalf("failed to start servers: %v", err)
-	}
-	defer func() {
-		if stop != nil {
-			if err := stop(); err != nil {
-				log.Printf("shutdown error: %v", err)
-			}
-		}
-	}()
+	connectToNATS()
 
-	// Block until interrupt or terminate signal
-	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, os.Interrupt)
-	<-sigCh
+	// Create a context that can be cancelled
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	stopHTTP := startHTTPServer(ctx)
+	stopWS := startWSServer(ctx)
+
+	// Set up signal handling for graceful shutdown
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+
+	// Wait for interrupt signal
+	<-c
+
+	log.Println("Shutting down servers...")
+
+	// Cancel the context to signal all connections to close
+	cancel()
+
+	// Give a short time for connections to close gracefully
+	time.Sleep(100 * time.Millisecond)
+
+	// Gracefully shutdown the HTTP server
+	if err := stopHTTP(); err != nil {
+		log.Printf("Error during HTTP server shutdown: %v", err)
+	}
+
+	// Gracefully shutdown the WebSocket server
+	if err := stopWS(); err != nil {
+		log.Printf("Error during WebSocket server shutdown: %v", err)
+	}
+
+	// Close NATS connection
+	if natsConn != nil {
+		natsConn.Close()
+	}
+
+	log.Println("Server shutdown complete")
 }
