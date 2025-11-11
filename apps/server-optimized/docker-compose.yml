@@ -8,6 +8,12 @@ services:
       - type: bind
         source: .
         target: /app
+      - type: volume
+        source: go-mod-cache
+        target: /go/pkg/mod
+      - type: volume
+        source: go-build-cache
+        target: /root/.cache/go-build
     environment:
       - PORT=8080
       - WEBSOCKET_PORT=8081
@@ -82,6 +88,10 @@ services:
 
 volumes:
   nats-data:
+    driver: local
+  go-mod-cache:
+    driver: local
+  go-build-cache:
     driver: local
 
 networks:

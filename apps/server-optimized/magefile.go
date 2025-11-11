@@ -27,16 +27,6 @@ func Shell() error {
 	return runInteractive("docker", "compose", "run", "--rm", "--service-ports", "server", shell)
 }
 
-func Benchmark() error {
-	// Try to exec into running container by name
-	if err := runInteractive("docker", "compose", "exec", "-it", "server", "go", "test", "-bench=."); err == nil {
-		return nil
-	}
-
-	// Fallback: start a one-off container and attach, exposing service ports
-	return runInteractive("docker", "compose", "run", "--rm", "--service-ports", "server", "go", "test", "-bench=.")
-}
-
 func preferredShell() string {
 	return "bash"
 }

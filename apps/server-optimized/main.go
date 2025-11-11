@@ -18,8 +18,9 @@ import (
 
 var natsConn *nats.Conn
 
-type SSEData struct {
-	Time string `json:"time"`
+type PublishedMessage struct {
+	Key  string      `json:"key"`
+	Data interface{} `json:"data"`
 }
 
 func connectToNATS() error {
@@ -88,19 +89,17 @@ func startHTTPServer(ctx context.Context) func() error {
 		c.Set("Access-Control-Allow-Origin", "*")
 		c.Set("Access-Control-Allow-Headers", "Cache-Control")
 
-		c.Context().SetBodyStreamWriter(func(w *bufio.Writer) {
+		requestContext := c.Context()
+
+		requestContext.SetBodyStreamWriter(func(w *bufio.Writer) {
 			// Create a channel to receive messages from all subscriptions
-			msgChan := make(chan *nats.Msg, 32)
+			msgChan := make(chan *nats.Msg, 1024)
 			var subscriptions []*nats.Subscription
 
 			// Subscribe to each key
 			for _, key := range keyList {
 				sub, err := natsConn.Subscribe("server-state."+key, func(msg *nats.Msg) {
-					select {
-					case msgChan <- msg:
-					default:
-						// Channel full, drop message
-					}
+					msgChan <- msg
 				})
 
 				if err != nil {
@@ -111,32 +110,41 @@ func startHTTPServer(ctx context.Context) func() error {
 				subscriptions = append(subscriptions, sub)
 			}
 
-			// Clean up subscriptions when done
-			defer func() {
+			cleanup := func() {
 				for _, sub := range subscriptions {
-					sub.Unsubscribe()
+					if sub.IsValid() {
+						sub.Unsubscribe()
+					}
 				}
 
-				close(msgChan)
-			}()
+				select {
+				case <-msgChan:
+				default:
+					close(msgChan)
+				}
+			}
 
-			// Listen for messages and send as SSE events
+			defer cleanup()
+
+			fmt.Fprintf(w, "\n")
+			w.Flush()
+
 			for {
 				select {
 				case msg, ok := <-msgChan:
 					if !ok {
-						// Channel closed
+						log.Println("CHANNEL CLOSED")
 						return
 					}
-					// The NATS message data is already JSON, send it directly as SSE
+
 					fmt.Fprintf(w, "data: %s\n\n", string(msg.Data))
 
 					if err := w.Flush(); err != nil {
-						// Client disconnected or connection error
+						log.Println("CONNECTION ERROR", err)
 						return
 					}
-				case <-ctx.Done():
-					// Server is shutting down
+				case <-requestContext.Done():
+					cleanup()
 					return
 				}
 			}
@@ -219,88 +227,40 @@ func startWSServer(ctx context.Context) func() error {
 
 	// WebSocket endpoint
 	app.Get("/rpc", websocket.New(func(c *websocket.Conn) {
-		// Handle WebSocket connection
-		// Use SetReadDeadline to allow periodic context checks
-		done := make(chan struct{})
+		var (
+			messageType int
+			message     []byte
+			err         error
+		)
 
-		go func() {
-			defer close(done)
-			for {
-				// Check context first
-				select {
-				case <-ctx.Done():
-					return
-				default:
-				}
+		for {
+			if messageType, message, err = c.ReadMessage(); err != nil {
+				break
+			}
 
-				// Set read deadline to allow periodic context checks
-				if err := c.SetReadDeadline(time.Now().Add(time.Second)); err != nil {
-					return
-				}
+			if messageType == websocket.TextMessage {
+				var jsonData PublishedMessage
 
-				mt, msg, err := c.ReadMessage()
-				if err != nil {
-					// Check if it's a timeout (expected for context checking)
-					// Timeout errors allow us to loop back and check context
-					if netErr, ok := err.(interface{ Timeout() bool }); ok && netErr.Timeout() {
-						continue
-					}
-					// Any other error means connection is closed or broken
-					return
-				}
-
-				// Parse the message as JSON
-				var msgData map[string]interface{}
-				if err := sonic.Unmarshal(msg, &msgData); err != nil {
-					log.Printf("Error unmarshaling WebSocket message: %v", err)
-					// Continue processing - don't break the connection
-					continue
-				}
-
-				// Extract key and data fields
-				key, keyOk := msgData["key"].(string)
-				data, dataOk := msgData["data"]
-
-				// Validate that both key and data are present
-				if !keyOk || key == "" {
-					log.Printf("Error: missing or invalid 'key' field in WebSocket message")
-					continue
-				}
-
-				if !dataOk {
-					log.Printf("Error: missing 'data' field in WebSocket message")
-					continue
-				}
-
-				// Marshal the data field to JSON bytes
-				dataBytes, err := sonic.Marshal(data)
-				if err != nil {
-					log.Printf("Error marshaling data field: %v", err)
-					continue
+				if err := sonic.Unmarshal(message, &jsonData); err != nil {
+					log.Println("unmarshal:", err)
+					break
 				}
 
 				// Publish to NATS topic
-				topic := "server-state." + key
-				if err := natsConn.Publish(topic, dataBytes); err != nil {
-					log.Printf("Error publishing to NATS topic %s: %v", topic, err)
-					// Continue processing - don't break the connection
-					continue
+				topic := "server-state." + jsonData.Key
+
+				marshaledPublishMessage, publishMessageMarshalingError := sonic.Marshal(jsonData.Data)
+
+				if publishMessageMarshalingError != nil {
+					log.Println("marshal:", publishMessageMarshalingError)
+					break
 				}
 
-				// Echo the message back (basic implementation)
-				if err := c.WriteMessage(mt, msg); err != nil {
-					return
+				if err := natsConn.Publish(topic, marshaledPublishMessage); err != nil {
+					log.Println("publish:", err)
+					break
 				}
 			}
-		}()
-
-		// Wait for either context cancellation or connection closure
-		select {
-		case <-ctx.Done():
-			// Server is shutting down, close the connection
-			c.Close()
-		case <-done:
-			// Connection closed normally
 		}
 	}))
 
@@ -322,7 +282,7 @@ func startWSServer(ctx context.Context) func() error {
 	}
 }
 
-func main() {
+func Boot() func() {
 	connectToNATS()
 
 	// Create a context that can be cancelled
@@ -332,6 +292,37 @@ func main() {
 	stopHTTP := startHTTPServer(ctx)
 	stopWS := startWSServer(ctx)
 
+	return func() {
+		log.Println("Shutting down servers...")
+
+		// Cancel the context to signal all connections to close
+		cancel()
+
+		// Give a short time for connections to close gracefully
+		time.Sleep(100 * time.Millisecond)
+
+		// Gracefully shutdown the HTTP server
+		if err := stopHTTP(); err != nil {
+			log.Printf("Error during HTTP server shutdown: %v", err)
+		}
+
+		// Gracefully shutdown the WebSocket server
+		if err := stopWS(); err != nil {
+			log.Printf("Error during WebSocket server shutdown: %v", err)
+		}
+
+		// Close NATS connection
+		if natsConn != nil {
+			natsConn.Close()
+		}
+
+		log.Println("Server shutdown complete")
+	}
+}
+
+func main() {
+	kill := Boot()
+
 	// Set up signal handling for graceful shutdown
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
@@ -339,28 +330,5 @@ func main() {
 	// Wait for interrupt signal
 	<-c
 
-	log.Println("Shutting down servers...")
-
-	// Cancel the context to signal all connections to close
-	cancel()
-
-	// Give a short time for connections to close gracefully
-	time.Sleep(100 * time.Millisecond)
-
-	// Gracefully shutdown the HTTP server
-	if err := stopHTTP(); err != nil {
-		log.Printf("Error during HTTP server shutdown: %v", err)
-	}
-
-	// Gracefully shutdown the WebSocket server
-	if err := stopWS(); err != nil {
-		log.Printf("Error during WebSocket server shutdown: %v", err)
-	}
-
-	// Close NATS connection
-	if natsConn != nil {
-		natsConn.Close()
-	}
-
-	log.Println("Server shutdown complete")
+	kill()
 }
