@@ -16,8 +16,19 @@ type ServiceValues struct {
 }
 
 func CreateServices() (*ServiceValues, error) {
-	natsService, _ := nats.CreateNATSService(&nats.ServiceOptions{})
-	redisService, _ := redis.CreateRedisService(&redis.ServiceOptions{})
+	// NATS
+	natsService, natsServiceErr := nats.CreateNATSService(&nats.ServiceOptions{})
+
+	if natsServiceErr != nil {
+		return nil, natsServiceErr
+	}
+
+	// REDIS
+	redisService, redisServiceErr := redis.CreateRedisService(&redis.ServiceOptions{})
+
+	if redisServiceErr != nil {
+		return nil, redisServiceErr
+	}
 
 	return &ServiceValues{
 		*natsService,

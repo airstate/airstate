@@ -15,19 +15,13 @@ services:
         source: go-build-cache
         target: /root/.cache/go-build
     environment:
-      - PORT=8080
-      - WEBSOCKET_PORT=8081
-      - NATS_URL=nats://nats:4222
+      PORT: 11001
+      NATS_URL: nats://nats:4222
     depends_on:
       - nats
     ports:
-      # HTTP API (Fiber) - health and SSE endpoints
-      - target: 8080
-        published: 8080
-        protocol: tcp
-      # WebSocket publisher endpoint
-      - target: 8081
-        published: 8081
+      - target: 11001
+        published: 11001
         protocol: tcp
     restart: unless-stopped
     networks:
