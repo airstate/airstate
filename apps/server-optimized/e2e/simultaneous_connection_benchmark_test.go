@@ -1,10 +1,11 @@
-package main
+package e2e
 
 import (
 	"fmt"
 	"log"
 	"net/http"
 	"net/url"
+	"server-optimized"
 	"testing"
 	"time"
 
@@ -15,7 +16,7 @@ import (
 )
 
 func BenchmarkSimultaneousConnections(b *testing.B) {
-	kill := Boot()
+	kill := main.Boot()
 	defer kill()
 
 	time.Sleep(2 * time.Second)

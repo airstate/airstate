@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	natsService "server-optimized/services/nats"
 	"syscall"
 	"time"
 
@@ -16,30 +17,9 @@ import (
 	"github.com/nats-io/nats.go"
 )
 
-var natsConn *nats.Conn
-
 type PublishedMessage struct {
 	Key  string      `json:"key"`
 	Data interface{} `json:"data"`
-}
-
-func connectToNATS() error {
-	natsURL := os.Getenv("NATS_URL")
-
-	if natsURL == "" {
-		natsURL = "nats://localhost:4222"
-	}
-
-	nc, err := nats.Connect(natsURL)
-
-	if err != nil {
-		return err
-	}
-
-	natsConn = nc
-	log.Printf("Connected to NATS at %s", natsURL)
-
-	return nil
 }
 
 func startHTTPServer(ctx context.Context) func() error {
@@ -98,7 +78,7 @@ func startHTTPServer(ctx context.Context) func() error {
 
 			// Subscribe to each key
 			for _, key := range keyList {
-				sub, err := natsConn.Subscribe("server-state."+key, func(msg *nats.Msg) {
+				sub, err := natsService.NatsConn.Subscribe("server-state."+key, func(msg *nats.Msg) {
 					msgChan <- msg
 				})
 
@@ -181,7 +161,7 @@ func startHTTPServer(ctx context.Context) func() error {
 
 		// Publish to NATS topic
 		topic := "server-state." + key
-		if err := natsConn.Publish(topic, body); err != nil {
+		if err := natsService.NatsConn.Publish(topic, body); err != nil {
 			return c.Status(500).JSON(fiber.Map{
 				"error": "failed to publish message",
 			})
@@ -256,7 +236,7 @@ func startWSServer(ctx context.Context) func() error {
 					break
 				}
 
-				if err := natsConn.Publish(topic, marshaledPublishMessage); err != nil {
+				if err := natsService.NatsConn.Publish(topic, marshaledPublishMessage); err != nil {
 					log.Println("publish:", err)
 					break
 				}
@@ -283,7 +263,7 @@ func startWSServer(ctx context.Context) func() error {
 }
 
 func Boot() func() {
-	connectToNATS()
+	natsService.ConnectToNATS()
 
 	// Create a context that can be cancelled
 	ctx, cancel := context.WithCancel(context.Background())
@@ -312,8 +292,8 @@ func Boot() func() {
 		}
 
 		// Close NATS connection
-		if natsConn != nil {
-			natsConn.Close()
+		if natsService.NatsConn != nil {
+			natsService.NatsConn.Close()
 		}
 
 		log.Println("Server shutdown complete")
