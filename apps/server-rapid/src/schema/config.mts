@@ -38,7 +38,7 @@ export const configSchema = z.object({
             error: z.string().optional(),
         })
         .optional(),
-    base_permissions: permissionsSchema.partial(),
+    base_permissions: permissionsSchema.partial().optional(),
 });
 
 export type TConfig = z.infer<typeof configSchema>;

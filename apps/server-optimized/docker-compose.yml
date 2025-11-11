@@ -1,0 +1,99 @@
+services:
+  server:
+    image: golang:1.24-bookworm
+    container_name: airstate-server
+    working_dir: /app
+    command: bash -c "go mod download && go run ."
+    volumes:
+      - type: bind
+        source: .
+        target: /app
+      - type: volume
+        source: go-mod-cache
+        target: /go/pkg/mod
+      - type: volume
+        source: go-build-cache
+        target: /root/.cache/go-build
+    environment:
+      - PORT=8080
+      - WEBSOCKET_PORT=8081
+      - NATS_URL=nats://nats:4222
+    depends_on:
+      - nats
+    ports:
+      # HTTP API (Fiber) - health and SSE endpoints
+      - target: 8080
+        published: 8080
+        protocol: tcp
+      # WebSocket publisher endpoint
+      - target: 8081
+        published: 8081
+        protocol: tcp
+    restart: unless-stopped
+    networks:
+      - nats-network
+    profiles:
+      - default
+      - server
+  nats:
+    image: nats:2.12.1
+    container_name: nats-server
+    command:
+      - "-c" # Configuration file
+      - "/etc/nats/nats-server.conf"
+      - "-js" # Enable JetStream
+      - "-sd" # Store directory for JetStream
+      - "/data"
+      - "-m" # HTTP monitoring port
+      - "8222"
+      - "-p" # Client port
+      - "4222"
+      - "-l" # Log file (use /dev/stdout for container logs)
+      - "/dev/stdout"
+      - "-D" # Debug mode (remove for production, keep for benchmarking)
+    ports:
+      # Client port - NATS protocol connections
+      - target: 4222
+        published: 4222
+        protocol: tcp
+      # HTTP monitoring port - server stats and health checks
+      - target: 8222
+        published: 8222
+        protocol: tcp
+      # Cluster port - for NATS clustering (not needed for single node)
+      - target: 6222
+        published: 6222
+        protocol: tcp
+    volumes:
+      - type: bind
+        source: ./nats-server.conf
+        target: /etc/nats/nats-server.conf
+        read_only: true
+      - type: volume
+        source: nats-data
+        target: /data
+    environment:
+      - TZ=UTC
+    restart: unless-stopped
+    networks:
+      - nats-network
+    profiles:
+      - default
+      - nats
+    # Performance optimizations
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+
+volumes:
+  nats-data:
+    driver: local
+  go-mod-cache:
+    driver: local
+  go-build-cache:
+    driver: local
+
+networks:
+  nats-network:
+    driver: bridge

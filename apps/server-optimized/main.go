@@ -1,260 +1,334 @@
 package main
 
 import (
+	"bufio"
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
-	"net/http"
-	"net/url"
-	"strings"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
-	"github.com/coder/websocket"
-	"github.com/coder/websocket/wsjson"
+	"github.com/bytedance/sonic"
+	"github.com/gofiber/contrib/websocket"
+	"github.com/gofiber/fiber/v2"
+	"github.com/nats-io/nats.go"
 )
 
-func main() {
-	http.HandleFunc("/ws", handleWebSocket)
-	http.HandleFunc("/", handleHome)
+var natsConn *nats.Conn
 
-	fmt.Println("JSON Echo WebSocket server starting on :8080")
-	fmt.Println("WebSocket endpoint: ws://localhost:8080/ws")
-	fmt.Println("API endpoint: http://localhost:8080")
-
-	log.Fatal(http.ListenAndServe(":8080", nil))
-}
-
-func handleHome(w http.ResponseWriter, r *http.Request) {
-	response := map[string]interface{}{
-		"message":   "Hello, World!",
-		"server":    "JSON Echo WebSocket Server",
-		"websocket": "ws://localhost:8080/ws",
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-
-	if err := json.NewEncoder(w).Encode(response); err != nil {
-		http.Error(w, "Failed to encode JSON", http.StatusInternalServerError)
-	}
-}
-
-// TRPCResponse represents a TRPC response structure
-type TRPCResponse struct {
-	ID     interface{} `json:"id"`
-	Result TRPCResult  `json:"result"`
-}
-
-// TRPCResult represents the result portion of a TRPC response
-type TRPCResult struct {
-	Type string      `json:"type"`
+type PublishedMessage struct {
+	Key  string      `json:"key"`
 	Data interface{} `json:"data"`
 }
 
-// TRPCErrorShape represents the structure of a TRPC error
-type TRPCErrorShape struct {
-	Code    int         `json:"code"`
-	Message string      `json:"message"`
-	Data    interface{} `json:"data"`
-}
+func connectToNATS() error {
+	natsURL := os.Getenv("NATS_URL")
 
-type TRPCError struct {
-	ID    interface{}    `json:"id"`
-	Error TRPCErrorShape `json:"error"`
-}
-
-func runEchoProcedure(ctx context.Context, conn *websocket.Conn, id uint64, input interface{}) {
-	response := TRPCResponse{
-		ID: id,
-		Result: TRPCResult{
-			Type: "data",
-			Data: input,
-		},
+	if natsURL == "" {
+		natsURL = "nats://localhost:4222"
 	}
 
-	if err := wsjson.Write(ctx, conn, response); err != nil {
-		log.Printf("Failed to send TRPC response: %v", err)
-	}
-}
-
-func runUppercaseProcedure(ctx context.Context, conn *websocket.Conn, id uint64, input interface{}) {
-	// Check if input is a string
-	inputStr, ok := input.(string)
-
-	if !ok {
-		// If input is not a string, return an error
-		response := TRPCError{
-			ID: id,
-			Error: TRPCErrorShape{
-				Code:    -32600,
-				Message: "input must be a string",
-				Data:    nil,
-			},
-		}
-
-		if err := wsjson.Write(ctx, conn, response); err != nil {
-			log.Printf("Failed to send TRPC error response: %v", err)
-		}
-
-		return
-	}
-
-	// Convert to uppercase
-	uppercaseResult := strings.ToUpper(inputStr)
-
-	response := TRPCResponse{
-		ID: id,
-		Result: TRPCResult{
-			Type: "data",
-			Data: uppercaseResult,
-		},
-	}
-
-	if err := wsjson.Write(ctx, conn, response); err != nil {
-		log.Printf("Failed to send TRPC response: %v", err)
-	}
-}
-
-func routeMethodCall(ctx context.Context, conn *websocket.Conn, id uint64, method string, path string, input interface{}) {
-	switch method {
-	case "query":
-		switch path {
-		case "echo.run":
-			go runEchoProcedure(ctx, conn, id, input)
-		}
-	case "mutation":
-		switch path {
-		case "uppercase":
-			go runUppercaseProcedure(ctx, conn, id, input)
-		}
-	case "subscription":
-	}
-}
-
-func handleWebSocket(w http.ResponseWriter, r *http.Request) {
-	// Read and print the origin header
-	origin := r.Header.Get("Origin")
-
-	if origin != "" {
-		log.Printf("Origin header: %s", origin)
-	} else {
-		log.Printf("No Origin header present")
-	}
-
-	// Parse the origin URL to extract hostname
-	var originHostname string
-
-	if origin != "" {
-		if parsedURL, err := url.Parse(origin); err == nil {
-			originHostname = parsedURL.Host
-		}
-	}
-
-	conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{
-		OriginPatterns: []string{originHostname}, // Allow all origins for testing
-	})
+	nc, err := nats.Connect(natsURL)
 
 	if err != nil {
-		log.Printf("Failed to accept websocket connection: %v", err)
-		return
+		return err
 	}
 
-	ctx, cancel := context.WithCancel(r.Context())
-	defer conn.Close(websocket.StatusNormalClosure, "connection closed")
+	natsConn = nc
+	log.Printf("Connected to NATS at %s", natsURL)
+
+	return nil
+}
+
+func startHTTPServer(ctx context.Context) func() error {
+	app := fiber.New(fiber.Config{
+		DisableStartupMessage: true,
+	})
+
+	app.Get("/", func(c *fiber.Ctx) error {
+		return c.JSON(fiber.Map{
+			"message": "HELLO FROM airstate's server-optimized.",
+			"time":    time.Now().Format(time.RFC3339),
+		})
+	})
+
+	app.Get("/health", func(c *fiber.Ctx) error {
+		return c.JSON(fiber.Map{
+			"status": "OK",
+		})
+	})
+
+	app.Get("/_default/server-state.subscribe-sse", func(c *fiber.Ctx) error {
+		keys := c.Query("key")
+
+		if keys == "" {
+			return c.Status(400).JSON(fiber.Map{
+				"error": "At least one 'key' query parameter is required",
+			})
+		}
+
+		// Parse multiple key parameters
+		var keyList []string
+		for _, key := range c.Context().QueryArgs().PeekMulti("key") {
+			if len(key) > 0 {
+				keyList = append(keyList, string(key))
+			}
+		}
+
+		if len(keyList) == 0 {
+			return c.Status(400).JSON(fiber.Map{
+				"error": "At least one valid 'key' query parameter is required",
+			})
+		}
+
+		c.Set("Content-Type", "text/event-stream")
+		c.Set("Cache-Control", "no-cache")
+		c.Set("Connection", "keep-alive")
+		c.Set("Access-Control-Allow-Origin", "*")
+		c.Set("Access-Control-Allow-Headers", "Cache-Control")
+
+		requestContext := c.Context()
+
+		requestContext.SetBodyStreamWriter(func(w *bufio.Writer) {
+			// Create a channel to receive messages from all subscriptions
+			msgChan := make(chan *nats.Msg, 1024)
+			var subscriptions []*nats.Subscription
+
+			// Subscribe to each key
+			for _, key := range keyList {
+				sub, err := natsConn.Subscribe("server-state."+key, func(msg *nats.Msg) {
+					msgChan <- msg
+				})
+
+				if err != nil {
+					log.Printf("Error subscribing to key %s: %v", key, err)
+					continue
+				}
+
+				subscriptions = append(subscriptions, sub)
+			}
+
+			cleanup := func() {
+				for _, sub := range subscriptions {
+					if sub.IsValid() {
+						sub.Unsubscribe()
+					}
+				}
+
+				select {
+				case <-msgChan:
+				default:
+					close(msgChan)
+				}
+			}
+
+			defer cleanup()
+
+			fmt.Fprintf(w, "\n")
+			w.Flush()
+
+			for {
+				select {
+				case msg, ok := <-msgChan:
+					if !ok {
+						log.Println("CHANNEL CLOSED")
+						return
+					}
+
+					fmt.Fprintf(w, "data: %s\n\n", string(msg.Data))
+
+					if err := w.Flush(); err != nil {
+						log.Println("CONNECTION ERROR", err)
+						return
+					}
+				case <-requestContext.Done():
+					cleanup()
+					return
+				}
+			}
+		})
+
+		return nil
+	})
+
+	// POST endpoint to publish messages to NATS
+	app.Post("/_default/server-state.publish", func(c *fiber.Ctx) error {
+		// Get the key from query parameter
+		key := c.Query("key")
+		if key == "" {
+			return c.Status(400).JSON(fiber.Map{
+				"error": "key query parameter is required",
+			})
+		}
+
+		// Get the JSON body
+		body := c.Body()
+		if len(body) == 0 {
+			return c.Status(400).JSON(fiber.Map{
+				"error": "request body is required",
+			})
+		}
+
+		// Validate that it's valid JSON
+		var jsonData interface{}
+		if err := sonic.Unmarshal(body, &jsonData); err != nil {
+			return c.Status(400).JSON(fiber.Map{
+				"error": "invalid JSON in request body",
+			})
+		}
+
+		// Publish to NATS topic
+		topic := "server-state." + key
+		if err := natsConn.Publish(topic, body); err != nil {
+			return c.Status(500).JSON(fiber.Map{
+				"error": "failed to publish message",
+			})
+		}
+
+		return c.JSON(fiber.Map{
+			"status": "published",
+			"topic":  topic,
+		})
+	})
+
+	port := os.Getenv("PORT")
+
+	if port == "" {
+		port = "8080"
+	}
+
+	go func() {
+		log.Printf("Starting HTTP server on port %s", port)
+
+		if err := app.Listen(":" + port); err != nil {
+			log.Printf("Failed to start HTTP server: %v", err)
+		}
+	}()
+
+	return func() error {
+		return app.Shutdown()
+	}
+}
+
+func startWSServer(ctx context.Context) func() error {
+	app := fiber.New(fiber.Config{
+		DisableStartupMessage: true,
+	})
+
+	// Middleware to check if the request is a WebSocket upgrade
+	app.Use("/rpc", func(c *fiber.Ctx) error {
+		if websocket.IsWebSocketUpgrade(c) {
+			return c.Next()
+		}
+		return fiber.ErrUpgradeRequired
+	})
+
+	// WebSocket endpoint
+	app.Get("/rpc", websocket.New(func(c *websocket.Conn) {
+		var (
+			messageType int
+			message     []byte
+			err         error
+		)
+
+		for {
+			if messageType, message, err = c.ReadMessage(); err != nil {
+				break
+			}
+
+			if messageType == websocket.TextMessage {
+				var jsonData PublishedMessage
+
+				if err := sonic.Unmarshal(message, &jsonData); err != nil {
+					log.Println("unmarshal:", err)
+					break
+				}
+
+				// Publish to NATS topic
+				topic := "server-state." + jsonData.Key
+
+				marshaledPublishMessage, publishMessageMarshalingError := sonic.Marshal(jsonData.Data)
+
+				if publishMessageMarshalingError != nil {
+					log.Println("marshal:", publishMessageMarshalingError)
+					break
+				}
+
+				if err := natsConn.Publish(topic, marshaledPublishMessage); err != nil {
+					log.Println("publish:", err)
+					break
+				}
+			}
+		}
+	}))
+
+	port := os.Getenv("WEBSOCKET_PORT")
+	if port == "" {
+		port = "8081"
+	}
+
+	go func() {
+		log.Printf("Starting WebSocket server on port %s", port)
+
+		if err := app.Listen(":" + port); err != nil {
+			log.Printf("Failed to start WebSocket server: %v", err)
+		}
+	}()
+
+	return func() error {
+		return app.Shutdown()
+	}
+}
+
+func Boot() func() {
+	connectToNATS()
+
+	// Create a context that can be cancelled
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	log.Printf("New WebSocket connection from %s", r.RemoteAddr)
+	stopHTTP := startHTTPServer(ctx)
+	stopWS := startWSServer(ctx)
 
-	var connectionParams interface{}
+	return func() {
+		log.Println("Shutting down servers...")
 
-	// Check for connectionParams query parameter
-	if r.URL.Query().Get("connectionParams") == "1" {
-		log.Printf("Connection established with connectionParams=1, waiting for params.")
+		// Cancel the context to signal all connections to close
+		cancel()
 
-		messageType, messageBytes, err := conn.Read(r.Context())
+		// Give a short time for connections to close gracefully
+		time.Sleep(100 * time.Millisecond)
 
-		if err != nil {
-			log.Printf("Failed to read message: %v", err)
-			return
+		// Gracefully shutdown the HTTP server
+		if err := stopHTTP(); err != nil {
+			log.Printf("Error during HTTP server shutdown: %v", err)
 		}
 
-		if messageType != websocket.MessageText {
-			log.Printf("message not a text message")
-			return
+		// Gracefully shutdown the WebSocket server
+		if err := stopWS(); err != nil {
+			log.Printf("Error during WebSocket server shutdown: %v", err)
 		}
 
-		var connectionParamsMessage interface{}
-
-		if err := json.Unmarshal(messageBytes, &connectionParamsMessage); err != nil {
-			log.Printf("failed to unmarshal message")
-			return
+		// Close NATS connection
+		if natsConn != nil {
+			natsConn.Close()
 		}
 
-		// Check if message has method set to "connectionParams"
-		if dataMap, ok := connectionParamsMessage.(map[string]interface{}); ok {
-			if methodValue, exists := dataMap["method"]; exists {
-				if methodString, isString := methodValue.(string); isString && methodString == "connectionParams" {
-					if dataValue, exists := dataMap["data"]; exists {
-						connectionParams = dataValue
-						log.Printf("Connection params received: %v", connectionParams)
-					}
-				}
-			}
-		}
+		log.Println("Server shutdown complete")
 	}
+}
 
-	// Handle messages
-	for {
-		messageType, messageBytes, err := conn.Read(r.Context())
+func main() {
+	kill := Boot()
 
-		if err != nil {
-			log.Printf("Failed to read message: %v", err)
-			break
-		}
+	// Set up signal handling for graceful shutdown
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 
-		switch messageType {
-		case websocket.MessageText:
-			var clientData interface{}
+	// Wait for interrupt signal
+	<-c
 
-			if err := json.Unmarshal(messageBytes, &clientData); err != nil {
-				continue
-			}
-
-			if dataMap, ok := clientData.(map[string]interface{}); ok {
-				if methodValue, exists := dataMap["method"]; exists {
-					if methodString, isString := methodValue.(string); isString {
-						if idValue, exists := dataMap["id"]; exists {
-							if idFloat, isFloat := idValue.(float64); isFloat {
-								idUint64 := uint64(idFloat)
-								log.Printf("Received message with id: %f & method: %s", idFloat, methodString)
-
-								if paramsValue, paramsExists := dataMap["params"]; paramsExists {
-									if paramsMap, ok := paramsValue.(map[string]interface{}); ok {
-										// run for query / mutation / subscription
-
-										if pathValue, pathExists := paramsMap["path"]; pathExists {
-											if pathString, isString := pathValue.(string); isString {
-
-												if inputValue, inputExists := paramsMap["input"]; inputExists {
-													routeMethodCall(ctx, conn, idUint64, methodString, pathString, inputValue)
-												} else {
-													routeMethodCall(ctx, conn, idUint64, methodString, pathString, nil)
-												}
-											}
-
-											log.Printf("Received message with params: %v", paramsMap)
-										}
-									} else {
-										// run for subscription.stop
-									}
-								}
-							}
-						}
-					}
-				}
-			}
-		case websocket.MessageBinary:
-			log.Printf("binary messages not supported yet")
-			continue
-		}
-	}
+	kill()
 }
