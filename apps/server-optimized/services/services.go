@@ -1,18 +1,18 @@
 package services
 
 import (
+	"server-optimized/services/kv"
 	"server-optimized/services/nats"
-	"server-optimized/services/redis"
 )
 
 type Services interface {
 	nats.Service
-	redis.Service
+	kv.Service
 }
 
 type ServiceValues struct {
 	nats.NATS
-	redis.Redis
+	kv.KV
 }
 
 func CreateServices() (*ServiceValues, error) {
@@ -23,15 +23,15 @@ func CreateServices() (*ServiceValues, error) {
 		return nil, natsServiceErr
 	}
 
-	// REDIS
-	redisService, redisServiceErr := redis.CreateRedisService(&redis.ServiceOptions{})
+	// KV (KVRocks / KV)
+	kvService, kvServiceErr := kv.CreateKVService(&kv.ServiceOptions{})
 
-	if redisServiceErr != nil {
-		return nil, redisServiceErr
+	if kvServiceErr != nil {
+		return nil, kvServiceErr
 	}
 
 	return &ServiceValues{
 		*natsService,
-		*redisService,
+		*kvService,
 	}, nil
 }

@@ -24,7 +24,14 @@ func main() {
 	defer killServicePlane()
 
 	if servicePlaneInitError != nil {
-		log.Fatal("service plane boot", servicePlaneInitError)
+		log.Fatal("service-plane init", servicePlaneInitError)
+	}
+
+	killAdminPlane, adminPlanePlaneInitError := initer.AdminPlane(ctx, services)
+	defer killAdminPlane()
+
+	if adminPlanePlaneInitError != nil {
+		log.Fatal("admin-plane init", servicePlaneInitError)
 	}
 
 	// signal handling for graceful shutdown

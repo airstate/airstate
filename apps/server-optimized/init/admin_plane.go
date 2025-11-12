@@ -11,21 +11,21 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-func getServicePort() string {
-	port := os.Getenv("AIRSTATE_PORT")
+func getAdminPort() string {
+	port := os.Getenv("AIRSTATE_ADMIN_PORT")
 
 	if port == "" {
-		port = os.Getenv("PORT")
+		port = os.Getenv("ADMIN_PORT")
 	}
 
 	if port == "" {
-		port = "11001"
+		port = "11002"
 	}
 
 	return port
 }
 
-func startServicePlaneHTTPServer(ctx context.Context, services services.Services) (func() error, error) {
+func startAdminPlaneHTTPServer(ctx context.Context, services services.Services) (func() error, error) {
 	app := fiber.New(fiber.Config{
 		DisableStartupMessage: true,
 		JSONEncoder:           sonic.Marshal,
@@ -34,7 +34,7 @@ func startServicePlaneHTTPServer(ctx context.Context, services services.Services
 
 	app.Get("/", func(c *fiber.Ctx) error {
 		return c.JSON(&fiber.Map{
-			"message": "HELLO FROM AirState's server-optimized:service-plane",
+			"message": "HELLO FROM AirState's server-optimized:admin-plane",
 			"type":    "HTTP",
 			"time":    time.Now().Format(time.RFC3339),
 		})
@@ -47,14 +47,14 @@ func startServicePlaneHTTPServer(ctx context.Context, services services.Services
 	})
 
 	go func() {
-		if err := app.Listen(":" + getServicePort()); err != nil {
-			log.Fatal("failed to start service-plane http server", err)
+		if err := app.Listen(":" + getAdminPort()); err != nil {
+			log.Fatal("failed to start admin-plane http server", err)
 		}
 	}()
 
 	app.Hooks().OnListen(func(info fiber.ListenData) error {
 		log.Printf(
-			"service-plane http server started on http://%s:%s",
+			"admin-plane http server started on http://%s:%s",
 			info.Host,
 			info.Port,
 		)
@@ -67,9 +67,9 @@ func startServicePlaneHTTPServer(ctx context.Context, services services.Services
 	}, nil
 }
 
-func ServicePlane(ctx context.Context, services services.Services) (func() error, error) {
+func AdminPlane(ctx context.Context, services services.Services) (func() error, error) {
 	// HTTP Server
-	killHTTPServer, httpServerError := startServicePlaneHTTPServer(ctx, services)
+	killHTTPServer, httpServerError := startAdminPlaneHTTPServer(ctx, services)
 
 	if httpServerError != nil {
 		return nil, httpServerError
