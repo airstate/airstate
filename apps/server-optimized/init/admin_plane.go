@@ -2,13 +2,13 @@ package init
 
 import (
 	"context"
-	"log"
 	"os"
 	"server-optimized/services"
 	"time"
 
 	"github.com/bytedance/sonic"
 	"github.com/gofiber/fiber/v2"
+	"github.com/rs/zerolog/log"
 )
 
 func getAdminPort() string {
@@ -48,12 +48,13 @@ func startAdminPlaneHTTPServer(ctx context.Context, services services.Services) 
 
 	go func() {
 		if err := app.Listen(":" + getAdminPort()); err != nil {
-			log.Fatal("failed to start admin-plane http server", err)
+			log.Error().Err(err).Msg("failed to start admin-plane http server")
+			os.Exit(1)
 		}
 	}()
 
 	app.Hooks().OnListen(func(info fiber.ListenData) error {
-		log.Printf(
+		log.Info().Msgf(
 			"admin-plane http server started on http://%s:%s",
 			info.Host,
 			info.Port,

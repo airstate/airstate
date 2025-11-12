@@ -2,7 +2,6 @@ package init
 
 import (
 	"context"
-	"log"
 	"os"
 	"server-optimized/api/service"
 	"server-optimized/services"
@@ -10,6 +9,7 @@ import (
 
 	"github.com/bytedance/sonic"
 	"github.com/gofiber/fiber/v2"
+	"github.com/rs/zerolog/log"
 )
 
 func getServicePort() string {
@@ -51,12 +51,12 @@ func startServicePlaneHTTPServer(ctx context.Context, services services.Services
 
 	go func() {
 		if err := app.Listen(":" + getServicePort()); err != nil {
-			log.Fatal("failed to start service-plane http server", err)
+			log.Error().Err(err).Msg("failed to start service-plane http server")
 		}
 	}()
 
 	app.Hooks().OnListen(func(info fiber.ListenData) error {
-		log.Printf(
+		log.Info().Msgf(
 			"service-plane http server started on http://%s:%s",
 			info.Host,
 			info.Port,
