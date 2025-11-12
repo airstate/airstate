@@ -2,13 +2,14 @@ package main
 
 import (
 	"context"
-	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
 	"os"
 	"os/signal"
 	initer "server-optimized/init"
 	systemServices "server-optimized/services"
 	"syscall"
+
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 )
 
 func main() {

@@ -3,8 +3,9 @@ package server_state
 import (
 	"bufio"
 	"fmt"
-	"log"
 	"server-optimized/services"
+
+	"github.com/rs/zerolog/log"
 
 	"github.com/gofiber/fiber/v2"
 	natsGo "github.com/nats-io/nats.go"
@@ -46,7 +47,7 @@ func RegisterSSESubscriptionRoute(app *fiber.App, services services.Services) {
 				sub, err := nats.ChanSubscribe("server-state."+key, msgChan)
 
 				if err != nil {
-					log.Printf("Error subscribing to key %s: %v", key, err)
+					log.Error().Err(err).Msgf("error subscribing to key %s", key)
 					continue
 				}
 
@@ -56,7 +57,10 @@ func RegisterSSESubscriptionRoute(app *fiber.App, services services.Services) {
 			cleanup := func() {
 				for _, sub := range subscriptions {
 					if sub.IsValid() {
-						sub.Unsubscribe()
+						if err := sub.Unsubscribe(); err != nil {
+							log.Error().Err(err).Msgf("error unsubscribing from subscription %s", sub.Subject)
+							continue
+						}
 					}
 				}
 
@@ -70,12 +74,12 @@ func RegisterSSESubscriptionRoute(app *fiber.App, services services.Services) {
 			defer cleanup()
 
 			if _, err := fmt.Fprintf(w, "\n"); err != nil {
-				log.Println("CONNECTION ERROR", err)
+				log.Error().Err(err).Msgf("error writing to client")
 				return
 			}
 
 			if err := w.Flush(); err != nil {
-				log.Println("CONNECTION ERROR on flush", err)
+				log.Error().Err(err).Msgf("error flushing writer")
 				return
 			}
 
@@ -83,17 +87,14 @@ func RegisterSSESubscriptionRoute(app *fiber.App, services services.Services) {
 				select {
 				case msg, ok := <-msgChan:
 					if !ok {
-						log.Println("CHANNEL CLOSED")
 						return
 					}
 
 					if _, err := fmt.Fprintf(w, "data: %s\n\n", string(msg.Data)); err != nil {
-						log.Println("CONNECTION ERROR on write", err)
 						return
 					}
 
 					if err := w.Flush(); err != nil {
-						log.Println("CONNECTION ERROR on flush", err)
 						return
 					}
 				case <-requestContext.Done():
