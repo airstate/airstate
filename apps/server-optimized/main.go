@@ -31,7 +31,7 @@ func main() {
 	defer killAdminPlane()
 
 	if adminPlanePlaneInitError != nil {
-		log.Fatal("admin-plane init", servicePlaneInitError)
+		log.Fatal("admin-plane init", adminPlanePlaneInitError)
 	}
 
 	// signal handling for graceful shutdown
