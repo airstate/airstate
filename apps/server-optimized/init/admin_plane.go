@@ -3,7 +3,7 @@ package init
 import (
 	"context"
 	"os"
-	"server-optimized/api/admin"
+	"server-optimized/api/admin/http"
 	"server-optimized/services"
 	"time"
 
@@ -42,11 +42,9 @@ func startAdminPlaneHTTPServer(ctx context.Context, services services.Services) 
 	})
 
 	app.Get("/health", func(c *fiber.Ctx) error {
-		return c.JSON(&fiber.Map{
-			
-		})
+		return c.JSON(&fiber.Map{})
 	})
-	admin.RegisterAdminPlaneAPIRoutes(app, services)
+	http.RegisterAdminPlaneHTTPRoutes(app, services)
 
 	go func() {
 		if err := app.Listen(":" + getAdminPort()); err != nil {

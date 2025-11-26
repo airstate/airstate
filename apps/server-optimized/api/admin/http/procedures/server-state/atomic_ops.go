@@ -1,16 +1,15 @@
-package handlers
+package server_state
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
 	"log"
+	"server-optimized/lib/kv_scripts"
+	"server-optimized/utils"
 	"strconv"
 
-	"server-optimized/api/admin/procedures/server-state/scripts"
 	"server-optimized/services"
-
-	"server-optimized/api/admin/procedures/server-state/utils"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/nats-io/nats.go"
@@ -31,9 +30,8 @@ type AtomicOpsResult struct {
 	Error       string                 `json:"error,omitempty"`
 }
 
-
 func AtomicOps(svc services.Services) fiber.Handler {
-	scriptMgr := scripts.GetScriptManager(svc.GetKVClient())
+	scriptMgr := kv_scripts.GetScriptManager(svc.GetKVClient())
 	natsConn := svc.GetNATSConnection()
 
 	return func(c *fiber.Ctx) error {
@@ -77,7 +75,7 @@ func AtomicOps(svc services.Services) fiber.Handler {
 			})
 		}
 
-		log.Printf("this is full key %v",fullKey);
+		log.Printf("this is full key %v", fullKey)
 
 		result := scriptMgr.Execute(ctx, "atomic_ops", []string{fullKey, counterKey}, string(opsJSON))
 		if result.Err() != nil {
@@ -124,8 +122,8 @@ func AtomicOps(svc services.Services) fiber.Handler {
 			}
 		}
 		return c.Status(fiber.StatusOK).JSON(fiber.Map{
-			"message":      "atomic operations applied successfully",
-			"value":        opsResult.Value,
+			"message": "atomic operations applied successfully",
+			"value":   opsResult.Value,
 		})
 	}
 }

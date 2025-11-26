@@ -1,17 +1,17 @@
-package handlers
+package server_state
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
 	"log"
+	"server-optimized/lib/kv_scripts"
+	"server-optimized/utils"
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/nats-io/nats.go"
 
-	"server-optimized/api/admin/procedures/server-state/scripts"
-	"server-optimized/api/admin/procedures/server-state/utils"
 	"server-optimized/services"
 )
 
@@ -21,7 +21,7 @@ type ReplaceRequest struct {
 
 func ReplaceKey(svc services.Services) fiber.Handler {
 	log.Println("ReplaceKey handler factory called")
-	scriptMgr := scripts.GetScriptManager(svc.GetKVClient())
+	scriptMgr := kv_scripts.GetScriptManager(svc.GetKVClient())
 	natsConn := svc.GetNATSConnection()
 
 	return func(c *fiber.Ctx) error {
@@ -91,15 +91,15 @@ func ReplaceKey(svc services.Services) fiber.Handler {
 		}
 
 		subject := fmt.Sprintf("server-state.%s_%s", appID, hashedKey)
-			msg := nats.NewMsg(subject)
-			msg.Data = valueJSON
-			msg.Header.Add("update_count", strconv.FormatInt(updateCount, 10))
-			if err := natsConn.PublishMsg(msg); err != nil {
-				log.Printf("Failed to publish to NATS: %v", err)
-			}
+		msg := nats.NewMsg(subject)
+		msg.Data = valueJSON
+		msg.Header.Add("update_count", strconv.FormatInt(updateCount, 10))
+		if err := natsConn.PublishMsg(msg); err != nil {
+			log.Printf("Failed to publish to NATS: %v", err)
+		}
 
 		return c.Status(fiber.StatusOK).JSON(fiber.Map{
-			"message":      "value replaced successfully",
+			"message": "value replaced successfully",
 		})
 	}
 }

@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"server-optimized/utils"
 	"strings"
 	"sync"
 
-	"server-optimized/api/admin/procedures/server-state/utils"
 	"server-optimized/services"
 
 	"github.com/gofiber/fiber/v2"
@@ -21,7 +21,7 @@ func RegisterSSESubscriptionRoute(app *fiber.App, services services.Services) {
 	app.Get("/:appId/server-state/keys", func(c *fiber.Ctx) error {
 		appID := c.Params("appId")
 		log.Printf("[SSE] New SSE connection request - appId: %s", appID)
-		
+
 		if appID == "" {
 			log.Printf("[SSE] Error: appId is empty")
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -30,7 +30,7 @@ func RegisterSSESubscriptionRoute(app *fiber.App, services services.Services) {
 		}
 
 		keysParam := c.Query("keys")
-		
+
 		if keysParam == "" {
 			log.Printf("[SSE] Error: keys parameter is empty")
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -59,7 +59,7 @@ func RegisterSSESubscriptionRoute(app *fiber.App, services services.Services) {
 		c.Set("Content-Type", "text/event-stream")
 		c.Set("Cache-Control", "no-cache")
 		c.Set("Connection", "keep-alive")
-		c.Set("X-Accel-Buffering", "no") 
+		c.Set("X-Accel-Buffering", "no")
 
 		ctx, cancel := context.WithCancel(c.Context())
 		defer cancel()
@@ -85,7 +85,7 @@ func RegisterSSESubscriptionRoute(app *fiber.App, services services.Services) {
 			sub, err := natsConn.Subscribe(subject, func(msg *nats.Msg) {
 				log.Printf("[SSE] NATS message received on subject: %s (key: %s)", subject, key)
 				log.Printf("[SSE] Message data: %s", string(msg.Data))
-				
+
 				updateCount := msg.Header.Get("update_count")
 				if updateCount == "" {
 					updateCount = "0"
@@ -109,7 +109,7 @@ func RegisterSSESubscriptionRoute(app *fiber.App, services services.Services) {
 					Value:       value,
 					UpdateCount: updateCount,
 				}
-				
+
 				select {
 				case updateChan <- update:
 				case <-ctx.Done():
@@ -135,7 +135,6 @@ func RegisterSSESubscriptionRoute(app *fiber.App, services services.Services) {
 			subscriptions = append(subscriptions, sub)
 			subscriptionsMutex.Unlock()
 		}
-		
 
 		cleanup := func() {
 			cleanupOnce.Do(func() {

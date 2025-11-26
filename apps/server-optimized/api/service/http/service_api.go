@@ -1,7 +1,7 @@
-package service
+package http
 
 import (
-	serverState "server-optimized/api/service/procedures/server-state"
+	serverState "server-optimized/api/service/http/procedures/server-state"
 	"server-optimized/services"
 
 	"github.com/gofiber/fiber/v2"

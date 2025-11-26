@@ -1,4 +1,4 @@
-package scripts
+package kv_scripts
 
 import (
 	"context"
@@ -9,7 +9,6 @@ import (
 
 	"github.com/redis/go-redis/v9"
 )
-
 
 type ScriptManager struct {
 	kvClient *redis.Client
@@ -38,9 +37,9 @@ func GetScriptManager(kvClient *redis.Client) *ScriptManager {
 		managerInstance.registerScript("remove", RemoveScript)
 		managerInstance.registerScript("deep_merge", DeepMergeScript)
 		managerInstance.registerScript("atomic_ops", AtomicOpsScript)
-		
+
 		if err := managerInstance.LoadAll(context.Background()); err != nil {
-			log.Fatalf("Failed to load Lua scripts: %v", err)
+			log.Fatalf("Failed to load Lua kv_scripts: %v", err)
 		}
 	})
 
@@ -116,7 +115,6 @@ func (sm *ScriptManager) Execute(ctx context.Context, name string, keys []string
 	}
 
 	result := sm.kvClient.EvalSha(ctx, script.SHA, keys, args...)
-
 
 	if result.Err() != nil && result.Err().Error() == "NOSCRIPT No matching script. Please use EVAL." {
 		log.Printf("Script %s not found in Redis, reloading...", name)

@@ -3,7 +3,7 @@ package init
 import (
 	"context"
 	"os"
-	"server-optimized/api/service"
+	"server-optimized/api/service/http"
 	"server-optimized/services"
 	"time"
 
@@ -47,7 +47,7 @@ func startServicePlaneHTTPServer(ctx context.Context, services services.Services
 		})
 	})
 
-	service.RegisterServicePlaneAPIRoutes(app, services)
+	http.RegisterServicePlaneAPIRoutes(app, services)
 
 	go func() {
 		if err := app.Listen(":" + getServicePort()); err != nil {

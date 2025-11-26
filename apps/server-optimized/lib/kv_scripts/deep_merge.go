@@ -1,4 +1,4 @@
-package scripts
+package kv_scripts
 
 const DeepMergeScript = `
 local key = KEYS[1]
