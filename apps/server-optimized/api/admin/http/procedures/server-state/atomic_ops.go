@@ -77,7 +77,7 @@ func AtomicOps(svc services.Services) fiber.Handler {
 
 		log.Debug().Str("full_key", fullKey).Msg("this is full key")
 
-		result := scriptMgr.Execute(ctx, "atomic_ops", []string{fullKey, counterKey}, string(opsJSON))
+		result := scriptMgr.Execute(ctx, scriptMgr.GetAtomicOps(), []string{fullKey, counterKey}, string(opsJSON))
 		if result.Err() != nil {
 			log.Error().Err(result.Err()).Msg("Failed to execute atomic_ops script")
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{

@@ -4,16 +4,18 @@ import (
 	"context"
 	_ "embed"
 	"fmt"
-	"log"
 	"sync"
 
 	"github.com/redis/go-redis/v9"
+	"github.com/rs/zerolog/log"
 )
 
 type ScriptManager struct {
 	kvClient *redis.Client
-	scripts  map[string]*Script
-	mu       sync.RWMutex
+	Replace   Script
+	Remove    Script
+	DeepMerge Script
+	AtomicOps Script
 }
 
 type Script struct {
@@ -31,98 +33,69 @@ func GetScriptManager(kvClient *redis.Client) *ScriptManager {
 	once.Do(func() {
 		managerInstance = &ScriptManager{
 			kvClient: kvClient,
-			scripts:  make(map[string]*Script),
+			Replace: Script{
+				Name:    "replace",
+				Content: ReplaceScript,
+			},
+			Remove: Script{
+				Name:    "remove",
+				Content: RemoveScript,
+			},
+			DeepMerge: Script{
+				Name:    "deep_merge",
+				Content: DeepMergeScript,
+			},
+			AtomicOps: Script{
+				Name:    "atomic_ops",
+				Content: AtomicOpsScript,
+			},
 		}
-		managerInstance.registerScript("replace", ReplaceScript)
-		managerInstance.registerScript("remove", RemoveScript)
-		managerInstance.registerScript("deep_merge", DeepMergeScript)
-		managerInstance.registerScript("atomic_ops", AtomicOpsScript)
 
 		if err := managerInstance.LoadAll(context.Background()); err != nil {
-			log.Fatalf("Failed to load Lua kv_scripts: %v", err)
+			log.Fatal().Err(err).Msg("Failed to load Lua kv_scripts")
 		}
 	})
-
 	return managerInstance
 }
 
-func (sm *ScriptManager) registerScript(name, content string) {
-	sm.mu.Lock()
-	defer sm.mu.Unlock()
-
-	sm.scripts[name] = &Script{
-		Name:    name,
-		Content: content,
-	}
-}
-
 func (sm *ScriptManager) LoadAll(ctx context.Context) error {
-	sm.mu.Lock()
-	defer sm.mu.Unlock()
-
-	for name, script := range sm.scripts {
+	scripts := []*Script{&sm.Replace, &sm.Remove, &sm.DeepMerge, &sm.AtomicOps}
+	
+	for _, script := range scripts {
 		sha, err := sm.kvClient.ScriptLoad(ctx, script.Content).Result()
 		if err != nil {
-			return fmt.Errorf("failed to load script %s: %w", name, err)
+			return fmt.Errorf("failed to load script %s: %w", script.Name, err)
 		}
 		script.SHA = sha
-		log.Printf("Loaded Lua script '%s' with SHA: %s", name, sha)
+		log.Info().Str("name", script.Name).Str("sha", sha).Msg("Loaded Lua script")
 	}
-
 	return nil
 }
 
-func (sm *ScriptManager) GetScriptSHA(name string) string {
-	sm.mu.RLock()
-	defer sm.mu.RUnlock()
+func (sm *ScriptManager) GetReplace() *Script   { return &sm.Replace }
+func (sm *ScriptManager) GetRemove() *Script    { return &sm.Remove }
+func (sm *ScriptManager) GetDeepMerge() *Script { return &sm.DeepMerge }
+func (sm *ScriptManager) GetAtomicOps() *Script { return &sm.AtomicOps }
 
-	if script, exists := sm.scripts[name]; exists {
-		return script.SHA
-	}
-	return ""
-}
-
-func (sm *ScriptManager) GetScript(name string) *Script {
-	sm.mu.RLock()
-	defer sm.mu.RUnlock()
-
-	return sm.scripts[name]
-}
-
-func (sm *ScriptManager) ReloadScript(ctx context.Context, name string) error {
-	sm.mu.Lock()
-	defer sm.mu.Unlock()
-
-	script, exists := sm.scripts[name]
-	if !exists {
-		return fmt.Errorf("script %s not found", name)
-	}
-
+func (sm *ScriptManager) ReloadScript(ctx context.Context, script *Script) error {
 	sha, err := sm.kvClient.ScriptLoad(ctx, script.Content).Result()
 	if err != nil {
-		return fmt.Errorf("failed to reload script %s: %w", name, err)
+		return fmt.Errorf("failed to reload script %s: %w", script.Name, err)
 	}
-
 	script.SHA = sha
-	log.Printf("Reloaded Lua script '%s' with SHA: %s", name, sha)
+	log.Info().Str("name", script.Name).Str("sha", sha).Msg("Reloaded Lua script")
 	return nil
 }
 
-func (sm *ScriptManager) Execute(ctx context.Context, name string, keys []string, args ...interface{}) *redis.Cmd {
-	script := sm.GetScript(name)
-	if script == nil {
-		return redis.NewCmd(ctx, fmt.Errorf("script %s not found", name))
-	}
-
+func (sm *ScriptManager) Execute(ctx context.Context, script *Script, keys []string, args ...interface{}) *redis.Cmd {
 	result := sm.kvClient.EvalSha(ctx, script.SHA, keys, args...)
-
+	
 	if result.Err() != nil && result.Err().Error() == "NOSCRIPT No matching script. Please use EVAL." {
-		log.Printf("Script %s not found in Redis, reloading...", name)
-		if err := sm.ReloadScript(ctx, name); err != nil {
+		log.Warn().Str("name", script.Name).Msg("Script not found in Redis, reloading")
+		if err := sm.ReloadScript(ctx, script); err != nil {
 			return redis.NewCmd(ctx, err)
 		}
 		result = sm.kvClient.EvalSha(ctx, script.SHA, keys, args...)
 	}
-
 	return result
 }

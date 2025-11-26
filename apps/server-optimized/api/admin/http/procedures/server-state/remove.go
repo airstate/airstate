@@ -39,7 +39,7 @@ func RemoveKey(svc services.Services) fiber.Handler {
 		fullKey := fmt.Sprintf("%s:server-state:%s:state", appID, key)
 		counterKey := fmt.Sprintf("%s:update-count", fullKey)
 
-		result := scriptMgr.Execute(ctx, "remove", []string{fullKey, counterKey})
+		result := scriptMgr.Execute(ctx, scriptMgr.GetRemove(), []string{fullKey, counterKey})
 		if result.Err() != nil {
 			log.Error().Err(result.Err()).Msg("Failed to execute remove script")
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{

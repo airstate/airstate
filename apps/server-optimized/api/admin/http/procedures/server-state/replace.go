@@ -65,7 +65,7 @@ func ReplaceKey(svc services.Services) fiber.Handler {
 			valueStr = string(jsonBytes)
 		}
 
-		result := scriptMgr.Execute(ctx, "replace", []string{fullKey, counterKey}, valueStr)
+		result := scriptMgr.Execute(ctx, scriptMgr.GetReplace(), []string{fullKey, counterKey}, valueStr)
 		if result.Err() != nil {
 			log.Error().Err(result.Err()).Msg("Failed to execute Lua script")
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{

@@ -57,7 +57,7 @@ func DeepMergeKey(svc services.Services) fiber.Handler {
 				"error": "failed to serialize value",
 			})
 		}
-		result := scriptMgr.Execute(ctx, "deep_merge", []string{fullKey, counterKey}, string(valueJSON))
+		result := scriptMgr.Execute(ctx, scriptMgr.GetDeepMerge(), []string{fullKey, counterKey}, string(valueJSON))
 		if result.Err() != nil {
 			log.Error().Err(result.Err()).Msg("Failed to execute deep_merge script")
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
