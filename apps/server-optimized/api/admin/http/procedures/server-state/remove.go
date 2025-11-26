@@ -3,13 +3,13 @@ package server_state
 import (
 	"context"
 	"fmt"
-	"log"
 	"server-optimized/lib/kv_scripts"
 	"server-optimized/utils"
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/nats-io/nats.go"
+	"github.com/rs/zerolog/log"
 
 	"server-optimized/services"
 )
@@ -41,7 +41,7 @@ func RemoveKey(svc services.Services) fiber.Handler {
 
 		result := scriptMgr.Execute(ctx, "remove", []string{fullKey, counterKey})
 		if result.Err() != nil {
-			log.Printf("Failed to execute remove script: %v", result.Err())
+			log.Error().Err(result.Err()).Msg("Failed to execute remove script")
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"error": "failed to delete key",
 			})
@@ -49,7 +49,7 @@ func RemoveKey(svc services.Services) fiber.Handler {
 
 		updateCount, err := result.Int64()
 		if err != nil {
-			log.Printf("Failed to parse delete result: %v", err)
+			log.Error().Err(err).Msg("Failed to parse delete result")
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"error": "failed to parse delete result",
 			})
@@ -60,7 +60,7 @@ func RemoveKey(svc services.Services) fiber.Handler {
 		msg.Header.Add("update_count", strconv.FormatInt(updateCount, 10))
 
 		if err := natsConn.PublishMsg(msg); err != nil {
-			log.Printf("Failed to publish to NATS: %v", err)
+			log.Error().Err(err).Msg("Failed to publish to NATS")
 		}
 
 		return c.Status(fiber.StatusOK).JSON(fiber.Map{
