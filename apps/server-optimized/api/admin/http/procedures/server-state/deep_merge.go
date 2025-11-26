@@ -4,13 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"server-optimized/lib/kv_scripts"
 	"server-optimized/utils"
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/nats-io/nats.go"
+	"github.com/rs/zerolog/log"
 
 	"server-optimized/services"
 )
@@ -59,7 +59,7 @@ func DeepMergeKey(svc services.Services) fiber.Handler {
 		}
 		result := scriptMgr.Execute(ctx, "deep_merge", []string{fullKey, counterKey}, string(valueJSON))
 		if result.Err() != nil {
-			log.Printf("Failed to execute deep_merge script: %v", result.Err())
+			log.Error().Err(result.Err()).Msg("Failed to execute deep_merge script")
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"error": "failed to merge value",
 			})
@@ -67,14 +67,14 @@ func DeepMergeKey(svc services.Services) fiber.Handler {
 
 		resultSlice, err := result.Slice()
 		if err != nil {
-			log.Printf("Failed to parse script result: %v", err)
+			log.Error().Err(err).Msg("Failed to parse script result")
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"error": "failed to parse script result",
 			})
 		}
 
 		if len(resultSlice) != 2 {
-			log.Printf("Unexpected script result length: %d", len(resultSlice))
+			log.Error().Int("result_length", len(resultSlice)).Msg("Unexpected script result length")
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"error": "unexpected script result",
 			})
@@ -82,7 +82,7 @@ func DeepMergeKey(svc services.Services) fiber.Handler {
 
 		updateCount, ok := resultSlice[0].(int64)
 		if !ok {
-			log.Printf("Failed to parse update count from result")
+			log.Error().Msg("Failed to parse update count from result")
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"error": "failed to parse update count",
 			})
@@ -90,7 +90,7 @@ func DeepMergeKey(svc services.Services) fiber.Handler {
 
 		finalValueStr, ok := resultSlice[1].(string)
 		if !ok {
-			log.Printf("Failed to parse merged value from result")
+			log.Error().Msg("Failed to parse merged value from result")
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"error": "failed to parse merged value",
 			})
@@ -103,7 +103,7 @@ func DeepMergeKey(svc services.Services) fiber.Handler {
 
 		finalValueJSON, err := json.Marshal(finalValue)
 		if err != nil {
-			log.Printf("Failed to marshal deep_merge event: %v", err)
+			log.Error().Err(err).Msg("Failed to marshal deep_merge event")
 		} else {
 			subject := fmt.Sprintf("server-state.%s_%s", appID, hashedKey)
 			msg := nats.NewMsg(subject)
@@ -111,7 +111,7 @@ func DeepMergeKey(svc services.Services) fiber.Handler {
 			msg.Header.Add("update_count", strconv.FormatInt(updateCount, 10))
 
 			if err := natsConn.PublishMsg(msg); err != nil {
-				log.Printf("Failed to publish to NATS: %v", err)
+				log.Error().Err(err).Msg("Failed to publish to NATS")
 			}
 		}
 

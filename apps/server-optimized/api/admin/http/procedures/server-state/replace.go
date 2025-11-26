@@ -4,13 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"server-optimized/lib/kv_scripts"
 	"server-optimized/utils"
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/nats-io/nats.go"
+	"github.com/rs/zerolog/log"
 
 	"server-optimized/services"
 )
@@ -20,7 +20,6 @@ type ReplaceRequest struct {
 }
 
 func ReplaceKey(svc services.Services) fiber.Handler {
-	log.Println("ReplaceKey handler factory called")
 	scriptMgr := kv_scripts.GetScriptManager(svc.GetKVClient())
 	natsConn := svc.GetNATSConnection()
 
@@ -68,7 +67,7 @@ func ReplaceKey(svc services.Services) fiber.Handler {
 
 		result := scriptMgr.Execute(ctx, "replace", []string{fullKey, counterKey}, valueStr)
 		if result.Err() != nil {
-			log.Printf("Failed to execute Lua script: %v", result.Err())
+			log.Error().Err(result.Err()).Msg("Failed to execute Lua script")
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"error": "failed to replace value",
 			})
@@ -76,7 +75,7 @@ func ReplaceKey(svc services.Services) fiber.Handler {
 
 		updateCount, err := result.Int64()
 		if err != nil {
-			log.Printf("Failed to parse update count: %v", err)
+			log.Error().Err(err).Msg("Failed to parse update count")
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"error": "failed to parse update count",
 			})
@@ -84,7 +83,7 @@ func ReplaceKey(svc services.Services) fiber.Handler {
 
 		valueJSON, err := json.Marshal(req.Value)
 		if err != nil {
-			log.Printf("Failed to marshal event: %v", err)
+			log.Error().Err(err).Msg("Failed to marshal event")
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"error": "failed to create event",
 			})
@@ -95,7 +94,7 @@ func ReplaceKey(svc services.Services) fiber.Handler {
 		msg.Data = valueJSON
 		msg.Header.Add("update_count", strconv.FormatInt(updateCount, 10))
 		if err := natsConn.PublishMsg(msg); err != nil {
-			log.Printf("Failed to publish to NATS: %v", err)
+			log.Error().Err(err).Msg("Failed to publish to NATS")
 		}
 
 		return c.Status(fiber.StatusOK).JSON(fiber.Map{

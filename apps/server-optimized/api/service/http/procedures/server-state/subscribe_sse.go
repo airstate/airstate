@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"server-optimized/utils"
 	"strings"
 	"sync"
@@ -13,6 +12,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/nats-io/nats.go"
+	"github.com/rs/zerolog/log"
 )
 
 func RegisterSSESubscriptionRoute(app *fiber.App, services services.Services) {
@@ -20,10 +20,10 @@ func RegisterSSESubscriptionRoute(app *fiber.App, services services.Services) {
 
 	app.Get("/:appId/server-state/keys", func(c *fiber.Ctx) error {
 		appID := c.Params("appId")
-		log.Printf("[SSE] New SSE connection request - appId: %s", appID)
+		log.Info().Str("appId", appID).Msg("[SSE] New SSE connection request")
 
 		if appID == "" {
-			log.Printf("[SSE] Error: appId is empty")
+			log.Error().Msg("[SSE] Error: appId is empty")
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"error": "appid is required",
 			})
@@ -32,7 +32,7 @@ func RegisterSSESubscriptionRoute(app *fiber.App, services services.Services) {
 		keysParam := c.Query("keys")
 
 		if keysParam == "" {
-			log.Printf("[SSE] Error: keys parameter is empty")
+			log.Error().Msg("[SSE] Error: keys parameter is empty")
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"error": "keys query parameter is required (comma-separated)",
 			})
@@ -40,7 +40,7 @@ func RegisterSSESubscriptionRoute(app *fiber.App, services services.Services) {
 
 		keys := strings.Split(keysParam, ",")
 		if len(keys) == 0 {
-			log.Printf("[SSE] Error: no keys found after splitting")
+			log.Error().Msg("[SSE] Error: no keys found after splitting")
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"error": "at least one key is required",
 			})
@@ -49,7 +49,7 @@ func RegisterSSESubscriptionRoute(app *fiber.App, services services.Services) {
 		for i := range keys {
 			keys[i] = strings.TrimSpace(keys[i])
 			if keys[i] == "" {
-				log.Printf("[SSE] Error: empty key found at index %d", i)
+				log.Error().Int("index", i).Msg("[SSE] Error: empty key found")
 				return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 					"error": "keys cannot be empty",
 				})
@@ -73,35 +73,35 @@ func RegisterSSESubscriptionRoute(app *fiber.App, services services.Services) {
 		for _, key := range keys {
 			hashedKey, err := utils.GenerateHash(key)
 			if err != nil {
-				log.Printf("[SSE] Failed to generate hash for key %s: %v", key, err)
+				log.Error().Str("key", key).Err(err).Msg("[SSE] Failed to generate hash for key")
 				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 					"error": fmt.Sprintf("failed to generate hash for key: %s", key),
 				})
 			}
 
 			subject := fmt.Sprintf("server-state.%s_%s", appID, hashedKey)
-			log.Printf("[SSE] Subscribing to NATS subject: %s (key: %s, hashedKey: %s)", subject, key, hashedKey)
+			log.Info().Str("subject", subject).Str("key", key).Str("hashedKey", hashedKey).Msg("[SSE] Subscribing to NATS subject")
 
 			sub, err := natsConn.Subscribe(subject, func(msg *nats.Msg) {
-				log.Printf("[SSE] NATS message received on subject: %s (key: %s)", subject, key)
-				log.Printf("[SSE] Message data: %s", string(msg.Data))
+				log.Debug().Str("subject", subject).Str("key", key).Msg("[SSE] NATS message received")
+				log.Debug().Str("data", string(msg.Data)).Msg("[SSE] Message data")
 
 				updateCount := msg.Header.Get("update_count")
 				if updateCount == "" {
 					updateCount = "0"
 				}
-				log.Printf("[SSE] Update count: %s", updateCount)
+				log.Debug().Str("update_count", updateCount).Msg("[SSE] Update count")
 
 				var value interface{}
 				if string(msg.Data) == "null" {
 					value = nil
-					log.Printf("[SSE] Message value is null")
+					log.Debug().Msg("[SSE] Message value is null")
 				} else {
 					if err := json.Unmarshal(msg.Data, &value); err != nil {
-						log.Printf("[SSE] Failed to unmarshal NATS message for key %s: %v", key, err)
+						log.Error().Str("key", key).Err(err).Msg("[SSE] Failed to unmarshal NATS message for key")
 						return
 					}
-					log.Printf("[SSE] Parsed value: %+v", value)
+					log.Debug().Interface("value", value).Msg("[SSE] Parsed value")
 				}
 
 				update := SSEUpdate{
@@ -115,12 +115,12 @@ func RegisterSSESubscriptionRoute(app *fiber.App, services services.Services) {
 				case <-ctx.Done():
 					return
 				default:
-					log.Printf("[SSE] WARNING: Update channel full, dropping update for key %s", key)
+					log.Warn().Str("key", key).Msg("[SSE] Update channel full, dropping update")
 				}
 			})
 
 			if err != nil {
-				log.Printf("[SSE] Failed to subscribe to NATS subject %s: %v", subject, err)
+				log.Error().Str("subject", subject).Err(err).Msg("[SSE] Failed to subscribe to NATS subject")
 				subscriptionsMutex.Lock()
 				for _, s := range subscriptions {
 					s.Unsubscribe()
@@ -138,21 +138,21 @@ func RegisterSSESubscriptionRoute(app *fiber.App, services services.Services) {
 
 		cleanup := func() {
 			cleanupOnce.Do(func() {
-				log.Printf("[SSE] Starting cleanup for appId: %s", appID)
+				log.Info().Str("appId", appID).Msg("[SSE] Starting cleanup")
 				cancel()
 				subscriptionsMutex.Lock()
-				log.Printf("[SSE] Unsubscribing from %d NATS subscriptions", len(subscriptions))
+				log.Info().Int("subscription_count", len(subscriptions)).Msg("[SSE] Unsubscribing from NATS subscriptions")
 				for _, sub := range subscriptions {
 					sub.Unsubscribe()
 				}
 				subscriptionsMutex.Unlock()
 				close(updateChan)
-				log.Printf("[SSE] Cleanup completed for appId: %s", appID)
+				log.Info().Str("appId", appID).Msg("[SSE] Cleanup completed")
 			})
 		}
 
 		if _, err := c.Write([]byte(": connected\n\n")); err != nil {
-			log.Printf("[SSE] Failed to write initial connection message: %v", err)
+			log.Error().Err(err).Msg("[SSE] Failed to write initial connection message")
 			cleanup()
 			return nil
 		}
@@ -160,38 +160,38 @@ func RegisterSSESubscriptionRoute(app *fiber.App, services services.Services) {
 		for {
 			select {
 			case <-ctx.Done():
-				log.Printf("[SSE] Context cancelled, stopping stream for appId: %s", appID)
+				log.Info().Str("appId", appID).Msg("[SSE] Context cancelled, stopping stream")
 				cleanup()
 				return nil
 			case <-c.Context().Done():
-				log.Printf("[SSE] Client disconnected, stopping stream for appId: %s", appID)
+				log.Info().Str("appId", appID).Msg("[SSE] Client disconnected, stopping stream")
 				cleanup()
 				return nil
 			case update, ok := <-updateChan:
 				if !ok {
-					log.Printf("[SSE] Update channel closed, stopping stream for appId: %s", appID)
+					log.Info().Str("appId", appID).Msg("[SSE] Update channel closed, stopping stream")
 					cleanup()
 					return nil
 				}
 
-				log.Printf("[SSE] Received update from channel - key: %s, update_count: %s", update.Key, update.UpdateCount)
-				log.Printf("[SSE] Update value: %+v", update.Value)
+				log.Debug().Str("key", update.Key).Str("update_count", update.UpdateCount).Msg("[SSE] Received update from channel")
+				log.Debug().Interface("value", update.Value).Msg("[SSE] Update value")
 
 				eventData, err := json.Marshal(update)
 				if err != nil {
-					log.Printf("[SSE] Failed to marshal update: %v", err)
+					log.Error().Err(err).Msg("[SSE] Failed to marshal update")
 					continue
 				}
-				log.Printf("[SSE] Marshaled event data: %s", string(eventData))
+				log.Debug().Str("event_data", string(eventData)).Msg("[SSE] Marshaled event data")
 
 				sseMessage := fmt.Sprintf("data: %s\n\n", string(eventData))
-				log.Printf("[SSE] Writing SSE message to client: %s", sseMessage)
+				log.Debug().Str("sse_message", sseMessage).Msg("[SSE] Writing SSE message to client")
 				if _, err := c.Write([]byte(sseMessage)); err != nil {
-					log.Printf("[SSE] Failed to write SSE message: %v", err)
+					log.Error().Err(err).Msg("[SSE] Failed to write SSE message")
 					cleanup()
 					return nil
 				}
-				log.Printf("[SSE] SSE message successfully written to client")
+				log.Debug().Msg("[SSE] SSE message successfully written to client")
 			}
 		}
 	})

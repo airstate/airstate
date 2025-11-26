@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"server-optimized/lib/kv_scripts"
 	"server-optimized/utils"
 	"strconv"
@@ -13,6 +12,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/nats-io/nats.go"
+	"github.com/rs/zerolog/log"
 )
 
 type AtomicOpsRequest struct {
@@ -75,11 +75,11 @@ func AtomicOps(svc services.Services) fiber.Handler {
 			})
 		}
 
-		log.Printf("this is full key %v", fullKey)
+		log.Debug().Str("full_key", fullKey).Msg("this is full key")
 
 		result := scriptMgr.Execute(ctx, "atomic_ops", []string{fullKey, counterKey}, string(opsJSON))
 		if result.Err() != nil {
-			log.Printf("Failed to execute atomic_ops script: %v", result.Err())
+			log.Error().Err(result.Err()).Msg("Failed to execute atomic_ops script")
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"error": "failed to execute atomic operations",
 			})
@@ -87,7 +87,7 @@ func AtomicOps(svc services.Services) fiber.Handler {
 
 		resultStr, err := result.Text()
 		if err != nil {
-			log.Printf("Failed to get script result: %v", err)
+			log.Error().Err(err).Msg("Failed to get script result")
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"error": "failed to parse script result",
 			})
@@ -95,7 +95,7 @@ func AtomicOps(svc services.Services) fiber.Handler {
 
 		var opsResult AtomicOpsResult
 		if err := json.Unmarshal([]byte(resultStr), &opsResult); err != nil {
-			log.Printf("Failed to unmarshal script result: %v", err)
+			log.Error().Err(err).Msg("Failed to unmarshal script result")
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"error": "failed to parse script result",
 			})
@@ -110,14 +110,14 @@ func AtomicOps(svc services.Services) fiber.Handler {
 		if opsResult.Value != nil {
 			finalJSON, err := json.Marshal(opsResult.Value)
 			if err != nil {
-				log.Printf("Failed to marshal merged value for NATS: %v", err)
+				log.Error().Err(err).Msg("Failed to marshal merged value for NATS")
 			} else {
 				subject := fmt.Sprintf("server-state.%s_%s", appID, hashedKey)
 				msg := nats.NewMsg(subject)
 				msg.Data = finalJSON
 				msg.Header.Add("update_count", strconv.FormatInt(opsResult.UpdateCount, 10))
 				if err := natsConn.PublishMsg(msg); err != nil {
-					log.Printf("Failed to publish to NATS: %v", err)
+					log.Error().Err(err).Msg("Failed to publish to NATS")
 				}
 			}
 		}
