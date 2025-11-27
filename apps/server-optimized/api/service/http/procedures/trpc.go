@@ -245,11 +245,18 @@ func RegisterWebSocketTRPCRoute(app *fiber.App, services services.Services) {
 						},
 					})
 
-					log.Debug().Str("connection_id", connectionId).Int64(
-						"id", trpcMessage.Id,
-					).Msg("subscription ended by server")
-
 					responseChannel <- marshaledStoppedMessage
+
+					subscriptionContext, ok := subscriptionContexts[trpcMessage.Id]
+
+					if ok {
+						log.Debug().Str("connection_id", connectionId).Int64(
+							"id", trpcMessage.Id,
+						).Msg("subscription ended by server")
+
+						subscriptionContext.cancel()
+						delete(subscriptionContexts, trpcMessage.Id)
+					}
 				}()
 			} else if trpcMessage.Method == "subscription.stop" {
 				subscriptionContext, ok := subscriptionContexts[trpcMessage.Id]

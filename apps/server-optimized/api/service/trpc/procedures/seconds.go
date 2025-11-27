@@ -18,6 +18,9 @@ func HandleSecondsSubscription(ctx context.Context, trpcContext *trpc.TRPCContex
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
 
+	timer := time.NewTimer(time.Second * 7)
+	defer timer.Stop()
+
 	for {
 		select {
 		case <-ticker.C:
@@ -32,6 +35,8 @@ func HandleSecondsSubscription(ctx context.Context, trpcContext *trpc.TRPCContex
 			}
 
 			emit(marshaled)
+		case <-timer.C:
+			return nil
 		case <-ctx.Done():
 			return nil
 		}
