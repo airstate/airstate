@@ -18,9 +18,18 @@ type TRPCMessage struct {
 	Params TRPCMessageParams `json:"params"`
 }
 
+type TRPCTypeOnlyResult struct {
+	Type string `json:"type"`
+}
+
 type TRPCResult struct {
 	Type string          `json:"type"`
 	Data json.RawMessage `json:"data"`
+}
+
+type TRPCTypeOnlyResultResponse struct {
+	Id     int64              `json:"id"`
+	Result TRPCTypeOnlyResult `json:"result"`
 }
 
 type TRPCResultResponse struct {

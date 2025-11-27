@@ -164,6 +164,15 @@ func RegisterWebSocketTRPCRoute(app *fiber.App, services services.Services) {
 				}
 
 				go func() {
+					marshaledStartedMessage, _ := sonic.Marshal(&trpcFramework.TRPCTypeOnlyResultResponse{
+						Id: trpcMessage.Id,
+						Result: trpcFramework.TRPCTypeOnlyResult{
+							Type: "started",
+						},
+					})
+
+					responseChannel <- marshaledStartedMessage
+
 					var trpcError *trpcFramework.TRPCError
 
 					switch trpcMessage.Params.Path {
@@ -190,9 +199,9 @@ func RegisterWebSocketTRPCRoute(app *fiber.App, services services.Services) {
 						responseChannel <- marshaledError
 					}
 
-					marshaledStoppedMessage, _ := sonic.Marshal(&trpcFramework.TRPCResultResponse{
+					marshaledStoppedMessage, _ := sonic.Marshal(&trpcFramework.TRPCTypeOnlyResultResponse{
 						Id: trpcMessage.Id,
-						Result: trpcFramework.TRPCResult{
+						Result: trpcFramework.TRPCTypeOnlyResult{
 							Type: "stopped",
 						},
 					})
