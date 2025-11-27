@@ -18,9 +18,14 @@ type TRPCMessage struct {
 	Params TRPCMessageParams `json:"params"`
 }
 
+type TRPCResult struct {
+	Type string          `json:"type"`
+	Data json.RawMessage `json:"data"`
+}
+
 type TRPCResultResponse struct {
-	Id     int64           `json:"id"`
-	Result json.RawMessage `json:"result"`
+	Id     int64      `json:"id"`
+	Result TRPCResult `json:"result"`
 }
 
 type TRPCError struct {
@@ -29,6 +34,6 @@ type TRPCError struct {
 }
 
 type TRPCErrorResponse struct {
-	Id    int64     `json:"id"`
-	Error TRPCError `json:"error"`
+	Id    int64      `json:"id"`
+	Error *TRPCError `json:"error"`
 }

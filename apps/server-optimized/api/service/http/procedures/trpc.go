@@ -15,12 +15,16 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+type SubscriptionContext struct {
+	cancel context.CancelFunc
+}
+
 func RegisterWebSocketTRPCRoute(app *fiber.App, services services.Services) {
 	var _trpcMessage trpcFramework.TRPCMessage
 	var _connectionParamsMessage trpcFramework.ConnectionParamsMessage
 
-	sonic.Pretouch(reflect.TypeOf(_trpcMessage))
-	sonic.Pretouch(reflect.TypeOf(_connectionParamsMessage))
+	_ = sonic.Pretouch(reflect.TypeOf(_trpcMessage))
+	_ = sonic.Pretouch(reflect.TypeOf(_connectionParamsMessage))
 
 	app.Use("/trpc", func(c *fiber.Ctx) error {
 		if websocket.IsWebSocketUpgrade(c) {
@@ -49,11 +53,18 @@ func RegisterWebSocketTRPCRoute(app *fiber.App, services services.Services) {
 		}
 
 		maxWorkerRoutines := 4
-		channelIndex := -1
+		channelIndex := -1 // used for round-robin worker routine utilization
+
+		// send messages to be handled by worker
+		// routines using these channels
 		transactionalChannels := make([]chan trpcFramework.TRPCMessage, maxWorkerRoutines)
+
+		// the central response channel
 		responseChannel := make(chan json.RawMessage, maxWorkerRoutines)
 
 		trpcContext := trpc.CreateTRPCContext(app, services, c, &connectionParamsMessage.Data)
+
+		subscriptionContexts := make(map[int64]*SubscriptionContext, 8)
 
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
@@ -101,31 +112,42 @@ func RegisterWebSocketTRPCRoute(app *fiber.App, services services.Services) {
 						for {
 							select {
 							case message := <-invocationChannel:
-								var handler func(ctx context.Context, trpcContext *trpc.TRPCContext, input json.RawMessage) (json.RawMessage, *trpcFramework.TRPCError)
+								var response json.RawMessage
+								var err *trpcFramework.TRPCError
 
 								if message.Method == "query" {
 									switch message.Params.Path {
 									case "_":
-										handler = procedures.HandleIndexQuery
+										response, err = procedures.HandleIndexQuery(ctx, trpcContext, message.Params.Input)
 									}
 								} else if message.Method == "mutation" {
 
 								}
-
-								response, err := handler(ctx, trpcContext, message.Params.Input)
 
 								if err != nil {
 									// going to ignore this marshaling error, as it
 									// is highly unlikely if errors are properly returned from the handler
 									marshaledError, _ := sonic.Marshal(&trpcFramework.TRPCErrorResponse{
 										Id:    message.Id,
-										Error: *err,
+										Error: err,
 									})
 
 									responseChannel <- marshaledError
 								}
 
-								responseChannel <- response
+								marshaledTRPCResponse, marshalingErr := sonic.Marshal(&trpcFramework.TRPCResultResponse{
+									Id: message.Id,
+									Result: trpcFramework.TRPCResult{
+										Type: "data",
+										Data: response,
+									},
+								})
+
+								if marshalingErr != nil {
+									return
+								}
+
+								responseChannel <- marshaledTRPCResponse
 							case <-ctx.Done():
 								return
 							}
@@ -135,9 +157,55 @@ func RegisterWebSocketTRPCRoute(app *fiber.App, services services.Services) {
 
 				transactionalChannels[channelIndex] <- trpcMessage
 			} else if trpcMessage.Method == "subscription" {
+				subscriptionContext, cancelSubscriptionContext := context.WithCancel(ctx)
 
+				subscriptionContexts[trpcMessage.Id] = &SubscriptionContext{
+					cancel: cancelSubscriptionContext,
+				}
+
+				go func() {
+					var trpcError *trpcFramework.TRPCError
+
+					switch trpcMessage.Params.Path {
+					case "seconds":
+						trpcError = procedures.HandleSecondsSubscription(subscriptionContext, trpcContext, trpcMessage.Params.Input, func(message json.RawMessage) {
+							marshaledResponseMessage, _ := sonic.Marshal(&trpcFramework.TRPCResultResponse{
+								Id: trpcMessage.Id,
+								Result: trpcFramework.TRPCResult{
+									Type: "data",
+									Data: message,
+								},
+							})
+
+							responseChannel <- marshaledResponseMessage
+						})
+					}
+
+					if trpcError != nil {
+						marshaledError, _ := sonic.Marshal(&trpcFramework.TRPCErrorResponse{
+							Id:    trpcMessage.Id,
+							Error: trpcError,
+						})
+
+						responseChannel <- marshaledError
+					}
+
+					marshaledStoppedMessage, _ := sonic.Marshal(&trpcFramework.TRPCResultResponse{
+						Id: trpcMessage.Id,
+						Result: trpcFramework.TRPCResult{
+							Type: "stopped",
+						},
+					})
+
+					responseChannel <- marshaledStoppedMessage
+				}()
 			} else if trpcMessage.Method == "subscription.stop" {
+				subscriptionContext, ok := subscriptionContexts[trpcMessage.Id]
 
+				if ok {
+					subscriptionContext.cancel()
+					delete(subscriptionContexts, trpcMessage.Id)
+				}
 			}
 		}
 	}))
