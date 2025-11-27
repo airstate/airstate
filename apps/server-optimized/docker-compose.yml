@@ -1,6 +1,8 @@
 services:
     server:
-        image: golang:1.24-bookworm
+        build:
+          context: .
+          dockerfile: Dockerfile-dev
         container_name: airstate-server
         working_dir: /app
         command: bash -c "go mod download && go run ."

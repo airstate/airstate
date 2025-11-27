@@ -1,9 +1,12 @@
 package kv
 
 import (
+	"context"
 	"os"
 
 	goRedis "github.com/redis/go-redis/v9"
+	"github.com/redis/go-redis/v9/maintnotifications"
+	"github.com/rs/zerolog/log"
 )
 
 type ServiceOptions struct {
@@ -37,6 +40,13 @@ func CreateKVService(options *ServiceOptions) (*KV, error) {
 
 	client := goRedis.NewClient(&goRedis.Options{
 		Addr: kvURL,
+		MaintNotificationsConfig: &maintnotifications.Config{
+			Mode: maintnotifications.ModeDisabled,
+		},
+		OnConnect: func(ctx context.Context, cn *goRedis.Conn) error {
+			log.Info().Msg("connected to redis")
+			return nil
+		},
 	})
 
 	return &KV{

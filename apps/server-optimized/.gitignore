@@ -28,3 +28,5 @@ go.work
 .DS_Store
 Thumbs.db
 
+/tmp
+/.pnpm-store

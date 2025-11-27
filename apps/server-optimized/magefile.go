@@ -19,12 +19,12 @@ func Shell() error {
 	shell := preferredShell()
 
 	// Try to exec into running container by name
-	if err := runInteractive("docker", "compose", "exec", "-it", "server", shell); err == nil {
+	if err := runInteractive("docker", "compose", "exec", "-it", "server", shell, "-l"); err == nil {
 		return nil
 	}
 
 	// Fallback: start a one-off container and attach, exposing service ports
-	return runInteractive("docker", "compose", "run", "--rm", "--service-ports", "server", shell)
+	return runInteractive("docker", "compose", "run", "--build", "--rm", "--service-ports", "server", shell, "-l")
 }
 
 func preferredShell() string {

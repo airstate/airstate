@@ -12,32 +12,44 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func main() {
-	zerolog.TimeFieldFormat = zerolog.TimeFormatUnixMs
-
-	ctx, cancelCtx := context.WithCancel(context.Background())
-	defer cancelCtx()
-
+func StartServer(ctx context.Context) (func(), error) {
 	services, servicesError := systemServices.CreateServices()
 
 	if servicesError != nil {
 		log.Error().Err(servicesError).Msg("failed to create services")
-		os.Exit(1)
+		return nil, servicesError
 	}
 
 	killServicePlane, servicePlaneInitError := initer.ServicePlane(ctx, services)
-	defer killServicePlane()
-
 	if servicePlaneInitError != nil {
 		log.Error().Err(servicePlaneInitError).Msg("failed to initialize service plane")
-		os.Exit(1)
+		return nil, servicePlaneInitError
 	}
 
 	killAdminPlane, adminPlanePlaneInitError := initer.AdminPlane(ctx, services)
-	defer killAdminPlane()
 
 	if adminPlanePlaneInitError != nil {
 		log.Error().Err(servicePlaneInitError).Msg("failed to initialize admin plane")
+		return nil, adminPlanePlaneInitError
+	}
+
+	return func() {
+		_ = killServicePlane()
+		_ = killAdminPlane()
+	}, nil
+}
+
+func main() {
+	zerolog.TimeFieldFormat = zerolog.TimeFormatUnixMs
+	zerolog.SetGlobalLevel(zerolog.DebugLevel)
+
+	ctx, cancelCtx := context.WithCancel(context.Background())
+	defer cancelCtx()
+
+	killServer, err := StartServer(ctx)
+	defer killServer()
+
+	if err != nil {
 		os.Exit(1)
 	}
 

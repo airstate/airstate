@@ -12,6 +12,7 @@ import (
 	"github.com/bytedance/sonic"
 	"github.com/gofiber/contrib/websocket"
 	"github.com/gofiber/fiber/v2"
+	gonanoid "github.com/matoous/go-nanoid/v2"
 	"github.com/rs/zerolog/log"
 )
 
@@ -26,15 +27,25 @@ func RegisterWebSocketTRPCRoute(app *fiber.App, services services.Services) {
 	_ = sonic.Pretouch(reflect.TypeOf(_trpcMessage))
 	_ = sonic.Pretouch(reflect.TypeOf(_connectionParamsMessage))
 
-	app.Use("/trpc", func(c *fiber.Ctx) error {
+	app.Get("/trpc", func(c *fiber.Ctx) error {
 		if websocket.IsWebSocketUpgrade(c) {
+			log.Debug().Msg("websocket upgrade request detected")
 			return c.Next()
 		}
 
+		log.Debug().Msg("not a websocket connection")
 		return fiber.ErrUpgradeRequired
-	})
+	}, websocket.New(func(c *websocket.Conn) {
+		connectionId, _ := gonanoid.New()
+		log.Debug().Str("connection_id", connectionId).Msg("new websocket connection")
 
-	app.Get("/trpc", websocket.New(func(c *websocket.Conn) {
+		var isClosed bool = false
+
+		c.SetCloseHandler(func(code int, text string) error {
+			isClosed = true
+			return nil
+		})
+
 		var (
 			rawMessage []byte
 			err        error
@@ -44,12 +55,16 @@ func RegisterWebSocketTRPCRoute(app *fiber.App, services services.Services) {
 
 		if c.Query("connectionParams") == "1" {
 			if _, rawMessage, err = c.ReadMessage(); err != nil {
+				log.Debug().Str("connection_id", connectionId).Err(err).Msg("error reading first (connectionParams) message; dropping connection")
 				return
 			}
 
 			if err := sonic.Unmarshal(rawMessage, &connectionParamsMessage); err != nil {
+				log.Debug().Str("connection_id", connectionId).Err(err).Msg("error parsing first (connectionParams) message; dropping connection")
 				return
 			}
+
+			log.Debug().Str("connection_id", connectionId).Any("connectionParamsMessage", connectionParamsMessage).Msg("parsed first (connectionParams) message")
 		}
 
 		maxWorkerRoutines := 4
@@ -77,7 +92,7 @@ func RegisterWebSocketTRPCRoute(app *fiber.App, services services.Services) {
 					err := c.WriteMessage(websocket.TextMessage, responseMessage)
 
 					if err != nil {
-						log.Debug().Err(err).Msg("failed to write response message; socket is probably already closed")
+						log.Debug().Str("connection_id", connectionId).Err(err).Msg("failed to write response message; socket is probably already closed")
 						return
 					}
 				case <-ctx.Done():
@@ -91,29 +106,47 @@ func RegisterWebSocketTRPCRoute(app *fiber.App, services services.Services) {
 			// assuming all messages are text messages; this will fail with
 			// non-conforming clients, but handled by unmarshaler error
 			if _, rawMessage, err = c.ReadMessage(); err != nil {
-				log.Debug().Err(err).Msg("failed to read message message; socket is probably closed")
+				if isClosed {
+					log.Debug().Str("connection_id", connectionId).Msg("socket closed")
+				} else {
+					log.Debug().Str("connection_id", connectionId).Err(err).Msg("failed to read message message; socket is probably closed")
+				}
+
 				break
 			}
 
 			var trpcMessage trpcFramework.TRPCMessage
 
 			if err := sonic.Unmarshal(rawMessage, &trpcMessage); err != nil {
-				break
+				log.Debug().Str("connection_id", connectionId).Err(err).Msg("failed to read message message; socket is probably closed")
+				return
 			}
 
 			if trpcMessage.Method == "query" || trpcMessage.Method == "mutation" {
 				channelIndex = (channelIndex + 1) % maxWorkerRoutines
 
 				if transactionalChannels[channelIndex] == nil {
+					log.Debug().Str("connection_id", connectionId).Int("index", channelIndex).Msgf("creating transactional worker routine")
+
 					invocationChannel := make(chan trpcFramework.TRPCMessage)
 					transactionalChannels[channelIndex] = invocationChannel
 
-					go func() {
+					go func(workerIndex int) {
 						for {
 							select {
 							case message := <-invocationChannel:
 								var response json.RawMessage
 								var err *trpcFramework.TRPCError
+
+								log.Debug().Int(
+									"worker", workerIndex,
+								).Str("connection_id", connectionId).Int64(
+									"id", message.Id,
+								).Str(
+									"method", message.Method,
+								).Str(
+									"path", message.Params.Path,
+								).Msg("new transactional request")
 
 								if message.Method == "query" {
 									switch message.Params.Path {
@@ -152,7 +185,7 @@ func RegisterWebSocketTRPCRoute(app *fiber.App, services services.Services) {
 								return
 							}
 						}
-					}()
+					}(channelIndex)
 				}
 
 				transactionalChannels[channelIndex] <- trpcMessage
@@ -164,6 +197,12 @@ func RegisterWebSocketTRPCRoute(app *fiber.App, services services.Services) {
 				}
 
 				go func() {
+					log.Debug().Str("connection_id", connectionId).Int64(
+						"id", trpcMessage.Id,
+					).Str(
+						"path", trpcMessage.Params.Path,
+					).Msg("new subscription")
+
 					marshaledStartedMessage, _ := sonic.Marshal(&trpcFramework.TRPCTypeOnlyResultResponse{
 						Id: trpcMessage.Id,
 						Result: trpcFramework.TRPCTypeOnlyResult{
@@ -206,12 +245,20 @@ func RegisterWebSocketTRPCRoute(app *fiber.App, services services.Services) {
 						},
 					})
 
+					log.Debug().Str("connection_id", connectionId).Int64(
+						"id", trpcMessage.Id,
+					).Msg("subscription ended by server")
+
 					responseChannel <- marshaledStoppedMessage
 				}()
 			} else if trpcMessage.Method == "subscription.stop" {
 				subscriptionContext, ok := subscriptionContexts[trpcMessage.Id]
 
 				if ok {
+					log.Debug().Str("connection_id", connectionId).Int64(
+						"id", trpcMessage.Id,
+					).Msg("subscription ended by client")
+
 					subscriptionContext.cancel()
 					delete(subscriptionContexts, trpcMessage.Id)
 				}
