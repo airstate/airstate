@@ -1,12 +1,9 @@
-package kv_scripts
-
-const AtomicOpsScript = `
-
 local key = KEYS[1]
 local counter_key = KEYS[2]
 local operations_str = ARGV[1]
 
 local success, operations = pcall(cjson.decode, operations_str)
+
 if not success then
     return cjson.encode({
         success = false,
@@ -35,7 +32,7 @@ local function get_nested(obj, path)
     for key in string.gmatch(path, "([^.]+)") do
         table.insert(keys, key)
     end
-    
+
     local current = obj
     for i = 1, #keys - 1 do
         if type(current) ~= 'table' then
@@ -46,7 +43,7 @@ local function get_nested(obj, path)
             return nil
         end
     end
-    
+
     return current, keys[#keys]
 end
 
@@ -55,7 +52,7 @@ local function set_nested(obj, path, value)
     for key in string.gmatch(path, "([^.]+)") do
         table.insert(keys, key)
     end
-    
+
     local current = obj
     for i = 1, #keys - 1 do
         if type(current[keys[i]]) ~= 'table' then
@@ -63,7 +60,7 @@ local function set_nested(obj, path, value)
         end
         current = current[keys[i]]
     end
-    
+
     current[keys[#keys]] = value
 end
 
@@ -73,15 +70,15 @@ local function unset_nested(obj, path)
     for key in string.gmatch(path, "([^.]+)") do
         table.insert(keys, key)
     end
-    
+
     local current = obj
     for i = 1, #keys - 1 do
         if type(current) ~= 'table' or current[keys[i]] == nil then
-            return 
+            return
         end
         current = current[keys[i]]
     end
-    
+
     current[keys[#keys]] = nil
 end
 
@@ -107,10 +104,10 @@ if operations['$inc'] and type(operations['$inc']) == 'table' then
                 error = string.format("$inc amount for field '%s' must be a number", field)
             })
         end
-        
+
         local parent, last_key = get_nested(current_obj, field)
         local current_value = 0
-        
+
         if parent and parent[last_key] ~= nil then
             if type(parent[last_key]) ~= 'number' then
                 return cjson.encode({
@@ -120,7 +117,7 @@ if operations['$inc'] and type(operations['$inc']) == 'table' then
             end
             current_value = parent[last_key]
         end
-        
+
         set_nested(current_obj, field, current_value + amount)
     end
 end
@@ -129,7 +126,7 @@ if operations['$concat'] and type(operations['$concat']) == 'table' then
     for field, value in pairs(operations['$concat']) do
         local parent, last_key = get_nested(current_obj, field)
         local current_value = parent and parent[last_key] or nil
-        
+
         if current_value == nil then
             set_nested(current_obj, field, value)
         elseif type(current_value) == 'string' then
@@ -168,7 +165,7 @@ if operations['$push'] and type(operations['$push']) == 'table' then
     for field, value in pairs(operations['$push']) do
         local parent, last_key = get_nested(current_obj, field)
         local current_value = parent and parent[last_key] or nil
-        
+
         if current_value == nil then
             set_nested(current_obj, field, {value})
         elseif type(current_value) == 'table' then
@@ -192,4 +189,3 @@ return cjson.encode({
     value = current_obj,
     update_count = update_count
 })
-    `

@@ -10,8 +10,20 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+//go:embed atomic_ops.lua
+var AtomicOpsScript string
+
+//go:embed deep_merge.lua
+var DeepMergeScript string
+
+//go:embed remove.lua
+var RemoveScript string
+
+//go:embed replace.lua
+var ReplaceScript string
+
 type ScriptManager struct {
-	kvClient *redis.Client
+	kvClient  *redis.Client
 	Replace   Script
 	Remove    Script
 	DeepMerge Script
@@ -60,7 +72,7 @@ func GetScriptManager(kvClient *redis.Client) *ScriptManager {
 
 func (sm *ScriptManager) LoadAll(ctx context.Context) error {
 	scripts := []*Script{&sm.Replace, &sm.Remove, &sm.DeepMerge, &sm.AtomicOps}
-	
+
 	for _, script := range scripts {
 		sha, err := sm.kvClient.ScriptLoad(ctx, script.Content).Result()
 		if err != nil {
@@ -89,7 +101,7 @@ func (sm *ScriptManager) ReloadScript(ctx context.Context, script *Script) error
 
 func (sm *ScriptManager) Execute(ctx context.Context, script *Script, keys []string, args ...interface{}) *redis.Cmd {
 	result := sm.kvClient.EvalSha(ctx, script.SHA, keys, args...)
-	
+
 	if result.Err() != nil && result.Err().Error() == "NOSCRIPT No matching script. Please use EVAL." {
 		log.Warn().Str("name", script.Name).Msg("Script not found in Redis, reloading")
 		if err := sm.ReloadScript(ctx, script); err != nil {
