@@ -18,7 +18,7 @@ func getAdminPort() uint16 {
 	return viper.GetUint16("adminPort")
 }
 
-func startAdminPlaneHTTPServer(ctx context.Context, services services.Services) (func() error, error) {
+func startAdminPlaneHTTPServer(ctx context.Context, services services.Services) error {
 	app := fiber.New(fiber.Config{
 		DisableStartupMessage: true,
 		JSONEncoder:           sonic.Marshal,
@@ -55,24 +55,10 @@ func startAdminPlaneHTTPServer(ctx context.Context, services services.Services) 
 		return nil
 	})
 
-	return func() error {
-		return app.ShutdownWithContext(ctx)
-	}, nil
+	return app.ShutdownWithContext(ctx)
 }
 
-func AdminPlane(ctx context.Context, services services.Services) (func() error, error) {
+func AdminPlane(ctx context.Context, services services.Services) error {
 	// HTTP Server
-	killHTTPServer, httpServerError := startAdminPlaneHTTPServer(ctx, services)
-
-	if httpServerError != nil {
-		return nil, httpServerError
-	}
-
-	return func() error {
-		if err := killHTTPServer(); err != nil {
-			return err
-		}
-
-		return nil
-	}, nil
+	return startAdminPlaneHTTPServer(ctx, services)
 }

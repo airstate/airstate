@@ -7,30 +7,26 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func Boot(ctx context.Context) (func(), error) {
+func Boot(ctx context.Context) error {
 	log.Debug().Msg("creating services")
 	services, servicesError := services2.CreateServices()
 
 	if servicesError != nil {
-		log.Error().Err(servicesError).Msg("failed to create services")
-		return nil, servicesError
+		return servicesError
 	}
 
-	killServicePlane, servicePlaneInitError := ServicePlane(ctx, services)
+	servicePlaneInitError := ServicePlane(ctx, services)
+
 	if servicePlaneInitError != nil {
 		log.Error().Err(servicePlaneInitError).Msg("failed to initialize service plane")
-		return nil, servicePlaneInitError
+		return servicePlaneInitError
 	}
 
-	killAdminPlane, adminPlanePlaneInitError := AdminPlane(ctx, services)
+	adminPlanePlaneInitError := AdminPlane(ctx, services)
 
 	if adminPlanePlaneInitError != nil {
-		log.Error().Err(servicePlaneInitError).Msg("failed to initialize admin plane")
-		return nil, adminPlanePlaneInitError
+		return adminPlanePlaneInitError
 	}
 
-	return func() {
-		_ = killServicePlane()
-		_ = killAdminPlane()
-	}, nil
+	return nil
 }

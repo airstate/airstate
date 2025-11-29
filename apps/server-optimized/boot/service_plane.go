@@ -17,7 +17,7 @@ func getServicePort() uint16 {
 	return viper.GetUint16("port")
 }
 
-func startServicePlaneHTTPServer(ctx context.Context, services services.Services) (func() error, error) {
+func startServicePlaneHTTPServer(ctx context.Context, services services.Services) error {
 	app := fiber.New(fiber.Config{
 		DisableStartupMessage: true,
 		JSONEncoder:           sonic.Marshal,
@@ -56,24 +56,10 @@ func startServicePlaneHTTPServer(ctx context.Context, services services.Services
 		return nil
 	})
 
-	return func() error {
-		return app.ShutdownWithContext(ctx)
-	}, nil
+	return app.ShutdownWithContext(ctx)
 }
 
-func ServicePlane(ctx context.Context, services services.Services) (func() error, error) {
+func ServicePlane(ctx context.Context, services services.Services) error {
 	// HTTP Server
-	killHTTPServer, httpServerError := startServicePlaneHTTPServer(ctx, services)
-
-	if httpServerError != nil {
-		return nil, httpServerError
-	}
-
-	return func() error {
-		if err := killHTTPServer(); err != nil {
-			return err
-		}
-
-		return nil
-	}, nil
+	return startServicePlaneHTTPServer(ctx, services)
 }

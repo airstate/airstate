@@ -181,14 +181,11 @@ func main() {
 				}
 			}
 
-			ctx, cancelCtx := context.WithCancel(context.Background())
-			defer cancelCtx()
+			bootErr := boot.Boot(ctx)
 
-			killServer, err := boot.Boot(ctx)
-			defer killServer()
-
-			if err != nil {
-				return err
+			if bootErr != nil {
+				log.Error().Err(bootErr).Msg("error booting server")
+				return bootErr
 			}
 
 			// signal handling for graceful shutdown
