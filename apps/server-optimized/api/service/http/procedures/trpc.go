@@ -14,6 +14,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	gonanoid "github.com/matoous/go-nanoid/v2"
 	"github.com/rs/zerolog/log"
+	"github.com/spf13/viper"
 )
 
 type SubscriptionContext struct {
@@ -67,7 +68,7 @@ func RegisterWebSocketTRPCRoute(app *fiber.App, services services.Services) {
 			log.Debug().Str("connection_id", connectionId).Any("connectionParamsMessage", connectionParamsMessage).Msg("parsed first (connectionParams) message")
 		}
 
-		maxWorkerRoutines := 4
+		maxWorkerRoutines := int(viper.GetUint8("maxWorkerRoutines"))
 		channelIndex := -1 // used for round-robin worker routine utilization
 
 		// send messages to be handled by worker

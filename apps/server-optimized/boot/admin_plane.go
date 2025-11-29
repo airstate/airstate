@@ -5,25 +5,17 @@ import (
 	"os"
 	"server-optimized/api/admin/http"
 	"server-optimized/services"
+	"strconv"
 	"time"
 
 	"github.com/bytedance/sonic"
 	"github.com/gofiber/fiber/v2"
 	"github.com/rs/zerolog/log"
+	"github.com/spf13/viper"
 )
 
-func getAdminPort() string {
-	port := os.Getenv("AIRSTATE_ADMIN_PORT")
-
-	if port == "" {
-		port = os.Getenv("ADMIN_PORT")
-	}
-
-	if port == "" {
-		port = "11002"
-	}
-
-	return port
+func getAdminPort() uint16 {
+	return viper.GetUint16("adminPort")
 }
 
 func startAdminPlaneHTTPServer(ctx context.Context, services services.Services) (func() error, error) {
@@ -47,7 +39,7 @@ func startAdminPlaneHTTPServer(ctx context.Context, services services.Services) 
 	http.RegisterAdminPlaneHTTPRoutes(app, services)
 
 	go func() {
-		if err := app.Listen(":" + getAdminPort()); err != nil {
+		if err := app.Listen(":" + strconv.Itoa(int(getAdminPort()))); err != nil {
 			log.Error().Err(err).Msg("failed to start admin-plane http server")
 			os.Exit(1)
 		}

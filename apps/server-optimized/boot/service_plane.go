@@ -2,28 +2,19 @@ package boot
 
 import (
 	"context"
-	"os"
 	"server-optimized/api/service/http"
 	"server-optimized/services"
+	"strconv"
 	"time"
 
 	"github.com/bytedance/sonic"
 	"github.com/gofiber/fiber/v2"
 	"github.com/rs/zerolog/log"
+	"github.com/spf13/viper"
 )
 
-func getServicePort() string {
-	port := os.Getenv("AIRSTATE_PORT")
-
-	if port == "" {
-		port = os.Getenv("PORT")
-	}
-
-	if port == "" {
-		port = "11001"
-	}
-
-	return port
+func getServicePort() uint16 {
+	return viper.GetUint16("port")
 }
 
 func startServicePlaneHTTPServer(ctx context.Context, services services.Services) (func() error, error) {
@@ -50,7 +41,7 @@ func startServicePlaneHTTPServer(ctx context.Context, services services.Services
 	http.RegisterServicePlaneAPIRoutes(app, services)
 
 	go func() {
-		if err := app.Listen(":" + getServicePort()); err != nil {
+		if err := app.Listen(":" + strconv.Itoa(int(getServicePort()))); err != nil {
 			log.Error().Err(err).Msg("failed to start service-plane http server")
 		}
 	}()
