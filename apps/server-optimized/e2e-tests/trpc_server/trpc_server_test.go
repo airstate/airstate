@@ -17,8 +17,7 @@ func init() {
 
 func runNodeClientTest(t *testing.T, script string) {
 	ctx := t.Context()
-	kill, bootErr := boot.Boot(ctx)
-	defer kill()
+	bootErr := boot.Boot(ctx)
 
 	if bootErr != nil {
 		t.Fatal(bootErr)
