@@ -68,7 +68,7 @@ func RegisterWebSocketTRPCRoute(app *fiber.App, services services.Services) {
 			log.Debug().Str("connection_id", connectionId).Any("connectionParamsMessage", connectionParamsMessage).Msg("parsed first (connectionParams) message")
 		}
 
-		maxWorkerRoutines := int(viper.GetUint8("maxWorkerRoutines"))
+		maxWorkerRoutines := int(viper.GetUint8("maxTransactionalRoutines"))
 		channelIndex := -1 // used for round-robin worker routine utilization
 
 		// send messages to be handled by worker

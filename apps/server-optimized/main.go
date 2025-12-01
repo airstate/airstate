@@ -8,7 +8,6 @@ import (
 	"os/signal"
 	"server-optimized/boot"
 	"syscall"
-	"time"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -19,19 +18,7 @@ import (
 )
 
 func main() {
-	zerolog.TimeFieldFormat = time.RFC3339Nano
-	zerolog.SetGlobalLevel(zerolog.InfoLevel)
-
-	viper.AddConfigPath(".")
-	viper.SetConfigName("airstate")
-	viper.SetConfigType("yaml")
-
-	viper.BindEnv("maxTransactionalRoutines", "AIRSTATE_MAX_TRANSACTIONAL_ROUTINES")
-	viper.BindEnv("adminPort", "AIRSTATE_ADMIN_PORT")
-	viper.BindEnv("port", "AIRSTATE_PORT")
-
-	viper.SetDefault("port", 11001)
-	viper.SetDefault("adminPort", 11002)
+	boot.SetupGlobals()
 
 	cli.VersionFlag = &cli.BoolFlag{
 		Name: "version",

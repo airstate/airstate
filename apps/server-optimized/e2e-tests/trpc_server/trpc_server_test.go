@@ -1,6 +1,7 @@
 package trpc_server
 
 import (
+	"context"
 	"os/exec"
 	"server-optimized/boot"
 	"testing"
@@ -11,12 +12,11 @@ import (
 )
 
 func init() {
-	zerolog.TimeFieldFormat = zerolog.TimeFormatUnixMs
+	boot.SetupGlobals()
 	zerolog.SetGlobalLevel(zerolog.DebugLevel)
 }
 
-func runNodeClientTest(t *testing.T, script string) {
-	ctx := t.Context()
+func runNodeClientTest(t *testing.T, ctx context.Context, script string) {
 	bootErr := boot.Boot(ctx)
 
 	if bootErr != nil {
@@ -47,13 +47,13 @@ func runNodeClientTest(t *testing.T, script string) {
 }
 
 func TestTRPCServerSimpleQuery(t *testing.T) {
-	runNodeClientTest(t, "test-basic-query.mts")
+	runNodeClientTest(t, t.Context(), "test-basic-query.mts")
 }
 
 func TestTRPCServerSubscription(t *testing.T) {
-	runNodeClientTest(t, "test-subscription.mts")
+	runNodeClientTest(t, t.Context(), "test-subscription.mts")
 }
 
 func TestTRPCServerSubscriptionEndByServer(t *testing.T) {
-	runNodeClientTest(t, "test-subscription-end-by-server.mts")
+	runNodeClientTest(t, t.Context(), "test-subscription-end-by-server.mts")
 }

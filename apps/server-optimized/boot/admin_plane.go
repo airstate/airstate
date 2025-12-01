@@ -55,6 +55,12 @@ func startAdminPlaneHTTPServer(ctx context.Context, services services.Services) 
 		return nil
 	})
 
+	go func() {
+		<-ctx.Done()
+		log.Info().Msg("admin-plane http server shutting down")
+		_ = app.Shutdown()
+	}()
+
 	return app.ShutdownWithContext(ctx)
 }
 
