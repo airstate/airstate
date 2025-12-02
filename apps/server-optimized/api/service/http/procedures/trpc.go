@@ -148,14 +148,16 @@ func RegisterWebSocketTRPCRoute(app *fiber.App, services services.Services) {
 								).Str(
 									"path", message.Params.Path,
 								).Msg("new transactional request")
-
 								if message.Method == "query" {
 									switch message.Params.Path {
 									case "_":
 										response, err = procedures.HandleIndexQuery(ctx, trpcContext, message.Params.Input)
 									}
 								} else if message.Method == "mutation" {
-
+									switch message.Params.Path {
+									case "serverState.watchKeys":
+										response, err = procedures.HandleServerStateWatchKeysMutation(ctx, trpcContext, message.Params.Input)
+									}
 								}
 
 								if err != nil {
@@ -218,6 +220,18 @@ func RegisterWebSocketTRPCRoute(app *fiber.App, services services.Services) {
 					switch trpcMessage.Params.Path {
 					case "seconds":
 						trpcError = procedures.HandleSecondsSubscription(subscriptionContext, trpcContext, trpcMessage.Params.Input, func(message json.RawMessage) {
+							marshaledResponseMessage, _ := sonic.Marshal(&trpcFramework.TRPCResultResponse{
+								Id: trpcMessage.Id,
+								Result: trpcFramework.TRPCResult{
+									Type: "data",
+									Data: message,
+								},
+							})
+
+							responseChannel <- marshaledResponseMessage
+						})
+					case "serverState.serverState":
+						trpcError = procedures.HandleServerStateSubscription(subscriptionContext, trpcContext, trpcMessage.Params.Input, func(message json.RawMessage) {
 							marshaledResponseMessage, _ := sonic.Marshal(&trpcFramework.TRPCResultResponse{
 								Id: trpcMessage.Id,
 								Result: trpcFramework.TRPCResult{

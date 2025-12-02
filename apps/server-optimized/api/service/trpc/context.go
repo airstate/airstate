@@ -9,14 +9,14 @@ import (
 
 type TRPCContext struct {
 	App        *fiber.App
-	Services   *services.Services
+	Services   services.Services
 	Connection *websocket.Conn
 }
 
 func CreateTRPCContext(app *fiber.App, services services.Services, connection *websocket.Conn, connectionParams *map[string]string) *TRPCContext {
 	return &TRPCContext{
 		App:        app,
-		Services:   &services,
+		Services:   services,
 		Connection: connection,
 	}
 }

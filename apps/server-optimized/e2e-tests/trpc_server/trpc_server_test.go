@@ -57,3 +57,8 @@ func TestTRPCServerSubscription(t *testing.T) {
 func TestTRPCServerSubscriptionEndByServer(t *testing.T) {
 	runNodeClientTest(t, t.Context(), "test-subscription-end-by-server.mts")
 }
+
+func TestTRPCServerServerStateWatchKeys(t *testing.T) {
+	runNodeClientTest(t, t.Context(), "test-server-state-watch-keys.mts")
+}
+

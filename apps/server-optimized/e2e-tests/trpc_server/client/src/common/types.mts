@@ -1,4 +1,20 @@
-import { TRPCQueryProcedure, TRPCBuiltRouter, TRPCSubscriptionProcedure } from '@trpc/server';
+import { TRPCQueryProcedure, TRPCBuiltRouter, TRPCSubscriptionProcedure, TRPCMutationProcedure } from '@trpc/server';
+
+export type TServerStateMessage =
+    | {
+          type: 'session-info';
+          session_id: string;
+      }
+    | {
+          type: 'init';
+      }
+    | {
+          type: 'updates';
+          updates: Array<{
+              key: string;
+              value: any;
+          }>;
+      };
 
 export type TRouter = TRPCBuiltRouter<
     any,
@@ -18,5 +34,27 @@ export type TRouter = TRPCBuiltRouter<
                 unix: number;
             };
         }>;
+        serverState: {
+            serverState: TRPCSubscriptionProcedure<{
+                meta: unknown;
+                input: {};
+                output: TServerStateMessage;
+            }>;
+            watchKeys: TRPCMutationProcedure<{
+                meta: unknown;
+                input: {
+                    appId: string;
+                    sessionId: string;
+                    keys: string[];
+                };
+                output: Record<
+                    string,
+                    {
+                        key: string;
+                        value: any;
+                    }
+                >;
+            }>;
+        };
     }
 >;
